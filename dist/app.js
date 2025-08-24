@@ -1,9 +1,11 @@
 "use strict";
 //@ts-nocheck
+const btnEditWord = document.getElementById("edit");
 Office.onReady((info) => {
     // Check that we loaded into Word
     if (info.host === Office.HostType.Word) {
         document.getElementById("helloButton").onclick = sayHello;
+        btnEditWord === null || btnEditWord === void 0 ? void 0 : btnEditWord.onclick = () => altert("Edit Word Is Working");
     }
 });
 function sayHello() {
