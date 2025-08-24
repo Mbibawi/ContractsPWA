@@ -51,7 +51,7 @@ async function getRichTextContentControlTitles(): Promise<RichTextProps[] | void
       // 4. Filter to only Rich Text controls and collect their titles
         return (allControls.items as RichText[])
             .filter(cc => cc.type === Word.ContentControlType.richText)
-            .map(cc => { cc.title || 'NoTitle', cc.id });
+            .map(cc => {{ cc.title || 'NoTitle', cc.id }});
         
 
     });
