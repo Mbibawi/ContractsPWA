@@ -1,4 +1,3 @@
-"use strict";
 let ctrls;
 //@ts-ignore
 Office.onReady((info) => {
@@ -8,13 +7,19 @@ Office.onReady((info) => {
         if (btnEditWord)
             btnEditWord.ondblclick = () => sayHello('Contracts App Works');
         getRichTextContentControlTitles()
-            .then(titels => {
-            ctrls = titels;
+            .then(ctrls => {
+            const userForm = document.getElementById("userFormSection");
+            if (!userForm || !ctrls)
+                return;
             console.log('RichText = ', ctrls);
-            ctrls.forEach(title => {
+            ctrls.forEach(ctrl => {
+                if (!ctrl)
+                    return;
                 const p = document.createElement('p');
-                p.textContent = title;
-                document.body.appendChild(p);
+                p.textContent = ctrl.title || 'NoTitle';
+                p.id = ctrl.id.toString();
+                userForm.appendChild(p);
+                p.onclick = () => hideContentControlById(ctrl.id);
             });
         });
     }
@@ -33,16 +38,35 @@ async function getRichTextContentControlTitles() {
         // 1. Grab the collection of all content controls in the document
         const allControls = context.document.contentControls;
         // 2. Queue up a load for each control’s title and type
-        allControls.load("items/title,type");
+        allControls.load("items/title,id,type");
         // 3. Execute the queued commands
         await context.sync();
         // 4. Filter to only Rich Text controls and collect their titles
-        const titles = allControls.items
+        return allControls.items
             .filter(cc => cc.type === Word.ContentControlType.richText)
-            .map(cc => cc.title);
-        // 5. (Optional) Log or return the titles
-        console.log("Rich Text Content Control Titles:", titles);
-        return titles;
+            .map(cc => { cc.title || 'NoTitle', cc.id; });
     });
 }
+/**
+ * Hides the content control with the given ID by setting its appearance to "hidden".
+ * @param ccId The unique ID (GUID as number) of the content control to hide.
+ */
+async function hideContentControlById(ccId) {
+    await Word.run(async (context) => {
+        // 1. Try to get the control by its ID (returns a null object if not found)
+        const cc = context.document.contentControls.getByIdOrNullObject(ccId);
+        cc.load("isNullObject");
+        await context.sync();
+        if (cc.isNullObject) {
+            console.warn(`ContentControl id=${ccId} not found.`);
+            return;
+        }
+        // 2. Set its appearance to hidden (no bounding box or tag marks)
+        cc.appearance = Word.ContentControlAppearance.hidden;
+        // 3. Push the change
+        await context.sync();
+        console.log(`ContentControl id=${ccId} is now hidden.`);
+    });
+}
+export {};
 //# sourceMappingURL=app.js.map
