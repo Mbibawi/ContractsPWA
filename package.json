@@ -1,0 +1,14 @@
+{
+  "dependencies": {
+    "@google-cloud/speech": "^7.1.0",
+    "@google-cloud/storage": "^7.16.0",
+    "@google-cloud/text-to-speech": "^6.1.0",
+    "@google-cloud/translate": "^9.2.0",
+    "@google/genai": "^1.4.0",
+    "google-one-tap": "^1.0.6",
+    "music-metadata": "^11.4.0"
+  },
+  "devDependencies": {
+    "@types/google.accounts": "^0.0.16"
+  }
+}

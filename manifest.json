@@ -1,0 +1,33 @@
+{
+  "name": "Learn Italian With Gemini",
+  "short_name": "Learn Italian",
+  "description": "A Progressive Web App to learn Italian using Gemini AI.",
+  "version": "1.0.0",
+  "manifest_version": 3,
+  "author": "Mina BIBAWI",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#0078D4",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "scope": "/",
+  "orientation": "portrait",
+  "dir": "ltr",
+  "lang": "en-US",
+  "categories": [
+    "edu",
+    "productivity",
+    "utilities"
+  ]
+}

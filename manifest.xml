@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0" xmlns:wordext="http://schemas.microsoft.com/office/word/add-in/1.0" xsi:type="TaskPaneApp">
+	<Id>
+		{your-add-in-id}
+	</Id>
+	<Version>
+		1.0.0.0
+	</Version>
+	<ProviderName>
+		Mina Bibawi
+	</ProviderName>
+	<DefaultLocale>
+		en-US
+	</DefaultLocale>
+	<DisplayName DefaultValue="Sentence Adder" />
+	<Description DefaultValue="A simple add-in to insert a sentence into Word using a dialog box." />
+	<IconUrl DefaultValue="https://my-awesome-addin.com/assets/icon-32.png" />
+	<HighResolutionIconUrl DefaultValue="https://my-awesome-addin.com/assets/icon-64.png" />
+	<SupportUrl DefaultValue="https://my-awesome-addin.com/help" />
+	<AppDomains>
+		<AppDomain>
+			https://my-awesome-addin.com
+		</AppDomain>
+	</AppDomains>
+	<Hosts>
+		<Host Name="Word" />
+	</Hosts>
+	<Requirements>
+		<Sets>
+			<Set Name="WordApi" MinVersion="1.3" />
+		</Sets>
+	</Requirements>
+	<FormSettings>
+		<Form>
+			<Url DefaultValue="https://my-awesome-addin.com/taskpane.html" />
+		</Form>
+	</FormSettings>
+	<OfficeApp>
+		<Id>
+			{your-add-in-id}
+		</Id>
+		<Version>
+			1.0.0.0
+		</Version>
+		<ProviderName>
+			Your Company
+		</ProviderName>
+		<DefaultLocale>
+			en-US
+		</DefaultLocale>
+		<DisplayName DefaultValue="Sentence Adder" />
+		<Description DefaultValue="A simple add-in to insert a sentence into Word using a dialog box." />
+		<IconUrl DefaultValue="https://my-awesome-addin.com/assets/icon-32.png" />
+		<HighResolutionIconUrl DefaultValue="https://my-awesome-addin.com/assets/icon-64.png" />
+		<SupportUrl DefaultValue="https://my-awesome-addin.com/help" />
+		<AppDomains>
+			<AppDomain>
+				https://my-awesome-addin.com
+			</AppDomain>
+		</AppDomains>
+		<Hosts>
+			<Host Name="Word" />
+		</Hosts>
+		<Requirements>
+			<Sets>
+				<Set Name="WordApi" MinVersion="1.3" />
+			</Sets>
+		</Requirements>
+		<FormSettings>
+			<Form>
+				<Url DefaultValue="https://my-awesome-addin.com/taskpane.html" />
+			</Form>
+		</FormSettings>
+		<OfficeAddin>
+			<Id>
+				{your-add-in-id}
+			</Id>
+			<Version>
+				1.0.0.0
+			</Version>
+			<ProviderName>
+				Your Company
+			</ProviderName>
+			<DefaultLocale>
+				en-US
+			</DefaultLocale>
+			<DisplayName DefaultValue="Sentence Adder" />
+			<Description DefaultValue="A simple add-in to insert a sentence into Word using a dialog box." />
+			<IconUrl DefaultValue="https://my-awesome-addin.com/assets/icon-32.png" />
+			<HighResolutionIconUrl DefaultValue="https://my-awesome-addin.com/assets/icon-64.png" />
+			<SupportUrl DefaultValue="https://my-awesome-addin.com/help" />
+			<AppDomains>
+				<AppDomain>
+					https://my-awesome-addin.com
+				</AppDomain>
+			</AppDomains>
+			<Hosts>
+				<Host Name="Word" />
+			</Hosts>
+			<Requirements>
+				<Sets>
+					<Set Name="WordApi" MinVersion="1.3" />
+				</Sets>
+			</Requirements>
+			<Dialog>
+				<SourceLocation DefaultValue="https://my-awesome-addin.com/dialog.html" />
+			</Dialog>
+		</OfficeAddin>
+	</OfficeApp>
+</OfficeApp>

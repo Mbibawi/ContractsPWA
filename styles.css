@@ -1,0 +1,175 @@
+/* General Body and Typography */
+body {
+  font-family: 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  margin: 0;
+  padding: 20px;
+  background-color: #f0f2f5; /* Light gray background */
+  color: #333;
+  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Center content horizontally */
+}
+
+h1 {
+  color: #2c3e50; /* Darker blue-gray for headings */
+  text-align: center;
+  margin-bottom: 30px;
+  font-size: 2.5em;
+  font-weight: 700;
+}
+
+h2 {
+  color: #34495e; /* Slightly lighter than h1 */
+  margin-top: 40px;
+  margin-bottom: 20px;
+  font-size: 1.8em;
+  border-bottom: 2px solid #e0e0e0;
+  padding-bottom: 10px;
+  text-align: center;
+}
+
+p.sentence, p.translation{
+  text-align: justify;
+  font-family: "Times New Roman", serif;
+  font-size: 12pt;
+}
+
+p.translation {
+  font-style: italic;
+  color: green;
+}
+
+/* Sections */
+section {
+  background-color: #ffffff;
+  padding: 30px;
+  margin-bottom: 30px;
+  border-radius: 10px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); /* Soft shadow for depth */
+  width: 100%;
+  max-width: 700px; /* Max width for readability on large screens */
+  box-sizing: border-box; /* Include padding in width */
+}
+
+/* Form Elements - Labels, Inputs, Selects, Textareas */
+div {
+  margin-bottom: 15px; /* Spacing between form groups */
+}
+
+label {
+  display: block; /* Each label on its own line */
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #555;
+  font-size: 0.95em;
+}
+
+input[type="number"],
+select,
+textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1em;
+  color: #333;
+  box-sizing: border-box; /* Include padding in width */
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+input[type="number"]:focus,
+select:focus,
+textarea:focus {
+  border-color: #3498db; /* Blue highlight on focus */
+  box-shadow: 0 0 8px rgba(52, 152, 219, 0.2);
+  outline: none; /* Remove default outline */
+}
+
+textarea {
+  resize: vertical; /* Allow vertical resizing only */
+  min-height: 80px;
+}
+
+/* Buttons */
+button {
+  background-color: #3498db; /* Primary blue button */
+  color: white;
+  padding: 12px 25px;
+  border: none;
+  border-radius: 6px;
+  font-size: 1.1em;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  margin-right: 10px; /* Space between buttons */
+  margin-top: 10px;
+}
+
+button:hover {
+  background-color: #2980b9; /* Darker blue on hover */
+  transform: translateY(-2px); /* Slight lift effect */
+}
+
+button:active {
+  transform: translateY(0); /* Return to original position on click */
+}
+
+/* Gemini Response Output Area */
+.output {
+  display: grid;
+  grid-column-gap: 4px;
+  background-color: #ecf0f1; /* Light gray for output area */
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 15px;
+  margin-top: 15px;
+  min-height: 50px;
+  font-size: 1em;
+  color: #2c3e50;
+  white-space: pre-wrap; /* Preserve whitespace and break lines */
+  word-wrap: break-word; /* Break long words */
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  body {
+      padding: 15px;
+  }
+
+  h1 {
+      font-size: 2em;
+  }
+
+  h2 {
+      font-size: 1.5em;
+  }
+
+  section {
+      padding: 20px;
+      margin-bottom: 20px;
+  }
+
+  button {
+      width: 100%; /* Full width buttons on small screens */
+      margin-right: 0;
+      margin-bottom: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+      padding: 10px;
+  }
+
+  h1 {
+      font-size: 1.8em;
+  }
+
+  h2 {
+      font-size: 1.3em;
+  }
+
+  section {
+      padding: 15px;
+  }
+}
