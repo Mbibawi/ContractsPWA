@@ -1,0 +1,1 @@
+type RichText = Word.ContentControl & { type: Word.ContentControlType.richText };
