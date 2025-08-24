@@ -1,5 +1,3 @@
-import { title } from "process";
-
 Office.onReady((info) => {
     // Check that we loaded into Word
  
