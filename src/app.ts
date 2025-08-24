@@ -3,7 +3,7 @@
 Office.onReady((info) => {
     // Check that we loaded into Word
     if (info.host === Office.HostType.Word) {
-        document.getElementById("helloButton").onclick = sayHello;
+        document.getElementById("helloButton")?.onclick = sayHello;
         const btnEditWord = document.getElementById("edit");
         btnEditWord?.onclick = () => altert("Edit Word Is Working");
     }
