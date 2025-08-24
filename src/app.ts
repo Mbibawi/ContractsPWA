@@ -1,6 +1,4 @@
-//@ts-ignore
-import * as Word from "@microsoft/office-js/word";
-
+let ctrls: string[];
 //@ts-ignore
 Office.onReady((info) => {
     // Check that we loaded into Word
@@ -11,7 +9,10 @@ Office.onReady((info) => {
         if (btnEditWord)
             btnEditWord.ondblclick = () => sayHello('Contracts App Works');
         getRichTextContentControlTitles()
-            .then(titels => console.log('Found titles = ', titels));
+            .then(titels => {
+                ctrls = titels;
+                console.log('RichText = ', ctrls);
+            });
     }
 });
 
@@ -48,11 +49,7 @@ async function getRichTextContentControlTitles(): Promise<string[]> {
       console.log("Rich Text Content Control Titles:", titles);
       return titles;
     });
-  }
+}
   
-  // Example invocation
-  getRichTextContentControlTitles()
-    .then(titles => {
-      // Do something with the titles array
-    })
-    .catch(error => console.error(error));
+
+  
