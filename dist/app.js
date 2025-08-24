@@ -11,6 +11,11 @@ Office.onReady((info) => {
             .then(titels => {
             ctrls = titels;
             console.log('RichText = ', ctrls);
+            ctrls.forEach(title => {
+                const p = document.createElement('p');
+                p.textContent = title;
+                document.body.appendChild(p);
+            });
         });
     }
 });
