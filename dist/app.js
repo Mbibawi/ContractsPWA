@@ -5,13 +5,14 @@ Office.onReady((info) => {
     if (info.host === Office.HostType.Word) {
         //document.getElementById("helloButton")?.onclick = sayHello;
         const btnEditWord = document.getElementById("edit");
-        btnEditWord === null || btnEditWord === void 0 ? void 0 : btnEditWord.onclick = () => altert("Edit Word Is Working");
+        btnEditWord === null || btnEditWord === void 0 ? void 0 : btnEditWord.onclick = () => alert("Edit Word Is Working");
+        btnEditWord === null || btnEditWord === void 0 ? void 0 : btnEditWord.ondblclick = () => sayHello();
     }
 });
 function sayHello() {
     return Word.run((context) => {
         // insert a paragraph at the start of the document.
-        const paragraph = context.document.body.insertParagraph("Hello World", Word.InsertLocation.start);
+        const paragraph = context.document.body.insertParagraph("Contracts App Works", Word.InsertLocation.start);
         // sync the context to run the previous API call, and return.
         return context.sync();
     });
