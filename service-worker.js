@@ -1,10 +1,11 @@
-const CACHE_NAME = 'learnItalian-cache-v1'; // Increment this version number when you update your app's assets
+const CACHE_NAME = 'ContractsApp-cache-v1'; // Increment this version number when you update your app's assets
 const OFFLINE_URL = '/offline.html'; // Path to your custom offline page (recommended for better UX)
 
 // List of essential files that make up your app shell, to be precached
 const urlsToCache = [
   '/', // Your root URL
   '/index.html',
+  '/taskpane.html',
   '/styles.css',
   '/app.js',
   '/icons/icon-192.png', // Example: include any crucial images

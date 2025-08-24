@@ -1,117 +1,87 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<OfficeApp
-  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0">
-
-  <!-- 1. Core Properties -->
-  <Id>705e2315-952d-447d-aed2-26ea11349a86</Id>
+  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+  xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="TaskPaneApp">
+  <Id>b7c02b21-4f10-4824-81d7-2f10b284813f</Id>
   <Version>1.0.0.0</Version>
-  <ProviderName>Mina Bibawi</ProviderName>
+  <ProviderName>Contracts App</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
-
-  <DisplayName DefaultValue="Sentence Adder" />
-  <Description DefaultValue="A simple add-in to insert a sentence into Word using a dialog." />
-
-  <IconUrl DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/icon-32.png" />
-  <HighResolutionIconUrl DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/icon-64.png" />
-  <SupportUrl DefaultValue="https://mbibawi.github.io/ContractsPWA/help" />
-
+  <DisplayName DefaultValue="Hello world"/>
+  <Description DefaultValue="A simple hello world Office Add-in."/>
+  <IconUrl DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/icon-144.png"/>
+  <HighResolutionIconUrl DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/icon-256.png"/>
+  <SupportUrl DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/icon-256.png"/>
   <AppDomains>
-    <AppDomain>https://mbibawi.github.io</AppDomain>
+    <AppDomain>https://mbibawi.github.io/ContractsPWA</AppDomain>
   </AppDomains>
-
   <Hosts>
-    <Host Name="Word" />
+    <Host Name="Document"/>
   </Hosts>
-
-  <Requirements>
-    <Sets>
-      <Set Name="WordApi" MinVersion="1.3" />
-    </Sets>
-  </Requirements>
-
-  <!-- 2. Fallback for Clients That Don’t Understand VersionOverrides -->
   <DefaultSettings>
-    <SourceLocation DefaultValue="https://mbibawi.github.io/ContractsPWA/taskpane.html" />
+    <SourceLocation DefaultValue="https://mbibawi.github.io/ContractsPWA/taskpane.html"/>
   </DefaultSettings>
-
-  <!-- 3. New-style Overrides with Ribbon Commands & Dialog -->
-  <VersionOverrides
-    xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
-    xsi:type="VersionOverridesV1_0">
-
+  <Permissions>ReadWriteDocument</Permissions>
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
     <Hosts>
-      <Host xsi:type="WordHost">
+      <Host xsi:type="Document">
         <DesktopFormFactor>
-
-          <ExtensionPoint xsi:type="ShowTaskpane">
+          <GetStarted>
+            <Title resid="GetStarted.Title"/>
+            <Description resid="GetStarted.Description"/>
+            <LearnMoreUrl resid="GetStarted.LearnMoreUrl"/>
+          </GetStarted>
+          <ExtensionPoint xsi:type="PrimaryCommandSurface">
             <OfficeTab id="TabHome">
-              <Group id="SentenceGroup" label="Sentence Adder">
-
-                <Control xsi:type="Button" id="ShowPaneButton">
-                  <Label resid="paneLabel" />
+              <Group id="CommandsGroup">
+                <Label resid="CommandsGroup.Label"/>
+                <Icon>
+                  <bt:Image size="144" resid="Icon.144x144"/>
+                  <bt:Image size="256" resid="Icon.256x256"/>
+                  <bt:Image size="80" resid="Icon.80x80"/>
+                </Icon>
+                <Control xsi:type="Button" id="TaskpaneButton">
+                  <Label resid="TaskpaneButton.Label"/>
                   <Supertip>
-                    <Title resid="paneLabel" />
-                    <Description resid="paneDesc" />
+                    <Title resid="TaskpaneButton.SupertipTitle"/>
+                    <Description resid="TaskpaneButton.SupertipText"/>
                   </Supertip>
                   <Icon>
-                    <bt:Image size="144" resid="icon144" />
-                    <bt:Image size="256" resid="icon256" />
+                    <bt:Image size="144" resid="Icon.144x144"/>
+                    <bt:Image size="256" resid="Icon.256x256"/>
+                    <bt:Image size="80" resid="Icon.80x80"/>
                   </Icon>
                   <Action xsi:type="ShowTaskpane">
-                    <SourceLocation resid="taskpaneUrl" />
+                    <TaskpaneId>ButtonId1</TaskpaneId>
+                    <SourceLocation resid="Taskpane.Url"/>
                   </Action>
                 </Control>
-
-                <Control xsi:type="Button" id="LaunchDialogButton">
-                  <Label resid="dialogLabel" />
-                  <Supertip>
-                    <Title resid="dialogLabel" />
-                    <Description resid="dialogDesc" />
-                  </Supertip>
-                  <Icon>
-                    <bt:Image size="144" resid="icon144" />
-                    <bt:Image size="256" resid="icon256" />
-                  </Icon>
-                  <Action xsi:type="LaunchDialog">
-                    <SourceLocation resid="dialogUrl" />
-                    <Height>50%</Height>
-                    <Width>50%</Width>
-                  </Action>
-                </Control>
-
               </Group>
             </OfficeTab>
           </ExtensionPoint>
-
         </DesktopFormFactor>
       </Host>
     </Hosts>
-
     <Resources>
-
-      <bt:Urls>
-        <bt:Url id="taskpaneUrl"
-                DefaultValue="https://mbibawi.github.io/ContractsPWA/taskpane.html" />
-        <bt:Url id="dialogUrl"
-                DefaultValue="https://mbibawi.github.io/ContractsPWA/dialog.html" />
-      </bt:Urls>
-
-      <bt:ShortStrings>
-        <bt:String id="paneLabel"   DefaultValue="Open Sentence Pane" />
-        <bt:String id="paneDesc"    DefaultValue="Insert or edit a sentence" />
-        <bt:String id="dialogLabel" DefaultValue="Open Sentence Dialog" />
-        <bt:String id="dialogDesc"  DefaultValue="Add a sentence via dialog" />
-      </bt:ShortStrings>
-
       <bt:Images>
-        <bt:Image id="icon144"
-                  DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/icon-144.png" />
-        <bt:Image id="icon256"
-                  DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/icon-256.png" />
+        <bt:Image id="icon-144" DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/icon-144.png"/>
+        <bt:Image id="icon-256" DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/icon-256.png"/>
+        <bt:Image id="Icon.80x80" DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/icon-80.png"/>
       </bt:Images>
-
+      <bt:Urls>
+        <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="http://go.microsoft.com/fwlink/?LinkId=276812"/>
+        <bt:Url id="Taskpane.Url" DefaultValue="https://mbibawi.github.io/ContractsPWA/taskpane.html"/>
+      </bt:Urls>
+      <bt:ShortStrings>
+        <bt:String id="GetStarted.Title" DefaultValue="Get started with the Hello world add-in!"/>
+        <bt:String id="CommandsGroup.Label" DefaultValue="Contracts Add-in"/>
+        <bt:String id="TaskpaneButton.Label" DefaultValue="Hello world"/>
+        <bt:String id="TaskpaneButton.SupertipTitle" DefaultValue="Hello world"/>
+      </bt:ShortStrings>
+      <bt:LongStrings>
+        <bt:String id="GetStarted.Description" DefaultValue="Your sample add-in loaded successfully. Go to the HOME tab and click the 'Hello world' button to get started."/>
+        <bt:String id="TaskpaneButton.SupertipText" DefaultValue="Open the Hello world add-in"/>
+      </bt:LongStrings>
     </Resources>
   </VersionOverrides>
 </OfficeApp>

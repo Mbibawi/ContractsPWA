@@ -1,7 +1,7 @@
 {
-  "name": "Learn Italian With Gemini",
-  "short_name": "Learn Italian",
-  "description": "A Progressive Web App to learn Italian using Gemini AI.",
+  "name": "Contracts App",
+  "short_name": "Contracts App",
+  "description": "A PWA to edit contracts",
   "version": "1.0.0",
   "manifest_version": 3,
   "author": "Mina BIBAWI",
