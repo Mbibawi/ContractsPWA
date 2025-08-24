@@ -1,4 +1,3 @@
-"use strict";
 Office.onReady((info) => {
     // Check that we loaded into Word
     if (info.host === Office.HostType.Word) {
@@ -34,6 +33,7 @@ function sayHello(sentence) {
 }
 async function getRichTextContentControlTitles() {
     return Word.run(async (context) => {
+        const getProps = (cc) => ({ title: cc.title || 'NoTitle', id: cc.id });
         // 1. Grab the collection of all content controls in the document
         const allControls = context.document.contentControls;
         // 2. Queue up a load for each control’s title and type
@@ -43,9 +43,7 @@ async function getRichTextContentControlTitles() {
         // 4. Filter to only Rich Text controls and collect their titles
         return allControls.items
             .filter(cc => cc.type === Word.ContentControlType.richText)
-            .map(cc => { {
-            cc.title || 'NoTitle', cc.id;
-        } });
+            .map(cc => getProps(cc));
     });
 }
 /**
@@ -69,4 +67,5 @@ async function hideContentControlById(ccId) {
         console.log(`ContentControl id=${ccId} is now hidden.`);
     });
 }
+export {};
 //# sourceMappingURL=app.js.map

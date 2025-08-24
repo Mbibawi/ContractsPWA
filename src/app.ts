@@ -1,3 +1,5 @@
+import { title } from "process";
+
 Office.onReady((info) => {
     // Check that we loaded into Word
  
@@ -38,7 +40,8 @@ function sayHello(sentence: string) {
 }
 
 async function getRichTextContentControlTitles(): Promise<RichTextProps[] | void[]> {
-    return Word.run(async (context:any) => {
+    return Word.run(async (context: any) => {
+        const getProps = (cc: RichText): RichTextProps => ({title: cc.title || 'NoTitle', id: cc.id});
       // 1. Grab the collection of all content controls in the document
       const allControls = context.document.contentControls;
       
@@ -51,9 +54,7 @@ async function getRichTextContentControlTitles(): Promise<RichTextProps[] | void
       // 4. Filter to only Rich Text controls and collect their titles
         return (allControls.items as RichText[])
             .filter(cc => cc.type === Word.ContentControlType.richText)
-            .map(cc => {{ cc.title || 'NoTitle', cc.id }});
-        
-
+            .map(cc => getProps(cc));
     });
 }
 
