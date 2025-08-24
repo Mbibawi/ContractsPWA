@@ -14,12 +14,12 @@
 	</DefaultLocale>
 	<DisplayName DefaultValue="Sentence Adder" />
 	<Description DefaultValue="A simple add-in to insert a sentence into Word using a dialog box." />
-	<IconUrl DefaultValue="https://my-awesome-addin.com/assets/icon-32.png" />
-	<HighResolutionIconUrl DefaultValue="https://my-awesome-addin.com/assets/icon-64.png" />
-	<SupportUrl DefaultValue="https://my-awesome-addin.com/help" />
+	<IconUrl DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/icon-32.png" />
+	<HighResolutionIconUrl DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/icon-64.png" />
+	<SupportUrl DefaultValue="https://mbibawi.github.io/ContractsPWA/help" />
 	<AppDomains>
 		<AppDomain>
-			https://my-awesome-addin.com
+			https://mbibawi.github.io/ContractsPWA
 		</AppDomain>
 	</AppDomains>
 	<Hosts>
@@ -32,7 +32,7 @@
 	</Requirements>
 	<FormSettings>
 		<Form>
-			<Url DefaultValue="https://my-awesome-addin.com/taskpane.html" />
+			<Url DefaultValue="https://mbibawi.github.io/ContractsPWA/taskpane.html" />
 		</Form>
 	</FormSettings>
 	<OfficeApp>
@@ -43,19 +43,19 @@
 			1.0.0.0
 		</Version>
 		<ProviderName>
-			Your Company
+			Mina Bibawi
 		</ProviderName>
 		<DefaultLocale>
 			en-US
 		</DefaultLocale>
 		<DisplayName DefaultValue="Sentence Adder" />
 		<Description DefaultValue="A simple add-in to insert a sentence into Word using a dialog box." />
-		<IconUrl DefaultValue="https://my-awesome-addin.com/assets/icon-32.png" />
-		<HighResolutionIconUrl DefaultValue="https://my-awesome-addin.com/assets/icon-64.png" />
-		<SupportUrl DefaultValue="https://my-awesome-addin.com/help" />
+		<IconUrl DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/icon-32.png" />
+		<HighResolutionIconUrl DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/icon-64.png" />
+		<SupportUrl DefaultValue="https://mbibawi.github.io/ContractsPWA/help" />
 		<AppDomains>
 			<AppDomain>
-				https://my-awesome-addin.com
+				https://mbibawi.github.io/ContractsPWA
 			</AppDomain>
 		</AppDomains>
 		<Hosts>
@@ -68,30 +68,30 @@
 		</Requirements>
 		<FormSettings>
 			<Form>
-				<Url DefaultValue="https://my-awesome-addin.com/taskpane.html" />
+				<Url DefaultValue="https://mbibawi.github.io/ContractsPWA/taskpane.html" />
 			</Form>
 		</FormSettings>
 		<OfficeAddin>
 			<Id>
-				{your-add-in-id}
+				705e2315-952d-447d-aed2-26ea11349a86
 			</Id>
 			<Version>
 				1.0.0.0
 			</Version>
 			<ProviderName>
-				Your Company
+				Mina Bibawi
 			</ProviderName>
 			<DefaultLocale>
 				en-US
 			</DefaultLocale>
 			<DisplayName DefaultValue="Sentence Adder" />
 			<Description DefaultValue="A simple add-in to insert a sentence into Word using a dialog box." />
-			<IconUrl DefaultValue="https://my-awesome-addin.com/assets/icon-32.png" />
-			<HighResolutionIconUrl DefaultValue="https://my-awesome-addin.com/assets/icon-64.png" />
-			<SupportUrl DefaultValue="https://my-awesome-addin.com/help" />
+			<IconUrl DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/icon-32.png" />
+			<HighResolutionIconUrl DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/icon-64.png" />
+			<SupportUrl DefaultValue="https://mbibawi.github.io/ContractsPWA/help" />
 			<AppDomains>
 				<AppDomain>
-					https://my-awesome-addin.com
+					https://mbibawi.github.io/ContractsPWA
 				</AppDomain>
 			</AppDomains>
 			<Hosts>
@@ -103,7 +103,7 @@
 				</Sets>
 			</Requirements>
 			<Dialog>
-				<SourceLocation DefaultValue="https://my-awesome-addin.com/dialog.html" />
+				<SourceLocation DefaultValue="https://mbibawi.github.io/ContractsPWA/dialog.html" />
 			</Dialog>
 		</OfficeAddin>
 	</OfficeApp>
