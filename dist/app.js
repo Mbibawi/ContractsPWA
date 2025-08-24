@@ -1,5 +1,4 @@
-let ctrls;
-//@ts-ignore
+"use strict";
 Office.onReady((info) => {
     // Check that we loaded into Word
     if (info.host === Office.HostType.Word) {
@@ -68,5 +67,4 @@ async function hideContentControlById(ccId) {
         console.log(`ContentControl id=${ccId} is now hidden.`);
     });
 }
-export {};
 //# sourceMappingURL=app.js.map
