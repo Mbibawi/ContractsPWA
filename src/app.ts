@@ -1,5 +1,3 @@
-import { build } from './../node_modules/protobufjs/index.d';
-import { sendUnaryData } from './../node_modules/@grpc/grpc-js/src/server-call';
 Office.onReady((info) => {
     // Check that we loaded into Word
  

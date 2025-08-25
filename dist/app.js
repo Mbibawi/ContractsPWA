@@ -1,3 +1,4 @@
+"use strict";
 Office.onReady((info) => {
     // Check that we loaded into Word
     if (info.host === Office.HostType.Word) {
@@ -136,5 +137,4 @@ async function insertRichTextContentControlAroundSelection() {
         await context.sync();
     });
 }
-export {};
 //# sourceMappingURL=app.js.map
