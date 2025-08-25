@@ -1,2 +1,3 @@
 type RichText = Word.ContentControl & { type: Word.ContentControlType.richText };
-type RichTextProps = { title: string; id: number };
+
+type contentControl = {id:number, title?:string, tag?:string, delete?:boolean, content?:string|null}
