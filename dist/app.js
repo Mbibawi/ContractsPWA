@@ -15,7 +15,8 @@ function buildUI() {
             btnEditWord.onclick = () => sayHello('Contracts App Works');
     })();
     (function insertBtns() {
-        insertBtn(insertRichTextContentControlAroundSelection);
+        insertBtn(insertRichTextContentControlAroundSelection, 'Insert Rich Text Control');
+        insertBtn(openInputDialog, 'Open Input Dialog');
     })();
     (function addElements() {
         getRichTextContentControlTitles()
@@ -32,12 +33,12 @@ function buildUI() {
             });
         });
     })();
-    function insertBtn(fun) {
+    function insertBtn(fun, text) {
         if (!userForm)
             return;
         const btn = document.createElement('button');
         userForm.appendChild(btn);
-        btn.innerText = 'Insert Rich Text';
+        btn.innerText = text;
         btn.onclick = () => fun();
     }
 }
@@ -70,7 +71,6 @@ function insertUIElements(cc) {
     }
 }
 function sayHello(sentence) {
-    //@ts-ignore
     return Word.run((context) => {
         // insert a paragraph at the start of the document.
         const paragraph = context.document.body.insertParagraph(sentence, Word.InsertLocation.start);
@@ -120,6 +120,7 @@ async function insertRichTextContentControlAroundSelection() {
     await Word.run(async (context) => {
         // get the current selection
         const selection = context.document.getSelection();
+        selection.load('isEmpty');
         await context.sync();
         // abort if nothing is selected
         if (selection.isEmpty) {
@@ -128,13 +129,33 @@ async function insertRichTextContentControlAroundSelection() {
         }
         // 3. Wrap the selection in a RichText content control
         const cc = selection.insertContentControl(Word.ContentControlType.richText);
-        cc.tag = prompt('Enter a tag for the new Rich Text control:', 'MyTag') || 'MyTag';
-        cc.title = prompt('Enter a title for the new Rich Text control:', 'My Title') || 'My Title';
+        cc.tag = window.prompt('Enter a tag for the new Rich Text control:', 'MyTag') || 'MyTag';
+        cc.title = window.prompt('Enter a title for the new Rich Text control:', 'My Title') || 'My Title';
         cc.appearance = Word.ContentControlAppearance.boundingBox;
         cc.color = "blue";
         // Log the content control properties
         console.log(`ContentControl created with ID: ${cc.id}, Tag: ${cc.tag}, Title: ${cc.title}`);
         await context.sync();
     });
+}
+function openInputDialog() {
+    let dialog;
+    Office.context.ui.displayDialogAsync("https://mbibawi.github.io/ContractsPWA/dialog.html", { height: 30, width: 30 }, (asyncResult) => {
+        if (asyncResult.status === Office.AsyncResultStatus.Failed) {
+            console.error(asyncResult.error.message);
+            return;
+        }
+        dialog = asyncResult.value;
+        // Listen for messages from the dialog
+        dialog.addEventHandler(Office.EventType.DialogMessageReceived, onDialogMessage);
+    });
+    async function onDialogMessage(arg) {
+        const text = arg.message;
+        dialog.close();
+        await Word.run(async (context) => {
+            context.document.getSelection().insertText(text, Word.InsertLocation.replace);
+            await context.sync();
+        });
+    }
 }
 //# sourceMappingURL=app.js.map
