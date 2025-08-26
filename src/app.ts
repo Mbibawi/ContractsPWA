@@ -415,6 +415,7 @@ async function wrapTextWithContentControlsByStyle(style: string, tag:string): Pr
         searchResults.items.forEach((range, index) => {
             if (!range.style || range.style !== style) return;
             // Insert a rich text content control around the found range.
+            range.select("Select")
             const contentControl = range.insertContentControl();
                        
             // Set properties for the new content control.
