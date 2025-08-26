@@ -338,12 +338,12 @@ async function wrapTextWithContentControlsByStyle(style, tag) {
             matchWildcards: true,
         });
         // Load the ranges found by the search.
-        searchOptions.load('isNullObject');
+        searchOptions.load(['isNullObject']);
         await context.sync();
         if (searchOptions.isNullObject)
             return console.log('searchOptions isNullObject');
-        const foundRanges = searchOptions.load('items');
-        searchOptions.items.forEach(item => item.load('style'));
+        const foundRanges = searchOptions.load(['items']);
+        searchOptions.items.forEach(item => item.load(['style']));
         await context.sync();
         if (!foundRanges.items.length) {
             console.log(`No text with the style "${style}" was found in the document.`);
