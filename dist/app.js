@@ -344,20 +344,26 @@ async function wrapTextWithContentControlsByStyle(style, tag) {
         // Iterate through the ranges in reverse order to avoid issues with the document changing.
         // When you insert a new content control, it can affect the ranges of other items in the collection.
         // By iterating in reverse, the ranges that haven't been processed yet remain valid.
-        searchResults.items.forEach((range, index) => {
+        searchResults.items.map((range, index) => {
             if (!range.style || range.style !== style)
                 return;
             // Insert a rich text content control around the found range.
             range.select("Select");
             const contentControl = range.insertContentControl();
             // Set properties for the new content control.
-            contentControl.title = `${style}-${contentControl.id}`;
+            contentControl.title = `${style}`;
             contentControl.tag = tag;
             contentControl.cannotDelete = true;
             contentControl.cannotEdit = true;
             contentControl.appearance = Word.ContentControlAppearance.boundingBox;
             console.log(`Wrapped text in range ${index} with a content control.`);
+            return contentControl;
         });
+        await context.sync();
+        const inserted = context.document.contentControls.getByTag(tag);
+        inserted.load('id');
+        await context.sync();
+        inserted.items.forEach(ctrl => ctrl.title = `${ctrl.title}-${ctrl.id}`);
         await context.sync();
         console.log("Operation complete. All matching text ranges are now wrapped in content controls.");
     });
