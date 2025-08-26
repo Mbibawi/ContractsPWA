@@ -397,7 +397,7 @@ async function wrapTextWithContentControlsByStyle(style: string, tag:string): Pr
         // The Word.run context must be used for all operations.
         
         // Use a search option to search for all ranges with the specified character style.
-        const searchResults = context.document.body.search("*", { matchWildcards: true });
+        const searchResults = context.document.body.search("”*”", { matchWildcards: true });
         searchResults.load('style');
         await context.sync();
 
@@ -415,7 +415,7 @@ async function wrapTextWithContentControlsByStyle(style: string, tag:string): Pr
         searchResults.items.forEach((range, index) => {
             if (!range.style || range.style !== style) return;
             // Insert a rich text content control around the found range.
-            range.select("Select")
+            range.select("Select");
             const contentControl = range.insertContentControl();
                        
             // Set properties for the new content control.

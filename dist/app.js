@@ -333,7 +333,7 @@ async function wrapTextWithContentControlsByStyle(style, tag) {
     await Word.run(async (context) => {
         // The Word.run context must be used for all operations.
         // Use a search option to search for all ranges with the specified character style.
-        const searchResults = context.document.body.search("*", { matchWildcards: true });
+        const searchResults = context.document.body.search("”*”", { matchWildcards: true });
         searchResults.load('style');
         await context.sync();
         if (!searchResults.items.length) {
