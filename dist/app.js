@@ -333,27 +333,18 @@ async function wrapTextWithContentControlsByStyle(style, tag) {
     await Word.run(async (context) => {
         // The Word.run context must be used for all operations.
         // Use a search option to search for all ranges with the specified character style.
-        const searchOptions = context.document.body.search("", // The search string is empty to find all text.
-        {
-            matchWildcards: true,
-        });
-        // Load the ranges found by the search.
-        searchOptions.load(['isNullObject']);
+        const searchResults = context.document.body.search("*", { matchWildcards: true });
+        searchResults.load('style');
         await context.sync();
-        if (searchOptions.isNullObject)
-            return console.log('searchOptions isNullObject');
-        const foundRanges = searchOptions.load(['items']);
-        searchOptions.items.forEach(item => item.load(['style']));
-        await context.sync();
-        if (!foundRanges.items.length) {
+        if (!searchResults.items.length) {
             console.log(`No text with the style "${style}" was found in the document.`);
             return;
         }
-        console.log(`Found ${foundRanges.items.length} ranges with the style "${style}".`);
+        console.log(`Found ${searchResults.items.length} ranges with the style "${style}".`);
         // Iterate through the ranges in reverse order to avoid issues with the document changing.
         // When you insert a new content control, it can affect the ranges of other items in the collection.
         // By iterating in reverse, the ranges that haven't been processed yet remain valid.
-        foundRanges.items.forEach((range, index) => {
+        searchResults.items.forEach((range, index) => {
             if (!range.style || range.style !== style)
                 return;
             // Insert a rich text content control around the found range.
