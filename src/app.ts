@@ -406,7 +406,8 @@ async function wrapTextWithContentControlsByStyle(style: string, tag:string): Pr
 
         
         // Load the ranges found by the search.
-        const foundRanges = searchOptions.load('items, style');
+        const foundRanges = searchOptions.load('items');
+        searchOptions.items.forEach(item => item.load('style'));
         await context.sync();
 
         if (!foundRanges.items.length) {
