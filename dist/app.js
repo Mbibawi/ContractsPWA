@@ -1,11 +1,12 @@
 "use strict";
-const USERFORM = document.getElementById('userFormSection');
 const OPTIONS = ['Select', 'Show', 'Edit'];
 const RTDescriptionTag = 'RTDesc';
 const RTDescriptionStyle = 'RTDescription';
 const RTSiTag = 'RTSi';
 const RTSiStyle = 'RTSi';
+let USERFORM;
 Office.onReady((info) => {
+    USERFORM = document.getElementById('userFormSection');
     // Check that we loaded into Word
     if (info.host === Office.HostType.Word) {
         buildUI();
@@ -351,7 +352,8 @@ async function customizeContract() {
         allRT.load(['title', 'tag']);
         await context.sync();
         const ctrls = allRT.items
-            .filter(ctrl => OPTIONS.includes(ctrl.tag));
+            .filter(ctrl => OPTIONS.includes(ctrl.tag))
+            .entries();
         const selected = [];
         for (const ctrl of ctrls) {
             await promptForSelection(ctrl, selected);
@@ -455,7 +457,7 @@ async function setRTSiTag() {
         await context.sync();
     });
 }
-async function promptForSelection(ctrl, selected) {
+async function promptForSelection([index, ctrl], selected) {
     const exclude = (title) => `!${title}`;
     if (selected.includes(exclude(ctrl.title)))
         return;
@@ -474,7 +476,7 @@ async function promptForSelection(ctrl, selected) {
     });
     async function isSelected(ctrl) {
         selected.push(ctrl.title);
-        const subOptions = await getChildren(ctrl);
+        const subOptions = (await getChildren(ctrl)).entries();
         for (const ctrl of subOptions) {
             await promptForSelection(ctrl, selected);
         }

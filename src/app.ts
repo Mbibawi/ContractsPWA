@@ -1,11 +1,11 @@
-const USERFORM = document.getElementById('userFormSection') as HTMLDivElement
 const OPTIONS = ['Select', 'Show', 'Edit'];
 const RTDescriptionTag = 'RTDesc';
 const RTDescriptionStyle = 'RTDescription';
 const RTSiTag = 'RTSi';
 const RTSiStyle = 'RTSi';
-
+let USERFORM:HTMLDivElement;
 Office.onReady((info) => {
+    USERFORM = document.getElementById('userFormSection') as HTMLDivElement
     // Check that we loaded into Word
  
     if (info.host === Office.HostType.Word) {
@@ -415,6 +415,7 @@ async function customizeContract() {
         await context.sync();
        const ctrls = allRT.items
            .filter(ctrl => OPTIONS.includes(ctrl.tag))
+           .entries();
        
        const selected: string[] = [];
        for (const ctrl of ctrls) {
@@ -523,7 +524,7 @@ async function setRTSiTag() {
         await context.sync();
     })
 }
-async function promptForSelection(ctrl: Word.ContentControl, selected: string[]) {
+async function promptForSelection([index, ctrl]: [number, Word.ContentControl], selected: string[]) {
     const exclude = (title: string) => `!${title}`;
     if (selected.includes(exclude(ctrl.title))) return;
 
@@ -542,7 +543,7 @@ async function promptForSelection(ctrl: Word.ContentControl, selected: string[])
      
     async function isSelected(ctrl: Word.ContentControl) {
         selected.push(ctrl.title);
-        const subOptions = await getChildren(ctrl);
+        const subOptions = (await getChildren(ctrl)).entries();
         for (const ctrl of subOptions) {
             await promptForSelection(ctrl, selected);
         }
