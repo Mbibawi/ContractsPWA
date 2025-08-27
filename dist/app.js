@@ -465,11 +465,12 @@ async function promptForSelection([index, ctrl], selected) {
     return new Promise((resolve, reject) => {
         btnNext.onclick = nextCtrl;
         async function nextCtrl() {
-            if (checkBox.checked)
+            const checked = checkBox.checked;
+            container.remove();
+            if (checked)
                 await isSelected(ctrl);
             else
                 await isNotSelected(ctrl);
-            container.remove();
             resolve(selected);
         }
         ;
@@ -511,10 +512,10 @@ async function promptForSelection([index, ctrl], selected) {
         await ctrl.context.sync();
         return UI(ctrlRange.text);
         function UI(text) {
-            const container = createHTMLElement('div', 'promptContainer', '', USERFORM);
+            const container = createHTMLElement('div', 'promptContainer', '', USERFORM, ctrl.title);
             const prompt = createHTMLElement('div', 'selection', '', container);
-            const label = createHTMLElement('label', 'label', text, prompt);
             const checkBox = createHTMLElement('input', 'checkBox', '', prompt);
+            createHTMLElement('label', 'label', text, prompt);
             checkBox.type = 'checkbox';
             const btns = createHTMLElement('div', 'btns', '', prompt);
             const btnNext = createHTMLElement('button', 'btnOK', 'Next', btns);
@@ -522,11 +523,13 @@ async function promptForSelection([index, ctrl], selected) {
         }
     }
 }
-function createHTMLElement(tag, css, innerText, parent, append = true) {
+function createHTMLElement(tag, css, innerText, parent, id, append = true) {
     const el = document.createElement(tag);
     if (innerText)
         el.innerText = innerText;
     el.classList.add(css);
+    if (id)
+        el.id = id;
     append ? parent.appendChild(el) : parent.prepend(el);
     return el;
 }
