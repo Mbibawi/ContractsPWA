@@ -533,10 +533,10 @@ async function promptForSelection([index, ctrl]: [number, Word.ContentControl], 
     return new Promise((resolve, reject) => {
         btnNext.onclick = nextCtrl;
         async function nextCtrl() {
+            container.remove();
             if ((checkBox as HTMLInputElement).checked)
                 await isSelected(ctrl);
             else await isNotSelected(ctrl);
-            container.remove();
             resolve(selected);
          }; 
     });
