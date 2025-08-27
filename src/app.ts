@@ -533,8 +533,9 @@ async function promptForSelection([index, ctrl]: [number, Word.ContentControl], 
     return new Promise((resolve, reject) => {
         btnNext.onclick = nextCtrl;
         async function nextCtrl() {
+            const checked = (checkBox as HTMLInputElement).checked;
             container.remove();
-            if ((checkBox as HTMLInputElement).checked)
+            if (checked)
                 await isSelected(ctrl);
             else await isNotSelected(ctrl);
             resolve(selected);
@@ -581,7 +582,7 @@ async function promptForSelection([index, ctrl]: [number, Word.ContentControl], 
        
     
         function UI(text:string) {
-                const container = createHTMLElement('div', 'promptContainer', '', USERFORM);
+            const container = createHTMLElement('div', 'promptContainer', '', USERFORM, ctrl.title);
                 const prompt = createHTMLElement('div', 'selection', '', container);
                 const checkBox = createHTMLElement('input', 'checkBox', '', prompt) as HTMLInputElement;
                 createHTMLElement('label', 'label', text, prompt) as HTMLParagraphElement;
@@ -594,10 +595,11 @@ async function promptForSelection([index, ctrl]: [number, Word.ContentControl], 
     }
 }
 
-function createHTMLElement(tag: string, css: string, innerText:string, parent: HTMLElement | Document, append:boolean = true) {
+function createHTMLElement(tag: string, css: string, innerText:string, parent: HTMLElement | Document, id?:string, append:boolean = true) {
     const el = document.createElement(tag);
     if (innerText) el.innerText = innerText;
     el.classList.add(css);
+    if (id) el.id = id;
     append ? parent.appendChild(el) : parent.prepend(el);
     return el
 }
