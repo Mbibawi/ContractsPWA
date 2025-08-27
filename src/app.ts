@@ -583,8 +583,8 @@ async function promptForSelection([index, ctrl]: [number, Word.ContentControl], 
         function UI(text:string) {
                 const container = createHTMLElement('div', 'promptContainer', '', USERFORM);
                 const prompt = createHTMLElement('div', 'selection', '', container);
-                const label = createHTMLElement('label', 'label', text, prompt) as HTMLParagraphElement;
                 const checkBox = createHTMLElement('input', 'checkBox', '', prompt) as HTMLInputElement;
+                createHTMLElement('label', 'label', text, prompt) as HTMLParagraphElement;
                 checkBox.type = 'checkbox';
                 const btns = createHTMLElement('div', 'btns', '', prompt);
                 const btnNext = createHTMLElement('button', 'btnOK', 'Next', btns);
