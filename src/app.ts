@@ -408,7 +408,7 @@ async function getDocumentBase64(): Promise<Base64URLString> {
                 file.getSliceAsync(i, (sliceResult) =>sliceResults[i] = sliceResult);
             };
             const slices:number[]= sliceResults.map((s,i)=>i);
-            sliceResults.forEach((sliceResult, index: number) => processSlice(sliceResult, index));
+            sliceResults.forEach((sliceResult, index) => processSlice(sliceResult, index));
             
             function processSlice(sliceResult: Office.AsyncResult<Office.Slice>, index:number) {
                 if(failed(sliceResult)) 
