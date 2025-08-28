@@ -366,6 +366,69 @@ async function customizeContract() {
         await deleteAllNotSelected(keep, newDoc);
     });
 }
+;
+async function promptForSelection([index, ctrl], selected) {
+    const exclude = (title) => `!${title}`;
+    if (selected.includes(exclude(ctrl.title)))
+        return;
+    ctrl.select();
+    const [container, btnNext, checkBox] = await showUI();
+    return new Promise((resolve, reject) => {
+        btnNext.onclick = () => nextCtrl(ctrl, checkBox);
+        async function nextCtrl(ctrl, checkBox) {
+            const checked = checkBox.checked;
+            container.remove();
+            ctrl.contentControls.load(['title', 'tag']);
+            await ctrl.context.sync();
+            const subOptions = ctrl.contentControls.items
+                .filter(ctrl => OPTIONS.includes(ctrl.tag));
+            if (checked)
+                await isSelected(ctrl, subOptions);
+            else
+                isNotSelected(ctrl, subOptions);
+            resolve(selected);
+        }
+        ;
+    });
+    async function isSelected(ctrl, subOptions) {
+        selected.push(ctrl.title);
+        const entries = subOptions.entries();
+        for (const entry of entries) {
+            await promptForSelection(entry, selected);
+        }
+        console.log(selected);
+    }
+    ;
+    function isNotSelected(ctrl, subOptions) {
+        selected.push(exclude(ctrl.title));
+        subOptions
+            .forEach(ctrl => selected.push(exclude(ctrl.title)));
+        console.log(selected);
+    }
+    ;
+    async function showUI() {
+        const children = ctrl.contentControls;
+        children.load(['title', 'tag']);
+        await ctrl.context.sync();
+        const RTSi = children.items.find(rt => rt.tag === RTSiTag);
+        if (!RTSi)
+            throw new Error('No RTSi');
+        const ctrlRange = RTSi.getRange('Content');
+        ctrlRange.load(['text', 'paragraphs']);
+        await ctrl.context.sync();
+        return UI(ctrlRange.text);
+        function UI(text) {
+            const container = createHTMLElement('div', 'promptContainer', '', USERFORM, ctrl.title);
+            const prompt = createHTMLElement('div', 'selection', '', container);
+            const checkBox = createHTMLElement('input', 'checkBox', '', prompt);
+            createHTMLElement('label', 'label', text, prompt);
+            checkBox.type = 'checkbox';
+            const btns = createHTMLElement('div', 'btns', '', prompt);
+            const btnNext = createHTMLElement('button', 'btnOK', 'Next', btns);
+            return [container, btnNext, checkBox];
+        }
+    }
+}
 async function deleteAllNotSelected(selected, document) {
     const all = document.contentControls;
     all.load(['title', 'tag']);
@@ -458,66 +521,6 @@ async function setRTSiTag() {
         }
         await context.sync();
     });
-}
-async function promptForSelection([index, ctrl], selected) {
-    const exclude = (title) => `!${title}`;
-    if (selected.includes(exclude(ctrl.title)))
-        return;
-    ctrl.select();
-    const [container, btnNext, checkBox] = await showUI();
-    return new Promise((resolve, reject) => {
-        btnNext.onclick = () => nextCtrl(ctrl, checkBox);
-        async function nextCtrl(ctrl, checkBox) {
-            const checked = checkBox.checked;
-            const subOptions = ctrl.contentControls.items
-                .filter(ctrl => OPTIONS.includes(ctrl.tag));
-            container.remove();
-            if (checked)
-                await isSelected(ctrl, subOptions);
-            else
-                await isNotSelected(ctrl, subOptions);
-            resolve(selected);
-        }
-        ;
-    });
-    async function isSelected(ctrl, subOptions) {
-        selected.push(ctrl.title);
-        const entries = subOptions.entries();
-        for (const entry of entries) {
-            await promptForSelection(entry, selected);
-        }
-        console.log(selected);
-    }
-    ;
-    async function isNotSelected(ctrl, subOptions) {
-        selected.push(exclude(ctrl.title));
-        subOptions
-            .forEach(ctrl => selected.push(exclude(ctrl.title)));
-        console.log(selected);
-    }
-    ;
-    async function showUI() {
-        const children = ctrl.contentControls;
-        children.load(['title', 'tag']);
-        await ctrl.context.sync();
-        const RTSi = children.items.find(rt => rt.tag === RTSiTag);
-        if (!RTSi)
-            throw new Error('No RTSi');
-        const ctrlRange = RTSi.getRange('Content');
-        ctrlRange.load(['text', 'paragraphs']);
-        await ctrl.context.sync();
-        return UI(ctrlRange.text);
-        function UI(text) {
-            const container = createHTMLElement('div', 'promptContainer', '', USERFORM, ctrl.title);
-            const prompt = createHTMLElement('div', 'selection', '', container);
-            const checkBox = createHTMLElement('input', 'checkBox', '', prompt);
-            createHTMLElement('label', 'label', text, prompt);
-            checkBox.type = 'checkbox';
-            const btns = createHTMLElement('div', 'btns', '', prompt);
-            const btnNext = createHTMLElement('button', 'btnOK', 'Next', btns);
-            return [container, btnNext, checkBox];
-        }
-    }
 }
 function createHTMLElement(tag, css, innerText, parent, id, append = true) {
     const el = document.createElement(tag);
