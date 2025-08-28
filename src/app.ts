@@ -365,11 +365,7 @@ async function wrapSelectionWithContentControl(title:string, tag:string) {
         const range = selection.getRange('Content');
         await insertContentControl(range, title, tag, 0)
     })
-}
-
-
-
-
+};
 
 function promptForInput(question: string) {
     if (!question) return;
@@ -390,39 +386,45 @@ function promptForInput(question: string) {
     };
     btnCancel.onclick = () => container.remove();
     return answer ;
+};
 
-    
-}
 async function customizeContract() {
     USERFORM.innerHTML = '';
     createHTMLElement('button', 'button', 'Download Document', USERFORM, '', true);
-   return await Word.run(async (context) => {
+    const template = await getTemplate() as Base64URLString;
+    if (!template) return console.log('Failed to create the template');
+
+    return await Word.run(async (context) => {
         const allRT = context.document.contentControls;
         allRT.load(['title', 'tag', 'contentControls']);
         await context.sync();
        const ctrls = allRT.items
            .filter(ctrl => OPTIONS.includes(ctrl.tag))
-           .entries();
-       
-       const selected: string[] = [];
-       for (const ctrl of ctrls) {
-           await promptForSelection(ctrl, selected);
-       }
-       const keep = selected.filter(title => !title.startsWith('!'));
-
-       try {
-           const template = await getDocumentBase64();
-           const newDoc = context.application.createDocument(template);
-           await context.sync();
-           newDoc.open();
-           //context.document.close(Word.CloseBehavior.skipSave);
-           await deleteAllNotSelected(keep, newDoc);
-        } catch (error) {
-            console.log(`Failed to create new Doc: ${error}`)
-        }
+            .entries();
         
+        const selected: string[] = [];
+        for (const ctrl of ctrls) 
+           await promptForSelection(ctrl, selected);
+       
+        const keep = selected.filter(title => !title.startsWith('!'));
+        const newDoc = context.application.createDocument(template);
+        await context.sync();
+        newDoc.open();
+        //context.document.close(Word.CloseBehavior.skipSave);
+        await deleteAllNotSelected(keep, newDoc);
     });
+
+    async function getTemplate() {
+        try {
+            const template = await getDocumentBase64();
+            return template;
+     } catch (error) {
+         console.log(`Failed to create new Doc: ${error}`)
+     }
+    }
 };
+
+
 
 async function promptForSelection([index, ctrl]: [number, Word.ContentControl], selected: string[]) {
     const exclude = (title: string) => `!${title}`;

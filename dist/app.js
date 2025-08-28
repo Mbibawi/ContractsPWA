@@ -337,6 +337,9 @@ function promptForInput(question) {
 async function customizeContract() {
     USERFORM.innerHTML = '';
     createHTMLElement('button', 'button', 'Download Document', USERFORM, '', true);
+    const template = await getTemplate();
+    if (!template)
+        return console.log('Failed to create the template');
     return await Word.run(async (context) => {
         const allRT = context.document.contentControls;
         allRT.load(['title', 'tag', 'contentControls']);
@@ -345,22 +348,24 @@ async function customizeContract() {
             .filter(ctrl => OPTIONS.includes(ctrl.tag))
             .entries();
         const selected = [];
-        for (const ctrl of ctrls) {
+        for (const ctrl of ctrls)
             await promptForSelection(ctrl, selected);
-        }
         const keep = selected.filter(title => !title.startsWith('!'));
+        const newDoc = context.application.createDocument(template);
+        await context.sync();
+        newDoc.open();
+        //context.document.close(Word.CloseBehavior.skipSave);
+        await deleteAllNotSelected(keep, newDoc);
+    });
+    async function getTemplate() {
         try {
             const template = await getDocumentBase64();
-            const newDoc = context.application.createDocument(template);
-            await context.sync();
-            newDoc.open();
-            //context.document.close(Word.CloseBehavior.skipSave);
-            await deleteAllNotSelected(keep, newDoc);
+            return template;
         }
         catch (error) {
             console.log(`Failed to create new Doc: ${error}`);
         }
-    });
+    }
 }
 ;
 async function promptForSelection([index, ctrl], selected) {
