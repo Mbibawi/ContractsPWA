@@ -359,7 +359,7 @@ async function getDocumentBase64() {
                 file.getSliceAsync(i, (sliceResult) => sliceResults[i] = sliceResult);
             }
             ;
-            const slices = sliceResults.map((s, i) => i);
+            const slices = sliceResults.map(s => 1);
             sliceResults.forEach((sliceResult, index) => processSlice(sliceResult, index));
             function processSlice(sliceResult, index) {
                 if (failed(sliceResult))
