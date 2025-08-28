@@ -413,7 +413,7 @@ async function customizeContract() {
     createHTMLElement('button', 'button', 'Download Document', USERFORM, '', true);
    return await Word.run(async (context) => {
         const allRT = context.document.contentControls;
-        allRT.load(['title', 'tag']);
+        allRT.load(['title', 'tag', 'contentControls']);
         await context.sync();
        const ctrls = allRT.items
            .filter(ctrl => OPTIONS.includes(ctrl.tag))
@@ -532,45 +532,39 @@ async function promptForSelection([index, ctrl]: [number, Word.ContentControl], 
     
     ctrl.select();
     const [container, btnNext, checkBox] = await showUI();
-
+    
     return new Promise((resolve, reject) => {
-        btnNext.onclick = nextCtrl;
-        async function nextCtrl() {
-            const checked = (checkBox as HTMLInputElement).checked;
+        btnNext.onclick = ()=>nextCtrl(ctrl, checkBox as HTMLInputElement);
+        async function nextCtrl(ctrl:Word.ContentControl, checkBox:HTMLInputElement) {
+            const checked = checkBox.checked;
+            const subOptions =
+                ctrl.contentControls.items
+                    .filter(ctrl => OPTIONS.includes(ctrl.tag));
             container.remove();
             if (checked)
-                await isSelected(ctrl);
-            else await isNotSelected(ctrl);
+                await isSelected(ctrl, subOptions);
+            else await isNotSelected(ctrl, subOptions);
             resolve(selected);
          }; 
     });
      
-    async function isSelected(ctrl: Word.ContentControl) {
+    async function isSelected(ctrl: Word.ContentControl, subOptions:Word.ContentControl[]) {
         selected.push(ctrl.title);
-        const subOptions = (await getChildren(ctrl)).entries();
-        for (const ctrl of subOptions) {
-            await promptForSelection(ctrl, selected);
+        const entries = subOptions.entries()
+        for (const entry of entries) {
+            await promptForSelection(entry, selected);
         }
         console.log(selected);
     };
 
 
-    async function isNotSelected(ctrl: Word.ContentControl) {
+    async function isNotSelected(ctrl: Word.ContentControl, subOptions:Word.ContentControl[]) {
         selected.push(exclude(ctrl.title));
-        const subOptions = await getChildren(ctrl)
         subOptions
             .forEach(ctrl => selected.push(exclude(ctrl.title)));
         console.log(selected)
     };
 
-    async function getChildren(ctrl:Word.ContentControl) {
-        const children = ctrl.contentControls;
-        children.load(['title', 'tag']);
-        await ctrl.context.sync();
-        return children
-            .items
-            .filter(ctrl => OPTIONS.includes(ctrl.tag));
-    }
 
     async function showUI() {
         const children = ctrl.contentControls;
