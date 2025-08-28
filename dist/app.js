@@ -347,6 +347,8 @@ function promptForInput(question) {
     return answer;
 }
 async function customizeContract() {
+    USERFORM.innerHTML = '';
+    createHTMLElement('button', 'button', 'Download Document', USERFORM, '', true);
     return await Word.run(async (context) => {
         const allRT = context.document.contentControls;
         allRT.load(['title', 'tag']);
@@ -461,6 +463,7 @@ async function promptForSelection([index, ctrl], selected) {
     const exclude = (title) => `!${title}`;
     if (selected.includes(exclude(ctrl.title)))
         return;
+    ctrl.select();
     const [container, btnNext, checkBox] = await showUI();
     return new Promise((resolve, reject) => {
         btnNext.onclick = nextCtrl;

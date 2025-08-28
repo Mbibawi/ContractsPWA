@@ -409,6 +409,8 @@ function promptForInput(question: string) {
     
 }
 async function customizeContract() {
+    USERFORM.innerHTML = '';
+    createHTMLElement('button', 'button', 'Download Document', USERFORM, '', true);
    return await Word.run(async (context) => {
         const allRT = context.document.contentControls;
         allRT.load(['title', 'tag']);
@@ -527,7 +529,8 @@ async function setRTSiTag() {
 async function promptForSelection([index, ctrl]: [number, Word.ContentControl], selected: string[]) {
     const exclude = (title: string) => `!${title}`;
     if (selected.includes(exclude(ctrl.title))) return;
-
+    
+    ctrl.select();
     const [container, btnNext, checkBox] = await showUI();
 
     return new Promise((resolve, reject) => {
