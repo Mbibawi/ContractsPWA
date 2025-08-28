@@ -315,6 +315,7 @@ async function wrapSelectionWithContentControl(title, tag) {
         await insertContentControl(range, title, tag, 0);
     });
 }
+;
 function promptForInput(question) {
     if (!question)
         return;
@@ -334,29 +335,34 @@ function promptForInput(question) {
     btnCancel.onclick = () => container.remove();
     return answer;
 }
+;
 async function customizeContract() {
     USERFORM.innerHTML = '';
     createHTMLElement('button', 'button', 'Download Document', USERFORM, '', true);
     const template = await getTemplate();
+    console.log(template);
     if (!template)
         return console.log('Failed to create the template');
-    return await Word.run(async (context) => {
-        const allRT = context.document.contentControls;
-        allRT.load(['title', 'tag', 'contentControls']);
-        await context.sync();
-        const ctrls = allRT.items
-            .filter(ctrl => OPTIONS.includes(ctrl.tag))
-            .entries();
-        const selected = [];
-        for (const ctrl of ctrls)
-            await promptForSelection(ctrl, selected);
-        const keep = selected.filter(title => !title.startsWith('!'));
-        const newDoc = context.application.createDocument(template);
-        await context.sync();
-        newDoc.open();
-        //context.document.close(Word.CloseBehavior.skipSave);
-        await deleteAllNotSelected(keep, newDoc);
-    });
+    await selectCtrls();
+    async function selectCtrls() {
+        return await Word.run(async (context) => {
+            const allRT = context.document.contentControls;
+            allRT.load(['title', 'tag', 'contentControls']);
+            await context.sync();
+            const ctrls = allRT.items
+                .filter(ctrl => OPTIONS.includes(ctrl.tag))
+                .entries();
+            const selected = [];
+            for (const ctrl of ctrls)
+                await promptForSelection(ctrl, selected);
+            const keep = selected.filter(title => !title.startsWith('!'));
+            const newDoc = context.application.createDocument(template);
+            await context.sync();
+            newDoc.open();
+            //context.document.close(Word.CloseBehavior.skipSave);
+            await deleteAllNotSelected(keep, newDoc);
+        });
+    }
     async function getTemplate() {
         try {
             const template = await getDocumentBase64();
