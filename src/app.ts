@@ -413,13 +413,14 @@ async function customizeContract() {
        try {
            const template = await getDocumentBase64();
            const newDoc = context.application.createDocument(template);
+           await context.sync();
            newDoc.open();
            //context.document.close(Word.CloseBehavior.skipSave);
-           await deleteAllNotSelected(keep, newDoc)
-       } catch (error) {
-           console.log(`Failed to create new Doc: ${error}`)
-       }
-
+           await deleteAllNotSelected(keep, newDoc);
+        } catch (error) {
+            console.log(`Failed to create new Doc: ${error}`)
+        }
+        
     });
 };
 

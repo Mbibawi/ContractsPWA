@@ -352,6 +352,7 @@ async function customizeContract() {
         try {
             const template = await getDocumentBase64();
             const newDoc = context.application.createDocument(template);
+            await context.sync();
             newDoc.open();
             //context.document.close(Word.CloseBehavior.skipSave);
             await deleteAllNotSelected(keep, newDoc);
