@@ -154,93 +154,52 @@ function openInputDialog(data: object) {
 }
 
 
-async function getDocumentBase64(): Promise<string> {
-    return new Promise(async (resolve, reject) => {
-      // 1. Request the document as a compressed file
-     Office.context.document.getFileAsync(
-        Office.FileType.Compressed,
-          { sliceSize: 64 * 1024 },
-        (file)=>processFile(file)  // 64KB per slice
+/**
+ * Asynchronously gets the entire document content as a Base64 string.
+ * This function handles multi-slice documents by requesting each slice in parallel.
+ * @returns A Promise that resolves with the Base64-encoded document content.
+ */
+async function getDocumentBase64(): Promise<Base64URLString> {
+    const failed = (result: Office.AsyncResult<Office.File | Office.Slice>) => result.status !== Office.AsyncResultStatus.Succeeded;
+    
+    return new Promise((resolve, reject) => {
+        // Step 1: Request the document as a compressed file.
+        Office.context.document.getFileAsync(
+            Office.FileType.Compressed,
+            { sliceSize: 64 * 1024 },
+            (fileResult)=>processFile(fileResult)
         );
-        
-        
-        function processFile(result:Office.AsyncResult<Office.File>) {
-            if (result.status !== Office.AsyncResultStatus.Succeeded) {
-              reject(result.error);
-              return
-            }
-            const file = result.value;
+
+        function processFile(fileResult: Office.AsyncResult<Office.File>) {
+            if (failed(fileResult))
+               return reject(fileResult.error);
+
+            const file = fileResult.value;
             const sliceCount = file.sliceCount;
-            const slices: string[] = [];
-            let loaded = 0;
-    
-            // 2. Pull down each slice
+            const slices: (string | number[])[] = new Array(sliceCount);
+            let loadedSlices = 0;
+
+            // Step 2: Use a loop to request each slice in parallel.
             for (let i = 0; i < sliceCount; i++) {
-              file.getSliceAsync(i, (sliceResult) => {
-                if (sliceResult.status === Office.AsyncResultStatus.Succeeded) {
-                  slices[sliceResult.value.index] = sliceResult.value.data;
-                  loaded++;
+                file.getSliceAsync(i, (sliceResult) =>processSlice(sliceResult));
+            };
+            
+            function processSlice(sliceResult: Office.AsyncResult<Office.Slice>) {
+                if(failed(sliceResult)) 
+                    file.closeAsync(() => reject(sliceResult.error));
+                else{
+                    // Store the raw data of the slice in the correct index.
+                    slices[sliceResult.value.index] = sliceResult.value.data;
+                    loadedSlices++;
     
-                  // 3. Once all slices are in, close and resolve
-                  if (loaded === sliceCount) {
-                    file.closeAsync(() => {
-                      resolve(slices.join(""));
-                    });
-                  }
-                } else {
-                  file.closeAsync(() => reject(sliceResult.error));
-                }
-              });
+                    // Step 3: Check if all slices have been received.
+                    if (loadedSlices === sliceCount)
+                        file.closeAsync(()=>resolve(slices.join('')));
+                } 
+                
             }
         }
     });
-  }
-
-/**
- * Creates a new Word document based on the current document as a template,
- * then deletes a specified list of content controls by their ID from the new document.
- * This function handles the entire process asynchronously.
- *
- * @param toDelete An array of unique IDs for the content controls to be deleted.
- * @returns A Promise that resolves when the operation is complete.
- */
-async function generateCustomizedContract(toDelete?: contentControl[], toEdit?:contentControl[]): Promise<void> {
-    // Wrap the entire function in a try/catch block for robust error handling.
-    try {
-        
-        // Step 1: Get the current document's content as a Base64-encoded string.
-        // The getBase64() method provides a file representation of the document.
-        let templateContent = await getDocumentBase64();
-
-        if (!templateContent) {
-            console.error("Failed to get base64 string from the current document. Aborting.");
-            return;
-        }
-
-        console.log("Successfully captured the current document as a template.");
-        console.log("Creating new document...");
-
-        // Step 2: Use context.application.createDocument() to create a new document.
-        // This method returns a promise that resolves to a DocumentCreated object.
-        const newDocument = await Word.run(async (context) => {
-            const documentCreated = context.application.createDocument(templateContent);
-            await context.sync();
-            return documentCreated;
-        });
-
-        // Step 3: Run commands in the context of the new document.
-        // We must call open() on the DocumentCreated object to switch the context.
-        await newDocument.open();
-        await processCtrls(newDocument, toDelete, deleteCtrl);
-        await processCtrls(newDocument, toEdit, editCtrlText);
-
-    } catch (error) {
-        console.error("An error occurred during the process:", error);
-        // Provide user-friendly error details if it's an Office Extension Error.
-        if (error instanceof OfficeExtension.Error) {
-            console.log(`Office Extension Error: ${error.code} - ${error.message}`);
-        }
-    }
 }
 
 
@@ -450,10 +409,17 @@ async function customizeContract() {
            await promptForSelection(ctrl, selected);
        }
        const keep = selected.filter(title => !title.startsWith('!'));
-       const template = await getDocumentBase64();
-       const newDoc = context.application.createDocument(template);
 
-        await deleteAllNotSelected(keep, newDoc)
+       try {
+           const template = await getDocumentBase64();
+           const newDoc = context.application.createDocument(template);
+           newDoc.open();
+           //context.document.close(Word.CloseBehavior.skipSave);
+           await deleteAllNotSelected(keep, newDoc)
+       } catch (error) {
+           console.log(`Failed to create new Doc: ${error}`)
+       }
+
     });
 };
 
