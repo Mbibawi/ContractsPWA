@@ -404,10 +404,16 @@ async function getDocumentBase64(): Promise<Base64URLString> {
             let loadedSlices = 0;
 
             // Step 2: Use a loop to request each slice in parallel.
+            slices.forEach((s, i) => {
+                file.getSliceAsync(i, (sliceResult) => processSlice(sliceResult));
+            });
+            
+            /*
             for (let i = 0; i < sliceCount; i++) {
                 if(isNaN(i)) break
                 file.getSliceAsync(i, (sliceResult) =>processSlice(sliceResult));
             };
+            */
             
             function processSlice(sliceResult: Office.AsyncResult<Office.Slice>) {
                 if(failed(sliceResult)) 

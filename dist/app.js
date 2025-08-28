@@ -355,12 +355,15 @@ async function getDocumentBase64() {
             const slices = new Array(sliceCount);
             let loadedSlices = 0;
             // Step 2: Use a loop to request each slice in parallel.
-            for (let i = 0; i < sliceCount; i++) {
-                if (isNaN(i))
-                    break;
+            slices.forEach((s, i) => {
                 file.getSliceAsync(i, (sliceResult) => processSlice(sliceResult));
-            }
-            ;
+            });
+            /*
+            for (let i = 0; i < sliceCount; i++) {
+                if(isNaN(i)) break
+                file.getSliceAsync(i, (sliceResult) =>processSlice(sliceResult));
+            };
+            */
             function processSlice(sliceResult) {
                 if (failed(sliceResult))
                     file.closeAsync(() => reject(sliceResult.error));
