@@ -400,24 +400,26 @@ async function getDocumentBase64(): Promise<Base64URLString> {
 
             const file = fileResult.value;
             const sliceCount = file.sliceCount;
-            const slices: (string | number[])[] = new Array(sliceCount);
-            let loadedSlices = 0;
+            const sliceResults: Office.AsyncResult<Office.Slice>[] = new Array(sliceCount);
+            //let loadedSlices = 0;
 
             // Step 2: Use a loop to request each slice in parallel.
             for (let i = 0; i < sliceCount; i++) {
-                file.getSliceAsync(i, (sliceResult) =>processSlice(sliceResult));
+                file.getSliceAsync(i, (sliceResult) =>sliceResults[i] = sliceResult);
             };
+            const slices:number[]= [];
+            sliceResults.map((sliceResult, index: number) => processSlice(sliceResult, index));
             
-            function processSlice(sliceResult: Office.AsyncResult<Office.Slice>) {
+            function processSlice(sliceResult: Office.AsyncResult<Office.Slice>, index:number) {
                 if(failed(sliceResult)) 
                     file.closeAsync(() => reject(sliceResult.error));
                 else{
                     // Store the raw data of the slice in the correct index.
-                    slices[sliceResult.value.index] = sliceResult.value.data;
-                    loadedSlices++;
-    
+                    //slices[sliceResult.value.index] = sliceResult.value.data;
+                    slices[index] = sliceResult.value.data;
+   
                     // Step 3: Check if all slices have been received.
-                    if (loadedSlices === sliceCount)
+                    if (index === sliceCount)
                         file.closeAsync(()=>resolve(slices.join('')));
                 } 
                 
