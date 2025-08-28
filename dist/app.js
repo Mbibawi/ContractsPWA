@@ -369,8 +369,8 @@ async function customizeContract() {
 ;
 async function promptForSelection([index, ctrl], selected) {
     const exclude = (title) => `!${title}`;
-    if (selected.includes(exclude(ctrl.title)))
-        return;
+    if (selected.find(t => t.includes(ctrl.title)))
+        return; //!In some cases, ctrl.contentControl.items returns not only the child contentcontrols of ctrl, but includes also the parent contentcontrol of ctrl. Don't understand why this happens.
     ctrl.select();
     const [container, btnNext, checkBox] = await showUI();
     return new Promise((resolve, reject) => {
@@ -399,9 +399,9 @@ async function promptForSelection([index, ctrl], selected) {
         console.log(selected);
     }
     ;
-    function isNotSelected(ctrl, subOptions) {
+    function isNotSelected(ctrl, subTitles) {
         selected.push(exclude(ctrl.title));
-        subOptions
+        subTitles
             .forEach(ctrl => selected.push(exclude(ctrl.title)));
         console.log(selected);
     }
