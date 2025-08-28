@@ -255,8 +255,6 @@ function editCtrlText(ctrl, data) {
 async function findTextAndWrapItWithContentControl(search, styles, title, tag, matchWildcards) {
     await Word.run(async (context) => {
         for (const el of search) {
-            if (!el)
-                continue;
             const ranges = await searchString(el, context, matchWildcards);
             if (!ranges)
                 continue;
@@ -323,6 +321,7 @@ async function insertRTSiAll() {
     });
 }
 async function insertContentControl(range, title, tag, index) {
+    range.select();
     // Insert a rich text content control around the found range.
     const contentControl = range.insertContentControl();
     contentControl.load(['id']);
@@ -351,8 +350,8 @@ async function wrapAllSameStyleParagraphsWithContentControl(style, title, tag) {
 async function wrapSelectionWithContentControl(title, tag) {
     await Word.run(async (context) => {
         const selection = context.document.getSelection();
-        selection.getRange('Content');
-        await insertContentControl(selection, title, tag, 0);
+        const range = selection.getRange('Content');
+        await insertContentControl(range, title, tag, 0);
     });
 }
 function promptForInput(question) {

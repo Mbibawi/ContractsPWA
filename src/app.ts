@@ -300,7 +300,6 @@ function editCtrlText(ctrl: Word.ContentControl, data: contentControl) {
 async function findTextAndWrapItWithContentControl(search:string[], styles: string[], title:string, tag:string, matchWildcards:boolean): Promise<void> {
     await Word.run(async (context) => {
         for (const el of search) {
-            if(!el) continue
             const ranges = await searchString(el, context, matchWildcards);
             if (!ranges) continue;
             await wrapMatchingStyleRangesWithContentControls(ranges, styles, title, tag);
@@ -310,7 +309,6 @@ async function findTextAndWrapItWithContentControl(search:string[], styles: stri
 }
 
 async function wrapMatchingStyleRangesWithContentControls(ranges: Word.RangeCollection, styles: string[], title: string, tag: string) {
-    
     ranges.load(['style', 'parentContentControlOrNullObject', 'parentContentControlOrNullObject.isNullObject', 'parentContentControlOrNullObject.tag']);
 
     await ranges.context.sync();
@@ -362,7 +360,7 @@ async function insertRTSiAll() {
             await parag.context.sync();
             if(parent.tag ===RTSiTag) continue;   
             console.log(`range style: ${parag.style} & text = ${parag.text}`);
-            await insertContentControl(parag.getRange('Content'), RTSiTag, RTSiTag, parags.indexOf(parag))
+              await insertContentControl(parag.getRange('Content'), RTSiTag, RTSiTag, parags.indexOf(parag));
             }catch(error){
               console.log(`error: ${error}`);
               continue
@@ -373,7 +371,7 @@ async function insertRTSiAll() {
     })
   }
 async function insertContentControl(range: Word.Range, title: string, tag: string, index: number) {
-  
+    range.select();
     // Insert a rich text content control around the found range.
     const contentControl = range.insertContentControl();
     contentControl.load(['id']);
@@ -405,8 +403,8 @@ async function wrapAllSameStyleParagraphsWithContentControl(style:string, title:
 async function wrapSelectionWithContentControl(title:string, tag:string) {
     await Word.run(async (context)=>{
         const selection = context.document.getSelection();
-        selection.getRange('Content');
-        await insertContentControl(selection,title, tag, 0)
+        const range = selection.getRange('Content');
+        await insertContentControl(range, title, tag, 0)
     })
 }
 
