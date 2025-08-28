@@ -405,7 +405,11 @@ async function getDocumentBase64(): Promise<Base64URLString> {
 
             // Step 2: Use a loop to request each slice in parallel.
             slices.forEach((s, i) => {
-                file.getSliceAsync(i, (sliceResult) => processSlice(sliceResult));
+                try {
+                    file.getSliceAsync(i, (sliceResult) => processSlice(sliceResult));
+                } catch (error) {
+                    console.log(`${error} : i = ${i}`)
+                }
             });
 
             /*
