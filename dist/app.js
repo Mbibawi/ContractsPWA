@@ -376,10 +376,10 @@ async function getDocumentBase64() {
                     else {
                         // Store the raw data of the slice in the correct index.
                         slices[sliceResult.value.index] = sliceResult.value.data;
-                        loadedSlices++;
+                        if (loadedSlices++ < sliceCount)
+                            return;
                         // Step 3: Check if all slices have been received.
-                        if (loadedSlices === sliceCount)
-                            file.closeAsync(() => resolve(slices.join('')));
+                        file.closeAsync(() => resolve(slices.join('')));
                     }
                 }
                 catch (error) {
