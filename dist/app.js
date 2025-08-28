@@ -370,15 +370,20 @@ async function getDocumentBase64() {
             };
             */
             function processSlice(sliceResult) {
-                if (failed(sliceResult))
-                    file.closeAsync(() => reject(sliceResult.error));
-                else {
-                    // Store the raw data of the slice in the correct index.
-                    slices[sliceResult.value.index] = sliceResult.value.data;
-                    loadedSlices++;
-                    // Step 3: Check if all slices have been received.
-                    if (loadedSlices === sliceCount)
-                        file.closeAsync(() => resolve(slices.join('')));
+                try {
+                    if (failed(sliceResult))
+                        file.closeAsync(() => reject(sliceResult.error));
+                    else {
+                        // Store the raw data of the slice in the correct index.
+                        slices[sliceResult.value.index] = sliceResult.value.data;
+                        loadedSlices++;
+                        // Step 3: Check if all slices have been received.
+                        if (loadedSlices === sliceCount)
+                            file.closeAsync(() => resolve(slices.join('')));
+                    }
+                }
+                catch (error) {
+                    console.log(`${error}, succeeded = ${sliceResult.status}, loaded = ${loadedSlices}`);
                 }
             }
         }
