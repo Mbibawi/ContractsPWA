@@ -154,55 +154,6 @@ function openInputDialog(data: object) {
 }
 
 
-/**
- * Asynchronously gets the entire document content as a Base64 string.
- * This function handles multi-slice documents by requesting each slice in parallel.
- * @returns A Promise that resolves with the Base64-encoded document content.
- */
-async function getDocumentBase64(): Promise<Base64URLString> {
-    const failed = (result: Office.AsyncResult<Office.File | Office.Slice>) => result.status !== Office.AsyncResultStatus.Succeeded;
-    
-    return new Promise((resolve, reject) => {
-        // Step 1: Request the document as a compressed file.
-        Office.context.document.getFileAsync(
-            Office.FileType.Compressed,
-            { sliceSize: 64 * 1024 },
-            (fileResult)=>processFile(fileResult)
-        );
-
-        function processFile(fileResult: Office.AsyncResult<Office.File>) {
-            if (failed(fileResult))
-               return reject(fileResult.error);
-
-            const file = fileResult.value;
-            const sliceCount = file.sliceCount;
-            const slices: (string | number[])[] = new Array(sliceCount);
-            let loadedSlices = 0;
-
-            // Step 2: Use a loop to request each slice in parallel.
-            for (let i = 0; i < sliceCount; i++) {
-                file.getSliceAsync(i, (sliceResult) =>processSlice(sliceResult));
-            };
-            
-            function processSlice(sliceResult: Office.AsyncResult<Office.Slice>) {
-                if(failed(sliceResult)) 
-                    file.closeAsync(() => reject(sliceResult.error));
-                else{
-                    // Store the raw data of the slice in the correct index.
-                    slices[sliceResult.value.index] = sliceResult.value.data;
-                    loadedSlices++;
-    
-                    // Step 3: Check if all slices have been received.
-                    if (loadedSlices === sliceCount)
-                        file.closeAsync(()=>resolve(slices.join('')));
-                } 
-                
-            }
-        }
-    });
-}
-
-
 async function processCtrls(wdDoc: Word.DocumentCreated | Word.Document, ctrls: contentControl[] | undefined, fun: Function) { 
 
     if (!wdDoc || !ctrls || !fun) return console.log('Either the document or the ctrls collection is/are missing');
@@ -411,10 +362,10 @@ async function customizeContract() {
            
             const keep = selected.filter(title => !title.startsWith('!'));
             const newDoc = context.application.createDocument(template);
-            await context.sync();
             newDoc.open();
             //context.document.close(Word.CloseBehavior.skipSave);
             await deleteAllNotSelected(keep, newDoc);
+            await context.sync();
         });
     }
 
@@ -427,6 +378,53 @@ async function customizeContract() {
      }
     }
 };
+/**
+ * Asynchronously gets the entire document content as a Base64 string.
+ * This function handles multi-slice documents by requesting each slice in parallel.
+ * @returns A Promise that resolves with the Base64-encoded document content.
+ */
+async function getDocumentBase64(): Promise<Base64URLString> {
+    const failed = (result: Office.AsyncResult<Office.File | Office.Slice>) => result.status !== Office.AsyncResultStatus.Succeeded;
+    
+    return new Promise((resolve, reject) => {
+        // Step 1: Request the document as a compressed file.
+        Office.context.document.getFileAsync(
+            Office.FileType.Compressed,
+            { sliceSize: 64 * 1024 },
+            (fileResult)=>processFile(fileResult)
+        );
+
+        function processFile(fileResult: Office.AsyncResult<Office.File>) {
+            if (failed(fileResult))
+               return reject(fileResult.error);
+
+            const file = fileResult.value;
+            const sliceCount = file.sliceCount;
+            const slices: (string | number[])[] = new Array(sliceCount);
+            let loadedSlices = 0;
+
+            // Step 2: Use a loop to request each slice in parallel.
+            for (let i = 0; i < sliceCount; i++) {
+                file.getSliceAsync(i, (sliceResult) =>processSlice(sliceResult));
+            };
+            
+            function processSlice(sliceResult: Office.AsyncResult<Office.Slice>) {
+                if(failed(sliceResult)) 
+                    file.closeAsync(() => reject(sliceResult.error));
+                else{
+                    // Store the raw data of the slice in the correct index.
+                    slices[sliceResult.value.index] = sliceResult.value.data;
+                    loadedSlices++;
+    
+                    // Step 3: Check if all slices have been received.
+                    if (loadedSlices === sliceCount)
+                        file.closeAsync(()=>resolve(slices.join('')));
+                } 
+                
+            }
+        }
+    });
+}
 
 
 
