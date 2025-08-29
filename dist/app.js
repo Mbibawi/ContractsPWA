@@ -7,13 +7,14 @@ const RTDescriptionTag = 'RTDesc';
 const RTDescriptionStyle = 'RTDescription';
 const RTSiTag = 'RTSi';
 const RTSiStyles = ['RTSi0cm', 'RTSi1cm', 'RTSi2cm', 'RTSi3cm', 'RTSi4cm'];
-let USERFORM;
+let USERFORM, NOTIFICATION;
 Office.onReady((info) => {
     USERFORM = document.getElementById('userFormSection');
+    NOTIFICATION = document.getElementById('notification');
     // Check that we loaded into Word
-    if (info.host === Office.HostType.Word) {
-        buildUI();
-    }
+    if (info.host !== Office.HostType.Word)
+        return showNotification('This addin is designed to work on Word only');
+    buildUI();
 });
 function buildUI() {
     if (!USERFORM)
@@ -48,8 +49,7 @@ async function insertRichTextContentControlAroundSelection() {
         await context.sync();
         // abort if nothing is selected
         if (selection.isEmpty) {
-            console.log('Please select some text first.');
-            return;
+            return showNotification('Please select some text first.');
         }
         // 3. Wrap the selection in a RichText content control
         const cc = selection.insertContentControl(Word.ContentControlType.richText);
@@ -58,7 +58,7 @@ async function insertRichTextContentControlAroundSelection() {
         cc.appearance = Word.ContentControlAppearance.boundingBox;
         cc.color = "blue";
         // Log the content control properties
-        console.log(`ContentControl created with ID: ${cc.id}, Tag: ${cc.tag}, Title: ${cc.title}`);
+        showNotification(`ContentControl created with ID: ${cc.id}, Tag: ${cc.tag}, Title: ${cc.title}`);
         await context.sync();
     });
 }
@@ -71,7 +71,7 @@ function openInputDialog(data) {
         displayInIframe: false
     }, (asyncResult) => {
         if (asyncResult.status === Office.AsyncResultStatus.Failed) {
-            console.error("failed to open", asyncResult.error.message);
+            showNotification(`failed to open an got ${asyncResult.error.message}`);
             return;
         }
         dialog = asyncResult.value;
@@ -116,7 +116,7 @@ function openInputDialog(data) {
                 cc.load("isNullObject");
                 await context.sync();
                 if (cc.isNullObject) {
-                    console.warn(`ContentControl id=${ctrl.id} not found.`);
+                    showNotification(`ContentControl id=${ctrl.id} not found.`);
                     return;
                 }
                 if (ctrl.delete) {
@@ -132,7 +132,7 @@ function openInputDialog(data) {
 }
 async function processCtrls(wdDoc, ctrls, fun) {
     if (!wdDoc || !ctrls || !fun)
-        return console.log('Either the document or the ctrls collection is/are missing');
+        return showNotification('Either the document or the ctrls collection is/are missing');
     await Word.run(wdDoc, async (context) => {
         var _a;
         // Step 4: Iterate through the list of IDs and delete the corresponding content controls.
@@ -151,7 +151,7 @@ async function processCtrls(wdDoc, ctrls, fun) {
         }
         // Step 5: Execute all the delete commands at once on the new document.
         await context.sync();
-        console.log("All specified content controls have been deleted from the new document.");
+        showNotification("All specified content controls have been deleted from the new document.");
     });
 }
 // Delete the content control and all of its content.
@@ -159,7 +159,7 @@ function deleteCtrl(ctrl, data) {
     if (!ctrl)
         return;
     ctrl.delete(true);
-    console.log(`Deleted content control with ID ${data.id}.`);
+    showNotification(`Deleted content control with ID ${data.id}.`);
 }
 function editCtrlText(ctrl, data) {
     if (!data.content || !ctrl)
@@ -168,7 +168,7 @@ function editCtrlText(ctrl, data) {
     const range = ctrl.getRange();
     //range.clear();
     range.insertText(data.content, "Replace");
-    console.log(`Edited content control with ID ${data.id}.`);
+    showNotification(`Edited content control with ID ${data.id}.`);
 }
 /**
  * Wraps every occurrence of text formatted with a specific character style in a rich text content control.
@@ -203,10 +203,10 @@ async function searchString(search, context, matchWildcards) {
     const searchResults = context.document.body.search(search, { matchWildcards: matchWildcards });
     await context.sync();
     if (!searchResults.items.length) {
-        console.log(`No text matching the search string was found in the document.`);
+        showNotification(`No text matching the search string was found in the document.`);
         return;
     }
-    console.log(`Found ${searchResults.items.length} ranges matching the search string: ${search}.`);
+    showNotification(`Found ${searchResults.items.length} ranges matching the search string: ${search}.`);
     return searchResults;
 }
 async function addIDtoCtrlTitle(ctrls) {
@@ -233,11 +233,11 @@ async function insertRTSiAll() {
                 await parag.context.sync();
                 if (parent.tag === RTSiTag)
                     continue;
-                console.log(`range style: ${parag.style} & text = ${parag.text}`);
+                showNotification(`range style: ${parag.style} & text = ${parag.text}`);
                 await insertContentControl(parag.getRange('Content'), RTSiTag, RTSiTag, parags.indexOf(parag));
             }
             catch (error) {
-                console.log(`error: ${error}`);
+                showNotification(`error: ${error}`);
                 continue;
             }
         }
@@ -256,7 +256,7 @@ async function insertContentControl(range, title, tag, index) {
     contentControl.cannotDelete = true;
     contentControl.cannotEdit = true;
     contentControl.appearance = Word.ContentControlAppearance.boundingBox;
-    console.log(`Wrapped text in range ${index || 1} with a content control.`);
+    showNotification(`Wrapped text in range ${index || 1} with a content control.`);
     return contentControl;
 }
 async function wrapAllSameStyleParagraphsWithContentControl(style, title, tag) {
@@ -305,7 +305,7 @@ async function customizeContract() {
     const template = await getTemplate();
     console.log(template);
     if (!template)
-        return console.log('Failed to create the template');
+        return showNotification('Failed to create the template');
     await selectCtrls();
     async function selectCtrls() {
         return await Word.run(async (context) => {
@@ -332,7 +332,7 @@ async function customizeContract() {
             return template;
         }
         catch (error) {
-            console.log(`Failed to create new Doc: ${error}`);
+            showNotification(`Failed to create new Doc: ${error}`);
         }
     }
 }
@@ -360,7 +360,7 @@ async function getDocumentBase64() {
                     file.getSliceAsync(i, (sliceResult) => processSlice(sliceResult));
                 }
                 catch (error) {
-                    console.log(`${error} : i = ${i}`);
+                    showNotification(`${error} : i = ${i}`);
                 }
             });
             /*
@@ -384,7 +384,7 @@ async function getDocumentBase64() {
                     }
                 }
                 catch (error) {
-                    console.log(`${error}, succeeded = ${sliceResult.status}, loaded = ${loadedSlices}`);
+                    showNotification(`${error}, succeeded = ${sliceResult.status}, loaded = ${loadedSlices}`);
                 }
             }
         }
@@ -474,5 +474,10 @@ function createHTMLElement(tag, css, innerText, parent, id, append = true) {
         el.id = id;
     append ? parent.appendChild(el) : parent.prepend(el);
     return el;
+}
+function showNotification(message, clear = false) {
+    if (clear)
+        NOTIFICATION.innerHTML = '';
+    createHTMLElement('p', 'notification', message, NOTIFICATION, '', true);
 }
 //# sourceMappingURL=app.js.map
