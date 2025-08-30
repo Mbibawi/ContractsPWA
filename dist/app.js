@@ -404,39 +404,25 @@ async function getDocumentBase64() {
                 return reject(fileResult.error);
             const file = fileResult.value;
             const sliceCount = file.sliceCount;
-            const slices = new Array(sliceCount).fill(1);
-            let loadedSlices = 0;
-            // Step 2: Use a loop to request each slice in parallel.
-            slices.forEach((s, i) => {
-                try {
-                    file.getSliceAsync(i, (sliceResult) => processSlice(sliceResult));
-                }
-                catch (error) {
-                    showNotification(`${error} : i = ${i}`);
-                }
-            });
-            /*
-            for (let i = 0; i < sliceCount; i++) {
-                if(isNaN(i)) break
-                file.getSliceAsync(i, (sliceResult) =>processSlice(sliceResult));
-            };
-            */
+            const slices = [];
+            getSlice();
+            function getSlice() {
+                file.getSliceAsync(slices.length, (sliceResult) => processSlice(sliceResult));
+            }
             function processSlice(sliceResult) {
                 try {
                     if (failed(sliceResult))
-                        file.closeAsync(() => reject(sliceResult.error));
-                    else {
-                        // Store the raw data of the slice in the correct index.
-                        slices[sliceResult.value.index] = sliceResult.value.data;
-                        loadedSlices++;
-                        if (loadedSlices < sliceCount)
-                            return;
-                        // Step 3: Check if all slices have been received.
-                        file.closeAsync(() => resolve(slices.join('')));
-                    }
+                        return file.closeAsync(() => reject(sliceResult.error));
+                    slices.push(sliceResult.value.data);
+                    if (slices.length < sliceCount)
+                        return getSlice();
+                    const uint8Array = new Uint8Array(slices.flat());
+                    const binaryString = new TextDecoder("latin1").decode(uint8Array);
+                    const base64String = btoa(binaryString);
+                    file.closeAsync(() => resolve(base64String));
                 }
                 catch (error) {
-                    showNotification(`${error}, succeeded = ${sliceResult.status}, loaded = ${loadedSlices}`);
+                    showNotification(`${error}, succeeded = ${sliceResult.status}, loaded = ${slices.length}`);
                 }
             }
         }
