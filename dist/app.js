@@ -348,13 +348,21 @@ async function customizeContract() {
             return [keep, newDoc.context];
             //const fileName = promptForInput('Provide the fileName');
             //newDoc.save(Word.SaveBehavior.prompt, fileName);
+            customizeNewDoc(keep, newDoc.context);
         });
-        customizeNewDoc();
-        async function customizeNewDoc() {
-            const all = newContext.document.contentControls;
+        async function customizeNewDoc(keep, context) {
+            const all = context.document.contentControls;
             all.load(['title', 'tag']);
-            await newContext.sync();
-            showNotification(all.items.map(c => c.title).join(', '));
+            await context.sync();
+            showNotification(keep.join(', '));
+            all.items
+                .filter(ctrl => !keep.includes(ctrl.title))
+                .forEach(ctrl => {
+                ctrl.select();
+                ctrl.cannotDelete = false;
+                ctrl.delete(true);
+            });
+            await context.sync();
             return;
             await Word.run(async (context) => {
                 const all = context.document.contentControls;
