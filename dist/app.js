@@ -454,7 +454,7 @@ async function promptForSelection([index, ctrl], selected) {
 }
 async function deleteAllNotSelected(selected, wdDoc) {
     const all = wdDoc.contentControls;
-    all.load(['title', 'tag']);
+    all.load(['items', 'title', 'tag']);
     await wdDoc.context.sync();
     all.items
         .filter(ctrl => !selected.includes(ctrl.title))

@@ -514,7 +514,7 @@ async function promptForSelection([index, ctrl]: [number, Word.ContentControl], 
 
 async function deleteAllNotSelected(selected: string[], wdDoc:Word.Document | Word.DocumentCreated) {
         const all = wdDoc.contentControls;
-        all.load(['title', 'tag']);
+        all.load(['items', 'title', 'tag']);
         await wdDoc.context.sync();
     all.items
         .filter(ctrl => !selected.includes(ctrl.title))
