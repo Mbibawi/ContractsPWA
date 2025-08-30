@@ -306,7 +306,8 @@ async function customizeContract() {
     console.log(template);
     if (!template)
         return showNotification('Failed to create the template');
-    await selectCtrls();
+    const [keep, newDoc] = await selectCtrls();
+    await deleteAllNotSelected(keep, newDoc);
     async function selectCtrls() {
         return await Word.run(async (context) => {
             const allRT = context.document.contentControls;
@@ -322,8 +323,8 @@ async function customizeContract() {
             const newDoc = context.application.createDocument(template);
             newDoc.open();
             //context.document.close(Word.CloseBehavior.skipSave);
-            await deleteAllNotSelected(keep, newDoc);
             await context.sync();
+            return [keep, newDoc];
         });
     }
     async function getTemplate() {
