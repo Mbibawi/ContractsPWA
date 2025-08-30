@@ -279,7 +279,28 @@ async function wrapSelectionWithContentControl(title, tag) {
     });
 }
 ;
-function promptForInput(question) {
+async function confirm(question, fun) {
+    if (!question)
+        return;
+    const container = createHTMLElement('div', 'promptContainer', '', USERFORM);
+    const prompt = createHTMLElement('div', 'prompt', '', container);
+    createHTMLElement('p', 'ask', question, prompt);
+    const btns = createHTMLElement('div', 'btns', '', prompt);
+    const btnOK = createHTMLElement('button', 'btnOK', 'OK', btns);
+    const btnNo = createHTMLElement('button', 'btnCancel', 'NO', btns);
+    return new Promise((resolve, reject) => {
+        btnOK.onclick = () => resolve(confirm(true));
+        btnNo.onclick = () => resolve(confirm(false));
+    });
+    function confirm(confirm) {
+        container.remove();
+        if (fun)
+            fun(confirm);
+        return confirm;
+    }
+}
+;
+function promptForInput(question, fun) {
     if (!question)
         return;
     const container = createHTMLElement('div', 'promptContainer', '', USERFORM);
@@ -294,6 +315,8 @@ function promptForInput(question) {
         answer = input.value;
         console.log('user answer = ', answer);
         container.remove();
+        if (fun)
+            fun(answer);
     };
     btnCancel.onclick = () => container.remove();
     return answer;
@@ -308,7 +331,7 @@ async function customizeContract() {
         return showNotification('Failed to create the template');
     await selectCtrls();
     async function selectCtrls() {
-        await Word.run(async (context) => {
+        const [keep, url] = await Word.run(async (context) => {
             const allRT = context.document.contentControls;
             allRT.load(['title', 'tag', 'contentControls']);
             await context.sync();
@@ -316,26 +339,42 @@ async function customizeContract() {
                 .filter(ctrl => OPTIONS.includes(ctrl.tag))
                 .entries();
             const selected = [];
-            for (const ctrl of ctrls)
-                await promptForSelection(ctrl, selected);
+            //for (const ctrl of ctrls) 
+            //  await promptForSelection(ctrl, selected);
             const keep = selected.filter(title => !title.startsWith('!'));
             const newDoc = context.application.createDocument(template);
-            await context.sync();
             newDoc.open();
             await context.sync();
-            return;
-            const all = newDoc.contentControls;
-            all.load(['title', 'tag']);
-            await newDoc.context.sync();
-            all.items
-                .filter(ctrl => !keep.includes(ctrl.title))
-                .forEach(ctrl => {
-                ctrl.select();
-                ctrl.cannotDelete = false;
-                ctrl.delete(true);
-            });
-            await newDoc.context.sync();
+            return [keep, ''];
+            const fileName = promptForInput('Provide the fileName');
+            newDoc.save(Word.SaveBehavior.prompt, fileName);
         });
+        async function customizeNewDoc() {
+            await Word.run(async (context) => {
+                const newURL = getFileURL();
+                //if (newURL !== url) return;
+                const all = context.document.contentControls;
+                all.load(['title', 'tag']);
+                await context.sync();
+                all.items
+                    .filter(ctrl => !keep.includes(ctrl.title))
+                    .forEach(ctrl => {
+                    ctrl.select();
+                    ctrl.cannotDelete = false;
+                    ctrl.delete(true);
+                });
+                await context.sync();
+            });
+        }
+        function getFileURL() {
+            let url;
+            Office.context.document.getFilePropertiesAsync(undefined, (result) => {
+                if (result.error)
+                    return;
+                url = result.value.url;
+            });
+            return url;
+        }
     }
     async function getTemplate() {
         try {
