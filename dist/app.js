@@ -331,7 +331,7 @@ async function customizeContract() {
         return showNotification('Failed to create the template');
     await selectCtrls();
     async function selectCtrls() {
-        const keep = await Word.run(async (context) => {
+        const [keep, newContext] = await Word.run(async (context) => {
             const allRT = context.document.contentControls;
             allRT.load(['title', 'tag', 'contentControls']);
             await context.sync();
@@ -345,15 +345,18 @@ async function customizeContract() {
             const newDoc = context.application.createDocument(template);
             newDoc.open();
             await context.sync();
-            return keep;
+            return [keep, newDoc.context];
             //const fileName = promptForInput('Provide the fileName');
             //newDoc.save(Word.SaveBehavior.prompt, fileName);
         });
-        customizeNewDoc(keep);
-        async function customizeNewDoc(keep) {
+        customizeNewDoc();
+        async function customizeNewDoc() {
+            const all = newContext.document.contentControls;
+            all.load(['title', 'tag']);
+            await newContext.sync();
+            showNotification(all.items.map(c => c.title).join(', '));
+            return;
             await Word.run(async (context) => {
-                const newURL = getFileURL();
-                //if (newURL !== url) return;
                 const all = context.document.contentControls;
                 all.load(['title', 'tag']);
                 await context.sync();
