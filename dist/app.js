@@ -452,10 +452,10 @@ async function promptForSelection([index, ctrl], selected) {
         }
     }
 }
-async function deleteAllNotSelected(selected, document) {
-    const all = document.contentControls;
+async function deleteAllNotSelected(selected, wdDoc) {
+    const all = wdDoc.contentControls;
     all.load(['title', 'tag']);
-    await document.context.sync();
+    await wdDoc.context.sync();
     all.items
         .filter(ctrl => !selected.includes(ctrl.title))
         .forEach(ctrl => {
@@ -463,7 +463,7 @@ async function deleteAllNotSelected(selected, document) {
         ctrl.cannotDelete = false;
         ctrl.delete(true);
     });
-    await document.context.sync();
+    await wdDoc.context.sync();
 }
 function createHTMLElement(tag, css, innerText, parent, id, append = true) {
     const el = document.createElement(tag);

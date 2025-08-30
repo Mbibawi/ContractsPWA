@@ -512,10 +512,10 @@ async function promptForSelection([index, ctrl]: [number, Word.ContentControl], 
     }
 }
 
-async function deleteAllNotSelected(selected: string[], document:Word.Document | Word.DocumentCreated) {
-        const all = document.contentControls;
+async function deleteAllNotSelected(selected: string[], wdDoc:Word.Document | Word.DocumentCreated) {
+        const all = wdDoc.contentControls;
         all.load(['title', 'tag']);
-        await document.context.sync();
+        await wdDoc.context.sync();
     all.items
         .filter(ctrl => !selected.includes(ctrl.title))
         .forEach(ctrl => {
@@ -523,7 +523,7 @@ async function deleteAllNotSelected(selected: string[], document:Word.Document |
             ctrl.cannotDelete = false;
             ctrl.delete(true);
     });
-        await document.context.sync();
+        await wdDoc.context.sync();
 }
 
 function createHTMLElement(tag: string, css: string, innerText:string, parent: HTMLElement | Document, id?:string, append:boolean = true) {
