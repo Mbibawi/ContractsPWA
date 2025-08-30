@@ -331,25 +331,27 @@ async function customizeContract() {
         return showNotification('Failed to create the template');
     await selectCtrls();
     async function selectCtrls() {
-        const [keep, url] = await Word.run(async (context) => {
-            const allRT = context.document.contentControls;
-            allRT.load(['title', 'tag', 'contentControls']);
-            await context.sync();
-            const ctrls = allRT.items
-                .filter(ctrl => OPTIONS.includes(ctrl.tag))
-                .entries();
-            const selected = [];
-            //for (const ctrl of ctrls) 
-            //  await promptForSelection(ctrl, selected);
-            const keep = selected.filter(title => !title.startsWith('!'));
+        await Word.run(async (context) => {
             const newDoc = context.application.createDocument(template);
             newDoc.open();
             await context.sync();
-            return [keep, ''];
-            const fileName = promptForInput('Provide the fileName');
-            newDoc.save(Word.SaveBehavior.prompt, fileName);
+            //const fileName = promptForInput('Provide the fileName');
+            //newDoc.save(Word.SaveBehavior.prompt, fileName);
+            (async function myLogic() {
+                return;
+                const allRT = context.document.contentControls;
+                allRT.load(['title', 'tag', 'contentControls']);
+                await context.sync();
+                const ctrls = allRT.items
+                    .filter(ctrl => OPTIONS.includes(ctrl.tag))
+                    .entries();
+                const selected = [];
+                for (const ctrl of ctrls)
+                    await promptForSelection(ctrl, selected);
+                const keep = selected.filter(title => !title.startsWith('!'));
+            })();
         });
-        async function customizeNewDoc() {
+        async function customizeNewDoc(keep) {
             await Word.run(async (context) => {
                 const newURL = getFileURL();
                 //if (newURL !== url) return;
