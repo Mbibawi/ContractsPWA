@@ -390,32 +390,31 @@ async function customizeContract() {
             //const fileName = promptForInput('Provide the fileName');
             //newDoc.save(Word.SaveBehavior.prompt, fileName);
             await customizeNewDoc(keep, newDoc.context);
-        });
-        
-
-        async function customizeNewDoc(keep:string[], context:Word.RequestContext) {
-            try {
-                await deleteCtrls();
-            } catch (error) {
-                showNotification(`${error}`)
-            }
-            
-            async function deleteCtrls(){
-                const all = context.document.contentControls;
-                all.load(['title', 'tag']);
-                await context.sync();
-                showNotification(keep.join(', '));
-                all.items
-                .filter(ctrl => !keep.includes(ctrl.title))
-                .forEach(ctrl => {
-                    ctrl.select();
-                    ctrl.cannotDelete = false;
-                    ctrl.delete(true);
-                });
-                await context.sync();
-            }  
-        }
+        });      
     }
+    
+        async function customizeNewDoc(keep:string[], context:Word.RequestContext) {
+                try {
+                    await deleteCtrls();
+                } catch (error) {
+                    showNotification(`${error}`)
+                }
+                
+                async function deleteCtrls(){
+                    const all = context.document.contentControls;
+                    all.load(['title', 'tag']);
+                    await context.sync();
+                    showNotification(keep.join(', '));
+                    all.items
+                    .filter(ctrl => !keep.includes(ctrl.title))
+                    .forEach(ctrl => {
+                        ctrl.select();
+                        ctrl.cannotDelete = false;
+                        ctrl.delete(false);
+                    });
+                    await context.sync();
+                }  
+        }
     
     function getFileURL() {
         let url;

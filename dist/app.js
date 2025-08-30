@@ -350,27 +350,27 @@ async function customizeContract() {
             //newDoc.save(Word.SaveBehavior.prompt, fileName);
             await customizeNewDoc(keep, newDoc.context);
         });
-        async function customizeNewDoc(keep, context) {
-            try {
-                await deleteCtrls();
-            }
-            catch (error) {
-                showNotification(`${error}`);
-            }
-            async function deleteCtrls() {
-                const all = context.document.contentControls;
-                all.load(['title', 'tag']);
-                await context.sync();
-                showNotification(keep.join(', '));
-                all.items
-                    .filter(ctrl => !keep.includes(ctrl.title))
-                    .forEach(ctrl => {
-                    ctrl.select();
-                    ctrl.cannotDelete = false;
-                    ctrl.delete(true);
-                });
-                await context.sync();
-            }
+    }
+    async function customizeNewDoc(keep, context) {
+        try {
+            await deleteCtrls();
+        }
+        catch (error) {
+            showNotification(`${error}`);
+        }
+        async function deleteCtrls() {
+            const all = context.document.contentControls;
+            all.load(['title', 'tag']);
+            await context.sync();
+            showNotification(keep.join(', '));
+            all.items
+                .filter(ctrl => !keep.includes(ctrl.title))
+                .forEach(ctrl => {
+                ctrl.select();
+                ctrl.cannotDelete = false;
+                ctrl.delete(false);
+            });
+            await context.sync();
         }
     }
     function getFileURL() {
