@@ -416,8 +416,9 @@ async function getDocumentBase64() {
                     slices.push(sliceResult.value.data);
                     if (slices.length < sliceCount)
                         return getSlice();
-                    const uint8Array = new Uint8Array(slices.flat());
-                    const binaryString = new TextDecoder("latin1").decode(uint8Array);
+                    const binaryString = String.fromCharCode(...slices.flat());
+                    //const uint8Array = new Uint8Array(slices.flat());
+                    //  const binaryString = new TextDecoder("latin1").decode(uint8Array);
                     const base64String = btoa(binaryString);
                     file.closeAsync(() => resolve(base64String));
                 }
