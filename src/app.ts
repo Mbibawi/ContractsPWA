@@ -344,29 +344,38 @@ async function customizeContract() {
     const template = await getTemplate() as Base64URLString;
     console.log(template);
     if (!template) return showNotification('Failed to create the template');
-    const [keep, newDoc] = await selectCtrls();
-    await deleteAllNotSelected(keep, newDoc);
-     
-    async function selectCtrls():Promise<[string[], Word.DocumentCreated]> {
-        return await Word.run(async (context) => {
+    await selectCtrls();
+    
+    async function selectCtrls() {
+        await Word.run(async (context) => {
             const allRT = context.document.contentControls;
             allRT.load(['title', 'tag', 'contentControls']);
             await context.sync();
-           const ctrls = allRT.items
-               .filter(ctrl => OPTIONS.includes(ctrl.tag))
-                .entries();
+            const ctrls = allRT.items
+            .filter(ctrl => OPTIONS.includes(ctrl.tag))
+            .entries();
             
             const selected: string[] = [];
             for (const ctrl of ctrls) 
-               await promptForSelection(ctrl, selected);
-           
+                await promptForSelection(ctrl, selected);
+            
             const keep = selected.filter(title => !title.startsWith('!'));
             const newDoc = context.application.createDocument(template);
             await context.sync();
             newDoc.open();
-            //context.document.close(Word.CloseBehavior.skipSave);
             await context.sync();
-            return [keep, newDoc];
+            return
+            const all = newDoc.contentControls;
+            all.load(['title', 'tag']);
+            await newDoc.context.sync();
+            all.items
+                .filter(ctrl => !keep.includes(ctrl.title))
+                .forEach(ctrl => {
+                    ctrl.select();
+                    ctrl.cannotDelete = false;
+                    ctrl.delete(true);
+            });
+            await newDoc.context.sync();
         });
     }
 
