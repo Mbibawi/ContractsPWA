@@ -370,15 +370,7 @@ async function customizeContract() {
     await selectCtrls();
     
     async function selectCtrls() {
-        await Word.run(async (context) => {
-            const newDoc = context.application.createDocument(template);
-            newDoc.open();
-            await context.sync();
-            //const fileName = promptForInput('Provide the fileName');
-            //newDoc.save(Word.SaveBehavior.prompt, fileName);
-
-            (async function myLogic() {
-                return;
+        const keep = await Word.run(async (context) => {
                 const allRT = context.document.contentControls;
                 allRT.load(['title', 'tag', 'contentControls']);
                 await context.sync();
@@ -390,10 +382,16 @@ async function customizeContract() {
                     await promptForSelection(ctrl, selected);
                 
                 const keep = selected.filter(title => !title.startsWith('!'));
-                
-            })();
+            
+            const newDoc = context.application.createDocument(template);
+            newDoc.open();
+            await context.sync();
+            return keep;
+            //const fileName = promptForInput('Provide the fileName');
+            //newDoc.save(Word.SaveBehavior.prompt, fileName);
         });
         
+        customizeNewDoc(keep);
 
         async function customizeNewDoc(keep:string[]){
             await Word.run(async (context) => {
