@@ -469,13 +469,20 @@ async function getDocumentBase64(): Promise<Base64URLString> {
                     if(failed(sliceResult)) 
                         return file.closeAsync(() => reject(sliceResult.error));
 
-                        slices.push(sliceResult.value.data);
+                    slices.push(sliceResult.value.data);
+
                     if (slices.length < sliceCount) return getSlice();
-                    const binaryString = String.fromCharCode(...slices.flat());
-                        //const uint8Array = new Uint8Array(slices.flat());
-                      //  const binaryString = new TextDecoder("latin1").decode(uint8Array);
-                            const base64String = btoa(binaryString);
-                            file.closeAsync(()=>resolve(base64String));
+
+                    const CHUNK_SIZE = 16384; // A safe chunk size to avoid stack overflow
+                    const byteArray = slices.flat();
+                    let binaryString: string = '';
+                    for (let i = 0; i < byteArray.length; i += CHUNK_SIZE){
+                        const chunk = byteArray.slice(i, i + CHUNK_SIZE);
+                        binaryString+=String.fromCharCode(...chunk);
+                    }
+    
+                    const base64String = btoa(binaryString);
+                    file.closeAsync(()=>resolve(base64String));
                     
                 } catch (error) {
                     showNotification(`${error}, succeeded = ${sliceResult.status}, loaded = ${slices.length}`)
