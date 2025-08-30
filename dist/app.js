@@ -321,6 +321,7 @@ async function customizeContract() {
                 await promptForSelection(ctrl, selected);
             const keep = selected.filter(title => !title.startsWith('!'));
             const newDoc = context.application.createDocument(template);
+            await context.sync();
             newDoc.open();
             //context.document.close(Word.CloseBehavior.skipSave);
             await context.sync();
