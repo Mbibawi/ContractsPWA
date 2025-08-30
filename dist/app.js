@@ -351,23 +351,17 @@ async function customizeContract() {
             await customizeNewDoc(keep, newDoc.context);
         });
         async function customizeNewDoc(keep, context) {
-            const all = context.document.contentControls;
-            all.load(['title', 'tag']);
-            await context.sync();
-            showNotification(keep.join(', '));
-            all.items
-                .filter(ctrl => !keep.includes(ctrl.title))
-                .forEach(ctrl => {
-                ctrl.select();
-                ctrl.cannotDelete = false;
-                ctrl.delete(true);
-            });
-            await context.sync();
-            return;
-            await Word.run(async (context) => {
+            try {
+                await deleteCtrls();
+            }
+            catch (error) {
+                showNotification(`${error}`);
+            }
+            async function deleteCtrls() {
                 const all = context.document.contentControls;
                 all.load(['title', 'tag']);
                 await context.sync();
+                showNotification(keep.join(', '));
                 all.items
                     .filter(ctrl => !keep.includes(ctrl.title))
                     .forEach(ctrl => {
@@ -376,17 +370,17 @@ async function customizeContract() {
                     ctrl.delete(true);
                 });
                 await context.sync();
-            });
+            }
         }
-        function getFileURL() {
-            let url;
-            Office.context.document.getFilePropertiesAsync(undefined, (result) => {
-                if (result.error)
-                    return;
-                url = result.value.url;
-            });
-            return url;
-        }
+    }
+    function getFileURL() {
+        let url;
+        Office.context.document.getFilePropertiesAsync(undefined, (result) => {
+            if (result.error)
+                return;
+            url = result.value.url;
+        });
+        return url;
     }
     async function getTemplate() {
         try {
