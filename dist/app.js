@@ -325,10 +325,6 @@ function promptForInput(question, fun) {
 async function customizeContract() {
     USERFORM.innerHTML = '';
     createHTMLElement('button', 'button', 'Download Document', USERFORM, '', true);
-    const template = await getTemplate();
-    console.log(template);
-    if (!template)
-        return showNotification('Failed to create the template');
     await selectCtrls();
     async function selectCtrls() {
         await Word.run(async (context) => {
@@ -342,16 +338,26 @@ async function customizeContract() {
             for (const ctrl of ctrls)
                 await promptForSelection(ctrl, selected);
             const keep = selected.filter(title => !title.startsWith('!'));
-            const newDoc = context.application.createDocument(template);
-            newDoc.open();
-            await context.sync();
-            //return [keep, newDoc.context];
-            //const fileName = promptForInput('Provide the fileName');
-            //newDoc.save(Word.SaveBehavior.prompt, fileName);
-            await customizeNewDoc(keep, newDoc.context);
+            await createNewDoc();
+            await customize(keep, context);
+            async function createNewDoc() {
+                const template = await getTemplate();
+                console.log(template);
+                if (!template)
+                    return showNotification('Failed to create the template');
+                const newDoc = context.application.createDocument(template);
+                const all = newDoc.contentControls;
+                all.load(['title', 'tag']);
+                //newDoc.open();
+                await context.sync();
+                showNotification(`from createNewDoc: \n ${all.items.map(c => c.title).join(',')}`);
+                //const fileName = promptForInput('Provide the fileName');
+                //newDoc.save(Word.SaveBehavior.prompt, fileName);
+                //await customize(keep, newDoc.context);
+            }
         });
     }
-    async function customizeNewDoc(keep, context) {
+    async function customize(keep, context) {
         try {
             await deleteCtrls();
         }
@@ -400,9 +406,10 @@ async function customizeContract() {
  */
 async function getDocumentBase64() {
     const failed = (result) => result.status !== Office.AsyncResultStatus.Succeeded;
+    const sliceSize = 16 * 1024; //!We need not to exceed the Maximum call stack limit when the slices will be passed to String.FromCharCode()
     return new Promise((resolve, reject) => {
         // Step 1: Request the document as a compressed file.
-        Office.context.document.getFileAsync(Office.FileType.Compressed, { sliceSize: 64 * 1024 }, (fileResult) => processFile(fileResult));
+        Office.context.document.getFileAsync(Office.FileType.Compressed, { sliceSize: sliceSize }, (fileResult) => processFile(fileResult));
         function processFile(fileResult) {
             if (failed(fileResult))
                 return reject(fileResult.error);
@@ -420,13 +427,7 @@ async function getDocumentBase64() {
                     slices.push(sliceResult.value.data);
                     if (slices.length < sliceCount)
                         return getSlice();
-                    const CHUNK_SIZE = 16384; // A safe chunk size to avoid stack overflow
-                    const byteArray = slices.flat();
-                    let binaryString = '';
-                    for (let i = 0; i < byteArray.length; i += CHUNK_SIZE) {
-                        const chunk = byteArray.slice(i, i + CHUNK_SIZE);
-                        binaryString += String.fromCharCode(...chunk);
-                    }
+                    const binaryString = slices.map(slice => String.fromCharCode(...slice)).join('');
                     const base64String = btoa(binaryString);
                     file.closeAsync(() => resolve(base64String));
                 }
