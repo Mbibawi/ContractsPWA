@@ -389,39 +389,38 @@ async function customizeContract() {
                 if (!template) return showNotification('Failed to create the template');
                 const newDoc = context.application.createDocument(template);
                 await context.sync();
-                await customize(keep, newDoc);
-                newDoc.open();
-
-                   //const fileName = promptForInput('Provide the fileName');
-                   //newDoc.save(Word.SaveBehavior.prompt, fileName);
-                   //await customize(keep, newDoc.context);
-            }
-        });      
-    }
-    
-    async function customize(keep: string[], newDoc:Word.DocumentCreated) {
                 try {
-                    await deleteCtrls();
+                    await customizeNew();
+                    newDoc.open();
                 } catch (error) {
                     showNotification(`${error}`)
                 }
-                
-                async function deleteCtrls(){
+
+                //await customize(keep, newDoc);
+
+                   //const fileName = promptForInput('Provide the fileName');
+                   //newDoc.save(Word.SaveBehavior.prompt, fileName);
+
+                async function customizeNew() {
                     const all = newDoc.contentControls;
                     all.load(['title', 'tag']);
-                    await newDoc.context.sync();
+                    await context.sync();
+
                     showNotification(`All ctrls from newDoc = : ${all.items.map(c=>c.title).join(', ')}`);
                     showNotification(keep.join(', '));
-
+    
                     all.items.forEach(ctrl => {
                             if (keep.includes(ctrl.title)) return;
                             ctrl.select();
                             ctrl.cannotDelete = false;
                             ctrl.delete(false);
                     });
-                    await newDoc.context.sync();
-                }  
-        }
+                    await context.sync();
+                }
+            }
+        });      
+    }
+    
     
     function getFileURL() {
         let url;
@@ -434,8 +433,7 @@ async function customizeContract() {
 
     async function getTemplate() {
         try {
-            const template = await getDocumentBase64();
-            return template;
+            return await getDocumentBase64();
      } catch (error) {
          showNotification(`Failed to create new Doc: ${error}`)
      }
