@@ -403,12 +403,14 @@ async function customizeContract() {
                     showNotification(`All ctrls from newDoc = : ${all.items.map(c=>c.title).join(', ')}`);
                     showNotification(keep.join(', '));
     
-                    all.items.forEach(async ctrl => {
+                    await Promise.all(
+                        all.items.map(async ctrl => {
                             if (keep.includes(ctrl.title)) return;
                             ctrl.cannotDelete = false;
                             ctrl.delete(false);
                             await context.sync();
-                    });
+                        }));
+                
                 }
             }
         });      
