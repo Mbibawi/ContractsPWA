@@ -339,25 +339,22 @@ async function customizeContract() {
                 await promptForSelection(ctrl, selected);
             const keep = selected.filter(title => !title.startsWith('!'));
             await createNewDoc();
-            await customize(keep, context);
             async function createNewDoc() {
                 const template = await getTemplate();
                 console.log(template);
                 if (!template)
                     return showNotification('Failed to create the template');
                 const newDoc = context.application.createDocument(template);
-                const all = newDoc.contentControls;
-                all.load(['title', 'tag']);
-                //newDoc.open();
+                await customize(keep, newDoc);
                 await context.sync();
-                showNotification(`from createNewDoc: \n ${all.items.map(c => c.title).join(',')}`);
+                newDoc.open();
                 //const fileName = promptForInput('Provide the fileName');
                 //newDoc.save(Word.SaveBehavior.prompt, fileName);
                 //await customize(keep, newDoc.context);
             }
         });
     }
-    async function customize(keep, context) {
+    async function customize(keep, newDoc) {
         try {
             await deleteCtrls();
         }
@@ -365,9 +362,10 @@ async function customizeContract() {
             showNotification(`${error}`);
         }
         async function deleteCtrls() {
-            const all = context.document.contentControls;
+            const all = newDoc.contentControls;
             all.load(['title', 'tag']);
-            await context.sync();
+            await newDoc.context.sync();
+            showNotification(`All ctrls from newDoc = : ${all.items.map(c => c.title).join(', ')}`);
             showNotification(keep.join(', '));
             all.items
                 .filter(ctrl => !keep.includes(ctrl.title))
@@ -376,7 +374,7 @@ async function customizeContract() {
                 ctrl.cannotDelete = false;
                 ctrl.delete(false);
             });
-            await context.sync();
+            await newDoc.context.sync();
         }
     }
     function getFileURL() {

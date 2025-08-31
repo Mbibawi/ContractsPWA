@@ -381,18 +381,17 @@ async function customizeContract() {
                 
             const keep = selected.filter(title => !title.startsWith('!'));
             await createNewDoc();
-            await customize(keep, context);
+
             
             async function createNewDoc() {
-                    const template = await getTemplate() as Base64URLString;
-                    console.log(template);
-                    if (!template) return showNotification('Failed to create the template');
-                    const newDoc = context.application.createDocument(template);
-                    const all = newDoc.contentControls;
-                    all.load(['title', 'tag']);
-                   //newDoc.open();
+                const template = await getTemplate() as Base64URLString;
+                console.log(template);
+                if (!template) return showNotification('Failed to create the template');
+                const newDoc = context.application.createDocument(template);
+                await customize(keep, newDoc);
                 await context.sync();
-                showNotification(`from createNewDoc: \n ${all.items.map(c=>c.title).join(',')}`)
+                newDoc.open();
+
                    //const fileName = promptForInput('Provide the fileName');
                    //newDoc.save(Word.SaveBehavior.prompt, fileName);
                    //await customize(keep, newDoc.context);
@@ -400,7 +399,7 @@ async function customizeContract() {
         });      
     }
     
-        async function customize(keep:string[], context:Word.RequestContext) {
+    async function customize(keep: string[], newDoc:Word.DocumentCreated) {
                 try {
                     await deleteCtrls();
                 } catch (error) {
@@ -408,9 +407,10 @@ async function customizeContract() {
                 }
                 
                 async function deleteCtrls(){
-                    const all = context.document.contentControls;
+                    const all = newDoc.contentControls;
                     all.load(['title', 'tag']);
-                    await context.sync();
+                    await newDoc.context.sync();
+                    showNotification(`All ctrls from newDoc = : ${all.items.map(c=>c.title).join(', ')}`);
                     showNotification(keep.join(', '));
                     all.items
                     .filter(ctrl => !keep.includes(ctrl.title))
@@ -419,7 +419,7 @@ async function customizeContract() {
                         ctrl.cannotDelete = false;
                         ctrl.delete(false);
                     });
-                    await context.sync();
+                    await newDoc.context.sync();
                 }  
         }
     
