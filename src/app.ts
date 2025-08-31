@@ -389,8 +389,8 @@ async function customizeContract() {
                 const newDoc = context.application.createDocument(template);
                 await context.sync();
                 try {
-                    await customizeNew();
                     newDoc.open();
+                    await customizeNew();
                 } catch (error) {
                     showNotification(`${error}`)
                 }
