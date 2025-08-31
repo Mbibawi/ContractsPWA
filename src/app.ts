@@ -379,11 +379,10 @@ async function customizeContract() {
                 for (const ctrl of ctrls) 
                     await promptForSelection(ctrl, selected);
                 
-            const keep = selected.filter(title => !title.startsWith('!'));
-            await createNewDoc();
+            await createNewDoc(selected);
 
-            
-            async function createNewDoc() {
+            async function createNewDoc(selected:string[]) {
+                const keep = selected.filter(title => !title.startsWith('!'));
                 const template = await getTemplate() as Base64URLString;
                 console.log(template);
                 if (!template) return showNotification('Failed to create the template');
@@ -395,11 +394,6 @@ async function customizeContract() {
                 } catch (error) {
                     showNotification(`${error}`)
                 }
-
-                //await customize(keep, newDoc);
-
-                   //const fileName = promptForInput('Provide the fileName');
-                   //newDoc.save(Word.SaveBehavior.prompt, fileName);
 
                 async function customizeNew() {
                     const all = newDoc.contentControls;

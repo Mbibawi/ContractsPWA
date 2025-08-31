@@ -337,9 +337,9 @@ async function customizeContract() {
             const selected = [];
             for (const ctrl of ctrls)
                 await promptForSelection(ctrl, selected);
-            const keep = selected.filter(title => !title.startsWith('!'));
-            await createNewDoc();
-            async function createNewDoc() {
+            await createNewDoc(selected);
+            async function createNewDoc(selected) {
+                const keep = selected.filter(title => !title.startsWith('!'));
                 const template = await getTemplate();
                 console.log(template);
                 if (!template)
@@ -353,9 +353,6 @@ async function customizeContract() {
                 catch (error) {
                     showNotification(`${error}`);
                 }
-                //await customize(keep, newDoc);
-                //const fileName = promptForInput('Provide the fileName');
-                //newDoc.save(Word.SaveBehavior.prompt, fileName);
                 async function customizeNew() {
                     const all = newDoc.contentControls;
                     all.load(['title', 'tag']);
