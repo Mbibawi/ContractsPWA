@@ -367,9 +367,9 @@ async function customizeContract() {
             await newDoc.context.sync();
             showNotification(`All ctrls from newDoc = : ${all.items.map(c => c.title).join(', ')}`);
             showNotification(keep.join(', '));
-            all.items
-                .filter(ctrl => !keep.includes(ctrl.title))
-                .forEach(ctrl => {
+            all.items.forEach(ctrl => {
+                if (keep.includes(ctrl.title))
+                    return;
                 ctrl.select();
                 ctrl.cannotDelete = false;
                 ctrl.delete(false);
