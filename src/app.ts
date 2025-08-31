@@ -388,8 +388,8 @@ async function customizeContract() {
                 console.log(template);
                 if (!template) return showNotification('Failed to create the template');
                 const newDoc = context.application.createDocument(template);
-                await customize(keep, newDoc);
                 await context.sync();
+                await customize(keep, newDoc);
                 newDoc.open();
 
                    //const fileName = promptForInput('Provide the fileName');

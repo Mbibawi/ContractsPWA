@@ -345,8 +345,8 @@ async function customizeContract() {
                 if (!template)
                     return showNotification('Failed to create the template');
                 const newDoc = context.application.createDocument(template);
-                await customize(keep, newDoc);
                 await context.sync();
+                await customize(keep, newDoc);
                 newDoc.open();
                 //const fileName = promptForInput('Provide the fileName');
                 //newDoc.save(Word.SaveBehavior.prompt, fileName);
