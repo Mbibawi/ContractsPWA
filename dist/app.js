@@ -347,8 +347,8 @@ async function customizeContract() {
                 const newDoc = context.application.createDocument(template);
                 await context.sync();
                 try {
-                    newDoc.open();
                     await customizeNew();
+                    newDoc.open();
                 }
                 catch (error) {
                     showNotification(`${error}`);
@@ -356,7 +356,8 @@ async function customizeContract() {
                 async function customizeNew() {
                     const all = newDoc.contentControls;
                     all.load(['title', 'tag']);
-                    await newDoc.context.sync();
+                    all.items[0].delete(false);
+                    await context.sync();
                     showNotification(`All ctrls from newDoc = : ${all.items.map(c => c.title).join(', ')}`);
                     showNotification(keep.join(', '));
                     await Promise.all(all.items.map(async (ctrl) => {
@@ -364,7 +365,7 @@ async function customizeContract() {
                             return;
                         ctrl.cannotDelete = false;
                         ctrl.delete(false);
-                        await context.sync();
+                        // await context.sync();
                     }));
                 }
             }
