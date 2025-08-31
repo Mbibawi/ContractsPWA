@@ -362,7 +362,6 @@ async function customizeContract() {
                     all.items.forEach(ctrl => {
                         if (keep.includes(ctrl.title))
                             return;
-                        ctrl.select();
                         ctrl.cannotDelete = false;
                         ctrl.delete(false);
                     });
