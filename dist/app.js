@@ -356,8 +356,8 @@ async function customizeContract() {
                 async function customizeNew() {
                     const all = newDoc.contentControls;
                     all.load(['title', 'tag']);
-                    all.items[0].delete(false);
                     await context.sync();
+                    all.items[0].delete(false);
                     showNotification(`All ctrls from newDoc = : ${all.items.map(c => c.title).join(', ')}`);
                     showNotification(keep.join(', '));
                     await Promise.all(all.items.map(async (ctrl) => {
