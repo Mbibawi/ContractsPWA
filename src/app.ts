@@ -245,7 +245,7 @@ async function wrapMatchingStyleRangesWithContentControls(ranges: Word.RangeColl
             if (!styles.includes(range.style)) return;
             const parent = range.parentContentControlOrNullObject;
             if (!parent.isNullObject && parent.tag === tag) return;
-            return await insertContentControl(range, title, tag, index)  
+            return await insertContentControl(range, title, tag, index, range.style) 
     });
 }
 
@@ -288,7 +288,7 @@ async function insertRTSiAll() {
             await parag.context.sync();
             if(parent.tag ===RTSiTag) continue;   
             showNotification(`range style: ${parag.style} & text = ${parag.text}`);
-              await insertContentControl(parag.getRange('Content'), RTSiTag, RTSiTag, parags.indexOf(parag));
+              await insertContentControl(parag.getRange('Content'), RTSiTag, RTSiTag, parags.indexOf(parag), parag.style);
             }catch(error){
               showNotification(`error: ${error}`);
               continue
@@ -298,22 +298,23 @@ async function insertRTSiAll() {
   
     })
   }
-async function insertContentControl(range: Word.Range, title: string, tag: string, index: number) {
+async function insertContentControl(range: Word.Range, title: string, tag: string, index: number, style?:string) {
     range.select();
     // Insert a rich text content control around the found range.
-    const contentControl = range.insertContentControl();
-    contentControl.load(['id']);
+    const ctrl = range.insertContentControl();
+    ctrl.load(['id']);
     await range.context.sync();
   
     // Set properties for the new content control.
-    contentControl.title = `${title}-${contentControl.id}`;
-    contentControl.tag = tag;
-    contentControl.cannotDelete = true;
-    contentControl.cannotEdit = true;
-    contentControl.appearance = Word.ContentControlAppearance.boundingBox;
+    ctrl.title = `${title}-${ctrl.id}`;
+    ctrl.tag = tag;
+    ctrl.cannotDelete = true;
+    ctrl.cannotEdit = true;
+    ctrl.appearance = Word.ContentControlAppearance.boundingBox;
+    if (style) ctrl.style = style;
   
     showNotification(`Wrapped text in range ${index || 1} with a content control.`);
-    return contentControl
+    return ctrl
   
 }
  
@@ -324,7 +325,7 @@ async function wrapAllSameStyleParagraphsWithContentControl(style:string, title:
         range.load(['style']);
         await range.context.sync();
         if (range.style !== style) return;
-        await insertContentControl(range,title, tag, 0)
+        await insertContentControl(range,title, tag, 0, style)
     })
 };
 
@@ -332,7 +333,7 @@ async function wrapSelectionWithContentControl(title:string, tag:string) {
     await Word.run(async (context)=>{
         const selection = context.document.getSelection();
         const range = selection.getRange('Content');
-        await insertContentControl(range, title, tag, 0)
+        await insertContentControl(range, title, tag, 0, range.style)
     })
 };
 
