@@ -6,44 +6,63 @@ const RTDescriptionTag = 'RTDesc';
 const RTDescriptionStyle = 'RTDescription';
 const RTSiTag = 'RTSi';
 const RTSiStyles = ['RTSi0cm', 'RTSi1cm', 'RTSi2cm', 'RTSi3cm', 'RTSi4cm'];
-let USERFORM:HTMLDivElement, NOTIFICATION: HTMLDivElement;
+let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
+
+
 Office.onReady((info) => {
     USERFORM = document.getElementById('userFormSection') as HTMLDivElement
     NOTIFICATION = document.getElementById('notification') as HTMLDivElement
     // Check that we loaded into Word
     
     if (info.host !== Office.HostType.Word) return showNotification('This addin is designed to work on Word only')
-    buildUI();
+    mainUI();
 });
 
-function buildUI() {
-    if (!USERFORM) return;
-    
-    (function insertBtns() {
-        insertBtn(customizeContract, 'Customize Contract');
-        insertBtn(prepareTemplate, 'Prepare Template');
-        
-        function prepareTemplate() {
-            USERFORM.innerHTML = ''
-            insertBtn(()=>wrapSelectionWithContentControl(RTSiTag, RTSiTag), 'Insert Single RT Si');
-            insertBtn(()=>wrapSelectionWithContentControl(RTDescriptionTag, RTDescriptionTag), 'Insert Single RT Description');
-            insertBtn(()=>wrapSelectionWithContentControl(RTSelectTitle, RTSelectTag), 'Insert Single RT Select');
-            insertBtn(()=>wrapSelectionWithContentControl(RTObsTag, RTObsTag), 'Insert Single RT Obs');
-            insertBtn(insertRTSiAll, 'Insert RT Si For All');
-            insertBtn(() => findTextAndWrapItWithContentControl([`"*"`, `«*»`], [RTDescriptionStyle], RTDescriptionTag, RTDescriptionTag, true), 'Insert RT Description For All');
-        }
-    })();
-    
+function showBtns(btns: Btn[], append = true) {
+    return btns.map(btn => insertBtn(btn, append))
+};
 
-    function insertBtn(fun:Function, text:string) {
-        if (!USERFORM) return;
-        const btn = document.createElement('button');
-        USERFORM.appendChild(btn);
-        btn.innerText = text;
-        btn.onclick = () => fun();
-    }
+function mainUI() {
+    if (!USERFORM) return;
+    USERFORM.innerHTML = '';
+    const main:Btn[] =
+        [[customizeContract, 'Customize Contract'], [prepareTemplate, 'Prepare Template']];
+        const btns = showBtns(main);
+        const back = [() => showBtns(main), 'Go Back'] as Btn;
+        btns.forEach(btn => btn?.addEventListener('click', () => insertBtn(back, false)));
 }
- 
+
+function prepareTemplate() {
+    USERFORM.innerHTML = '';
+    function wrap(title: string, tag: string, label:string){ 
+        return [
+            ()=>wrapSelectionWithContentControl(title, tag),
+            label
+        ] as [Function, string]
+    };
+
+    const insertDescription = () => findTextAndWrapItWithContentControl([`"*"`, `«*»`], [RTDescriptionStyle], RTDescriptionTag, RTDescriptionTag, true);
+
+    const btns = [
+        wrap(RTSiTag, RTSiTag, 'Insert Single RT Si'),
+        wrap(RTDescriptionTag, RTDescriptionTag, 'Insert Single RT Description'),
+        wrap(RTSelectTitle, RTSelectTag, 'Insert Single RT Select'),
+        wrap(RTObsTag, RTObsTag, 'Insert Single RT Obs'),
+        [insertRTSiAll, 'Insert RT Si For All'],
+        [insertDescription, 'Insert RT Description For All'],
+    ] as [Function, string][];
+
+    showBtns(btns);
+}
+
+function insertBtn([fun, label]:Btn, append:boolean = true) {
+    if (!USERFORM) return;
+    const htmlBtn = document.createElement('button');
+    append?USERFORM.appendChild(htmlBtn):USERFORM.prepend(htmlBtn);
+    htmlBtn.innerText = label;
+    htmlBtn.addEventListener('click', () => fun());
+    return htmlBtn
+}
 
   async function insertRichTextContentControlAroundSelection(): Promise<void> {
     await Word.run(async context => {
