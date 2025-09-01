@@ -300,28 +300,6 @@ async function confirm(question, fun) {
     }
 }
 ;
-function promptForInput(question, fun) {
-    if (!question)
-        return;
-    const container = createHTMLElement('div', 'promptContainer', '', USERFORM);
-    const prompt = createHTMLElement('div', 'prompt', '', container);
-    const ask = createHTMLElement('p', 'ask', question, prompt);
-    const input = createHTMLElement('input', 'answer', '', prompt);
-    const btns = createHTMLElement('div', 'btns', '', prompt);
-    const btnOK = createHTMLElement('button', 'btnOK', 'OK', btns);
-    const btnCancel = createHTMLElement('button', 'btnCancel', 'Cancel', btns);
-    let answer = '';
-    btnOK.onclick = () => {
-        answer = input.value;
-        console.log('user answer = ', answer);
-        container.remove();
-        if (fun)
-            fun(answer);
-    };
-    btnCancel.onclick = () => container.remove();
-    return answer;
-}
-;
 async function customizeContract() {
     USERFORM.innerHTML = '';
     createHTMLElement('button', 'button', 'Download Document', USERFORM, '', true);
@@ -337,37 +315,46 @@ async function customizeContract() {
             const selected = [];
             for (const ctrl of ctrls)
                 await promptForSelection(ctrl, selected);
-            await createNewDoc(selected);
-            async function createNewDoc(selected) {
-                const keep = selected.filter(title => !title.startsWith('!'));
+            const keep = selected.filter(title => !title.startsWith('!'));
+            showNotification(`keep = ${keep.join(', ')}`);
+            try {
+                await currentDoc();
+                await createNewDoc();
+            }
+            catch (error) {
+                showNotification(`${error}`);
+            }
+            async function currentDoc() {
+                for (const [i, ctrl] of ctrls) {
+                    if (keep.includes(ctrl.title))
+                        continue;
+                    ctrl.select();
+                    ctrl.cannotDelete = false;
+                    showNotification(`Deleted Ctrl: ${ctrl.title}`);
+                    ctrl.delete(false);
+                }
+                await context.sync();
+            }
+            ;
+            async function createNewDoc() {
+                return; //!Desactivating working with new document created from template until we find a solution to the context issue
                 const template = await getTemplate();
                 console.log(template);
                 if (!template)
                     return showNotification('Failed to create the template');
                 const newDoc = context.application.createDocument(template);
-                await context.sync();
-                try {
-                    await customizeNew();
-                    newDoc.open();
-                }
-                catch (error) {
-                    showNotification(`${error}`);
-                }
-                async function customizeNew() {
-                    const all = newDoc.contentControls;
-                    all.load(['title', 'tag']);
-                    await context.sync();
-                    all.items[0].delete(false);
-                    showNotification(`All ctrls from newDoc = : ${all.items.map(c => c.title).join(', ')}`);
-                    showNotification(keep.join(', '));
-                    await Promise.all(all.items.map(async (ctrl) => {
-                        if (keep.includes(ctrl.title))
-                            return;
-                        ctrl.cannotDelete = false;
-                        ctrl.delete(false);
-                        // await context.sync();
-                    }));
-                }
+                const all = newDoc.contentControls;
+                all.load(['title', 'tag']);
+                await newDoc.context.sync();
+                showNotification(`All ctrls from newDoc = : ${all.items.map(c => c.title).join(', ')}`);
+                all.items.map(ctrl => {
+                    if (keep.includes(ctrl.title))
+                        return;
+                    ctrl.cannotDelete = false;
+                    ctrl.delete(false);
+                });
+                await newDoc.context.sync();
+                newDoc.open();
             }
         });
     }
@@ -388,6 +375,28 @@ async function customizeContract() {
             showNotification(`Failed to create new Doc: ${error}`);
         }
     }
+}
+;
+function promptForInput(question, fun) {
+    if (!question)
+        return;
+    const container = createHTMLElement('div', 'promptContainer', '', USERFORM);
+    const prompt = createHTMLElement('div', 'prompt', '', container);
+    const ask = createHTMLElement('p', 'ask', question, prompt);
+    const input = createHTMLElement('input', 'answer', '', prompt);
+    const btns = createHTMLElement('div', 'btns', '', prompt);
+    const btnOK = createHTMLElement('button', 'btnOK', 'OK', btns);
+    const btnCancel = createHTMLElement('button', 'btnCancel', 'Cancel', btns);
+    let answer = '';
+    btnOK.onclick = () => {
+        answer = input.value;
+        console.log('user answer = ', answer);
+        container.remove();
+        if (fun)
+            fun(answer);
+    };
+    btnCancel.onclick = () => container.remove();
+    return answer;
 }
 ;
 /**
@@ -430,7 +439,6 @@ async function getDocumentBase64() {
     });
 }
 async function promptForSelection([index, ctrl], selected) {
-    const exclude = (title) => `!${title}`;
     if (selected.find(t => t.includes(ctrl.title)))
         return; //!In some cases, ctrl.contentControl.items returns not only the child contentcontrols of ctrl, but includes also the parent contentcontrol of ctrl. Don't understand why this happens.
     ctrl.select();
@@ -462,6 +470,7 @@ async function promptForSelection([index, ctrl], selected) {
     }
     ;
     function isNotSelected(ctrl, subTitles) {
+        const exclude = (title) => `!${title}`;
         selected.push(exclude(ctrl.title));
         subTitles
             .forEach(ctrl => selected.push(exclude(ctrl.title)));

@@ -339,6 +339,90 @@ async function confirm(question: string, fun?: Function) {
     
 };
 
+
+
+async function customizeContract() {
+    USERFORM.innerHTML = '';
+    createHTMLElement('button', 'button', 'Download Document', USERFORM, '', true);
+
+    await selectCtrls();
+    
+    async function selectCtrls() {
+        await Word.run(async (context) => {
+                const allRT = context.document.contentControls;
+                allRT.load(['title', 'tag', 'contentControls']);
+                await context.sync();
+                const ctrls = allRT.items
+                    .filter(ctrl => OPTIONS.includes(ctrl.tag))
+                    .entries();
+                const selected: string[] = [];
+                for (const ctrl of ctrls) 
+                    await promptForSelection(ctrl, selected);
+                
+            const keep = selected.filter(title => !title.startsWith('!'));
+            showNotification(`keep = ${keep.join(', ')}`);
+                try {
+                    await currentDoc();
+                    await createNewDoc();
+                } catch (error) {
+                    showNotification(`${error}`)
+                }
+
+            async function currentDoc() { 
+                for (const [i, ctrl] of ctrls) {
+                    if (keep.includes(ctrl.title)) continue;
+                    ctrl.select();
+                    ctrl.cannotDelete = false;
+                    showNotification(`Deleted Ctrl: ${ctrl.title}`)
+                    ctrl.delete(false);
+                }
+                await context.sync();
+            };
+                    
+            async function createNewDoc() {
+                return;//!Desactivating working with new document created from template until we find a solution to the context issue
+                const template = await getTemplate() as Base64URLString;
+                console.log(template);
+                if (!template) return showNotification('Failed to create the template');
+                const newDoc = context.application.createDocument(template);
+                const all = newDoc.contentControls;
+                all.load(['title', 'tag']);
+                await newDoc.context.sync();
+                
+                showNotification(`All ctrls from newDoc = : ${all.items.map(c=>c.title).join(', ')}`);
+
+                
+                    all.items.map(ctrl => {
+                        if (keep.includes(ctrl.title)) return;
+                        ctrl.cannotDelete = false;
+                        ctrl.delete(false);
+                    });
+                await newDoc.context.sync()
+                newDoc.open();
+            }
+            
+        });      
+    }
+    
+    
+    function getFileURL() {
+        let url;
+        Office.context.document.getFilePropertiesAsync(undefined, (result) => {
+            if (result.error) return;
+            url = result.value.url;
+        });
+        return url
+    }
+
+    async function getTemplate() {
+        try {
+            return await getDocumentBase64();
+     } catch (error) {
+         showNotification(`Failed to create new Doc: ${error}`)
+     }
+    }
+};
+
 function promptForInput(question: string, fun?:Function) {
     if (!question) return;
     const container = createHTMLElement('div', 'promptContainer', '', USERFORM);
@@ -361,80 +445,6 @@ function promptForInput(question: string, fun?:Function) {
     return answer ;
 };
 
-async function customizeContract() {
-    USERFORM.innerHTML = '';
-    createHTMLElement('button', 'button', 'Download Document', USERFORM, '', true);
-
-    await selectCtrls();
-    
-    async function selectCtrls() {
-        await Word.run(async (context) => {
-                const allRT = context.document.contentControls;
-                allRT.load(['title', 'tag', 'contentControls']);
-                await context.sync();
-                const ctrls = allRT.items
-                    .filter(ctrl => OPTIONS.includes(ctrl.tag))
-                    .entries();
-                const selected: string[] = [];
-                for (const ctrl of ctrls) 
-                    await promptForSelection(ctrl, selected);
-                
-            await createNewDoc(selected);
-
-            async function createNewDoc(selected:string[]) {
-                const keep = selected.filter(title => !title.startsWith('!'));
-                const template = await getTemplate() as Base64URLString;
-                console.log(template);
-                if (!template) return showNotification('Failed to create the template');
-                const newDoc = context.application.createDocument(template);
-                await context.sync();
-                try {
-                    await customizeNew();
-                    newDoc.open();
-                } catch (error) {
-                    showNotification(`${error}`)
-                }
-
-                async function customizeNew() {
-                    const all = newDoc.contentControls;
-                    all.load(['title', 'tag']);
-                    await context.sync();
-                    all.items[0].delete(false);
-
-                    showNotification(`All ctrls from newDoc = : ${all.items.map(c=>c.title).join(', ')}`);
-                    showNotification(keep.join(', '));
-    
-                    await Promise.all(
-                        all.items.map(async ctrl => {
-                            if (keep.includes(ctrl.title)) return;
-                            ctrl.cannotDelete = false;
-                            ctrl.delete(false);
-                           // await context.sync();
-                        }));
-                
-                }
-            }
-        });      
-    }
-    
-    
-    function getFileURL() {
-        let url;
-        Office.context.document.getFilePropertiesAsync(undefined, (result) => {
-            if (result.error) return;
-            url = result.value.url;
-        });
-        return url
-    }
-
-    async function getTemplate() {
-        try {
-            return await getDocumentBase64();
-     } catch (error) {
-         showNotification(`Failed to create new Doc: ${error}`)
-     }
-    }
-};
 /**
  * Asynchronously gets the entire document content as a Base64 string.
  * This function handles multi-slice documents by requesting each slice in parallel.
@@ -491,7 +501,6 @@ async function getDocumentBase64(): Promise<Base64URLString> {
 
 
 async function promptForSelection([index, ctrl]: [number, Word.ContentControl], selected: string[]) {
-    const exclude = (title: string) => `!${title}`;
     if (selected.find(t=>t.includes(ctrl.title))) return;//!In some cases, ctrl.contentControl.items returns not only the child contentcontrols of ctrl, but includes also the parent contentcontrol of ctrl. Don't understand why this happens.
     
     ctrl.select();
@@ -524,7 +533,8 @@ async function promptForSelection([index, ctrl]: [number, Word.ContentControl], 
     };
 
 
-    function isNotSelected(ctrl: Word.ContentControl, subTitles:Word.ContentControl[]) {
+    function isNotSelected(ctrl: Word.ContentControl, subTitles: Word.ContentControl[]) {
+        const exclude = (title: string) => `!${title}`;
         selected.push(exclude(ctrl.title));
         subTitles
             .forEach(ctrl=> selected.push(exclude(ctrl.title)));
