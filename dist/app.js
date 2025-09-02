@@ -194,6 +194,7 @@ async function insertContentControl(range, title, tag, index, style) {
     ctrl.load(['id']);
     if (!style)
         style;
+    range.context.trackedObjects.remove(range);
     await range.context.sync();
     // Set properties for the new content control.
     ctrl.title = `${title}-${ctrl.id}`;
@@ -219,6 +220,7 @@ async function getSelectionRange() {
             .getSelection()
             .getRange('Content');
         range.load(['style', 'isEmpty']);
+        context.trackedObjects.add(range);
         await context.sync();
         if (range.isEmpty)
             return showNotification('The selection range is empty');

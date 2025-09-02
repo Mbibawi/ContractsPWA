@@ -220,7 +220,8 @@ async function insertContentControl(range: Word.Range, title: string, tag: strin
     // Insert a rich text content control around the found range.
     const ctrl = range.insertContentControl();
     ctrl.load(['id']);
-    if(!style) style 
+    if (!style) style;
+    range.context.trackedObjects.remove(range)
     await range.context.sync();
 
     // Set properties for the new content control.
@@ -239,7 +240,7 @@ async function insertContentControl(range: Word.Range, title: string, tag: strin
 async function wrapAllSameStyleParagraphsWithContentControl(style: string, title: string, tag: string) {
     const range = await getSelectionRange();
     if (!range || range.style !== style) return;
-    await insertContentControl(range, title, tag, 0, style)
+    await insertContentControl(range, title, tag, 0, style);
 };
 
 async function getSelectionRange() {
@@ -248,6 +249,7 @@ async function getSelectionRange() {
             .getSelection()
             .getRange('Content');
         range.load(['style', 'isEmpty']);
+        context.trackedObjects.add(range);
         await context.sync();
         if (range.isEmpty) return showNotification('The selection range is empty');
         return range
