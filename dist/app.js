@@ -1,9 +1,5 @@
 "use strict";
 const OPTIONS = ['Select', 'Show', 'Edit'];
-const RichText = Word.ContentControlType.richText;
-const RichTextInline = Word.ContentControlType.richTextInline;
-const RichTextParag = Word.ContentControlType.richTextParagraphs;
-const Bounding = Word.ContentControlAppearance.boundingBox;
 const RTSelectTag = 'Select';
 const RTSelectTitle = 'RTSelect';
 const RTObsTag = 'RTObs';
@@ -12,12 +8,18 @@ const RTDescriptionStyle = 'RTDescription';
 const RTSiTag = 'RTSi';
 const RTSiStyles = ['RTSi0cm', 'RTSi1cm', 'RTSi2cm', 'RTSi3cm', 'RTSi4cm'];
 let USERFORM, NOTIFICATION;
+let RichText, RichTextInline, RichTextParag, Bounding, Hidden;
 Office.onReady((info) => {
-    USERFORM = document.getElementById('userFormSection');
-    NOTIFICATION = document.getElementById('notification');
     // Check that we loaded into Word
     if (info.host !== Office.HostType.Word)
         return showNotification('This addin is designed to work on Word only');
+    USERFORM = document.getElementById('userFormSection');
+    NOTIFICATION = document.getElementById('notification');
+    RichText = Word.ContentControlType.richText;
+    RichTextInline = Word.ContentControlType.richTextInline;
+    RichTextParag = Word.ContentControlType.richTextParagraphs;
+    Bounding = Word.ContentControlAppearance.boundingBox;
+    Hidden = Word.ContentControlAppearance.hidden;
     mainUI();
 });
 function showBtns(btns, append = true) {
