@@ -1,5 +1,9 @@
 "use strict";
 const OPTIONS = ['Select', 'Show', 'Edit'];
+const RichText = Word.ContentControlType.richText;
+const RichTextInline = Word.ContentControlType.richTextInline;
+const RichTextParag = Word.ContentControlType.richTextParagraphs;
+const Bounding = Word.ContentControlAppearance.boundingBox;
 const RTSelectTag = 'Select';
 const RTSelectTitle = 'RTSelect';
 const RTObsTag = 'RTObs';
@@ -26,8 +30,12 @@ function mainUI() {
     USERFORM.innerHTML = '';
     const main = [[customizeContract, 'Customize Contract'], [prepareTemplate, 'Prepare Template']];
     const btns = showBtns(main);
-    const back = [() => showBtns(main), 'Go Back'];
+    const back = [goBack, 'Go Back'];
     btns.forEach(btn => btn === null || btn === void 0 ? void 0 : btn.addEventListener('click', () => insertBtn(back, false)));
+    function goBack() {
+        USERFORM.innerHTML = '';
+        showBtns(main);
+    }
 }
 function prepareTemplate() {
     USERFORM.innerHTML = '';
@@ -58,7 +66,7 @@ function insertBtn([fun, label], append = true) {
     htmlBtn.addEventListener('click', () => fun());
     return htmlBtn;
 }
-async function insertRichTextContentControlAroundSelection() {
+async function insertContentControlAroundSelection(type = RichText) {
     await Word.run(async (context) => {
         // get the current selection
         const selection = context.document.getSelection();
@@ -69,10 +77,9 @@ async function insertRichTextContentControlAroundSelection() {
             return showNotification('Please select some text first.');
         }
         // 3. Wrap the selection in a RichText content control
-        const cc = selection.insertContentControl(Word.ContentControlType.richText);
-        //cc.tag = window.prompt('Enter a tag for the new Rich Text control:', 'MyTag') || 'MyTag';
-        //cc.title = window.prompt('Enter a title for the new Rich Text control:', 'My Title') || 'My Title';
-        cc.appearance = Word.ContentControlAppearance.boundingBox;
+        //@ts-expect-error
+        const cc = selection.insertContentControl(type);
+        cc.appearance = Bounding;
         cc.color = "blue";
         // Log the content control properties
         showNotification(`ContentControl created with ID: ${cc.id}, Tag: ${cc.tag}, Title: ${cc.title}`);
@@ -98,29 +105,6 @@ function openInputDialog(data) {
         // Listen for messages from the dialog
         dialog.addEventHandler(Office.EventType.DialogMessageReceived, onDialogMessage);
     });
-    function updateCtrls() {
-        //This function will get the updated content controls from the document and return them as a string to be sent to the dialog;
-        //for any select element in the dialog, each option will be converted into an object like {id: number, text: string, delete: boolean} where id is the id of the option, text = null. If the option is the selected option, the delete will be false, otherwise true.
-        const message = [];
-        document.querySelectorAll('.dropDown')
-            .forEach(select => {
-            const options = select.options;
-            Array.from(options).forEach(opt => message.push({
-                id: Number(opt.id),
-                content: null,
-                delete: !opt.selected
-            }));
-        });
-        document.querySelectorAll('.checkBox')
-            .forEach(chbx => {
-            message.push({
-                id: Number(chbx.id),
-                content: null,
-                delete: !chbx.checked
-            });
-        });
-        return JSON.stringify(message);
-    }
     async function onDialogMessage(arg) {
         //!args needs to be converted to an array of objects like {id: number, delete:boolean, text: string}
         const ctrls = JSON.parse(arg.message);
@@ -146,46 +130,6 @@ function openInputDialog(data) {
             });
         });
     }
-}
-async function processCtrls(wdDoc, ctrls, fun) {
-    if (!wdDoc || !ctrls || !fun)
-        return showNotification('Either the document or the ctrls collection is/are missing');
-    await Word.run(wdDoc, async (context) => {
-        var _a;
-        // Step 4: Iterate through the list of IDs and delete the corresponding content controls.
-        for (const ctrl of ctrls) {
-            if (!ctrl.title)
-                continue;
-            const contentControl = (_a = context.document.contentControls.getByTitle(ctrl.title)) === null || _a === void 0 ? void 0 : _a.items[0];
-            if (!contentControl)
-                continue;
-            fun(contentControl, ctrl);
-            // Load a property to check if the content control exists.
-            //contentControl.load(['isNullObject', 'title']);
-            // Synchronize the state with the new document.
-            //await context.sync();
-            //if (contentControl.isNullObject) continue; // Skip to the next ID if the control doesn't exist.
-        }
-        // Step 5: Execute all the delete commands at once on the new document.
-        await context.sync();
-        showNotification("All specified content controls have been deleted from the new document.");
-    });
-}
-// Delete the content control and all of its content.
-function deleteCtrl(ctrl, data) {
-    if (!ctrl)
-        return;
-    ctrl.delete(true);
-    showNotification(`Deleted content control with ID ${data.id}.`);
-}
-function editCtrlText(ctrl, data) {
-    if (!data.content || !ctrl)
-        return;
-    // Edit the content control and all of its content.
-    const range = ctrl.getRange();
-    //range.clear();
-    range.insertText(data.content, "Replace");
-    showNotification(`Edited content control with ID ${data.id}.`);
 }
 /**
  * Wraps every occurrence of text formatted with a specific character style in a rich text content control.
@@ -272,7 +216,7 @@ async function insertContentControl(range, title, tag, index, style) {
     ctrl.tag = tag;
     ctrl.cannotDelete = true;
     ctrl.cannotEdit = true;
-    ctrl.appearance = Word.ContentControlAppearance.boundingBox;
+    ctrl.appearance = Bounding;
     if (style)
         ctrl.style = style;
     showNotification(`Wrapped text in range ${index || 1} with a content control.`);
@@ -321,7 +265,6 @@ async function confirm(question, fun) {
 ;
 async function customizeContract() {
     USERFORM.innerHTML = '';
-    createHTMLElement('button', 'button', 'Download Document', USERFORM, '', true);
     await selectCtrls();
     async function selectCtrls() {
         await Word.run(async (context) => {
@@ -376,6 +319,67 @@ async function customizeContract() {
                 newDoc.open();
             }
         });
+    }
+    async function promptForSelection([index, ctrl], selected) {
+        if (selected.find(t => t.includes(ctrl.title)))
+            return; //!We need to exclude any ctrl that has already been passed to the function or has been excluded: when a ctrl is excluded, its children are added to the array as excluded ctrls ("![ctrl.title]"), they do not hence need to be treated again since we already know theyare to be  excluded. This also avoids the problem that happens sometimes, when a ctrl has its parent amongst its children list (this is an apparently known weird behavior if the ctrl range overlaps somehow with the range of another ctrl)
+        ctrl.select();
+        const [container, btnNext, checkBox] = await showUI();
+        return new Promise((resolve, reject) => {
+            btnNext.onclick = () => nextCtrl(ctrl, checkBox);
+            async function nextCtrl(ctrl, checkBox) {
+                const checked = checkBox.checked;
+                container.remove();
+                ctrl.contentControls.load(['title', 'tag']);
+                await ctrl.context.sync();
+                const subOptions = ctrl.contentControls.items
+                    .filter(ctrl => OPTIONS.includes(ctrl.tag));
+                if (checked)
+                    await isSelected(ctrl, subOptions);
+                else
+                    isNotSelected(ctrl, subOptions);
+                resolve(selected);
+            }
+            ;
+        });
+        async function isSelected(ctrl, subOptions) {
+            selected.push(ctrl.title);
+            const entries = subOptions.entries();
+            for (const entry of entries)
+                await promptForSelection(entry, selected);
+            console.log(selected);
+        }
+        ;
+        function isNotSelected(ctrl, subOptions) {
+            const exclude = (title) => `!${title}`;
+            selected.push(exclude(ctrl.title));
+            subOptions
+                .forEach(ctrl => selected.push(exclude(ctrl.title)));
+            console.log(selected);
+        }
+        ;
+        async function showUI() {
+            const children = ctrl.contentControls;
+            children.load(['title', 'tag']);
+            await ctrl.context.sync();
+            const RTSi = children.items.find(rt => rt.tag === RTSiTag);
+            if (!RTSi)
+                throw new Error('No RTSi');
+            const ctrlRange = RTSi.getRange('Content');
+            ctrlRange.load(['text', 'paragraphs']);
+            await ctrl.context.sync();
+            return UI(ctrlRange.text);
+            function UI(text) {
+                const container = createHTMLElement('div', 'promptContainer', '', USERFORM, ctrl.title);
+                const prompt = createHTMLElement('div', 'selection', '', container);
+                const checkBox = createHTMLElement('input', 'checkBox', '', prompt);
+                createHTMLElement('label', 'label', text, prompt);
+                checkBox.type = 'checkbox';
+                const btns = createHTMLElement('div', 'btns', '', prompt);
+                const btnNext = createHTMLElement('button', 'btnOK', 'Next', btns);
+                return [container, btnNext, checkBox];
+            }
+        }
     }
     function getFileURL() {
         let url;
@@ -456,68 +460,6 @@ async function getDocumentBase64() {
             }
         }
     });
-}
-async function promptForSelection([index, ctrl], selected) {
-    if (selected.find(t => t.includes(ctrl.title)))
-        return; //!In some cases, ctrl.contentControl.items returns not only the child contentcontrols of ctrl, but includes also the parent contentcontrol of ctrl. Don't understand why this happens.
-    ctrl.select();
-    const [container, btnNext, checkBox] = await showUI();
-    return new Promise((resolve, reject) => {
-        btnNext.onclick = () => nextCtrl(ctrl, checkBox);
-        async function nextCtrl(ctrl, checkBox) {
-            const checked = checkBox.checked;
-            container.remove();
-            ctrl.contentControls.load(['title', 'tag']);
-            await ctrl.context.sync();
-            const subOptions = ctrl.contentControls.items
-                .filter(ctrl => OPTIONS.includes(ctrl.tag));
-            if (checked)
-                await isSelected(ctrl, subOptions);
-            else
-                isNotSelected(ctrl, subOptions);
-            resolve(selected);
-        }
-        ;
-    });
-    async function isSelected(ctrl, subOptions) {
-        selected.push(ctrl.title);
-        const entries = subOptions.entries();
-        for (const entry of entries) {
-            await promptForSelection(entry, selected);
-        }
-        console.log(selected);
-    }
-    ;
-    function isNotSelected(ctrl, subTitles) {
-        const exclude = (title) => `!${title}`;
-        selected.push(exclude(ctrl.title));
-        subTitles
-            .forEach(ctrl => selected.push(exclude(ctrl.title)));
-        console.log(selected);
-    }
-    ;
-    async function showUI() {
-        const children = ctrl.contentControls;
-        children.load(['title', 'tag']);
-        await ctrl.context.sync();
-        const RTSi = children.items.find(rt => rt.tag === RTSiTag);
-        if (!RTSi)
-            throw new Error('No RTSi');
-        const ctrlRange = RTSi.getRange('Content');
-        ctrlRange.load(['text', 'paragraphs']);
-        await ctrl.context.sync();
-        return UI(ctrlRange.text);
-        function UI(text) {
-            const container = createHTMLElement('div', 'promptContainer', '', USERFORM, ctrl.title);
-            const prompt = createHTMLElement('div', 'selection', '', container);
-            const checkBox = createHTMLElement('input', 'checkBox', '', prompt);
-            createHTMLElement('label', 'label', text, prompt);
-            checkBox.type = 'checkbox';
-            const btns = createHTMLElement('div', 'btns', '', prompt);
-            const btnNext = createHTMLElement('button', 'btnOK', 'Next', btns);
-            return [container, btnNext, checkBox];
-        }
-    }
 }
 async function deleteAllNotSelected(selected, wdDoc) {
     const all = wdDoc.contentControls;

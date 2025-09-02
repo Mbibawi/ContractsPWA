@@ -1,4 +1,8 @@
 const OPTIONS = ['Select', 'Show', 'Edit'];
+const RichText = Word.ContentControlType.richText;
+const RichTextInline = Word.ContentControlType.richTextInline;
+const RichTextParag = Word.ContentControlType.richTextParagraphs;
+const Bounding = Word.ContentControlAppearance.boundingBox;
 const RTSelectTag = 'Select';
 const RTSelectTitle = 'RTSelect';
 const RTObsTag = 'RTObs';
@@ -13,7 +17,7 @@ Office.onReady((info) => {
     USERFORM = document.getElementById('userFormSection') as HTMLDivElement
     NOTIFICATION = document.getElementById('notification') as HTMLDivElement
     // Check that we loaded into Word
-    
+
     if (info.host !== Office.HostType.Word) return showNotification('This addin is designed to work on Word only')
     mainUI();
 });
@@ -25,18 +29,23 @@ function showBtns(btns: Btn[], append = true) {
 function mainUI() {
     if (!USERFORM) return;
     USERFORM.innerHTML = '';
-    const main:Btn[] =
+    const main: Btn[] =
         [[customizeContract, 'Customize Contract'], [prepareTemplate, 'Prepare Template']];
-        const btns = showBtns(main);
-        const back = [() => showBtns(main), 'Go Back'] as Btn;
-        btns.forEach(btn => btn?.addEventListener('click', () => insertBtn(back, false)));
+    const btns = showBtns(main);
+    const back = [goBack, 'Go Back'] as Btn;
+    btns.forEach(btn => btn?.addEventListener('click', () => insertBtn(back, false)));
+    function goBack() {
+        USERFORM.innerHTML = '';
+        showBtns(main)
+    }
 }
+
 
 function prepareTemplate() {
     USERFORM.innerHTML = '';
-    function wrap(title: string, tag: string, label:string){ 
+    function wrap(title: string, tag: string, label: string) {
         return [
-            ()=>wrapSelectionWithContentControl(title, tag),
+            () => wrapSelectionWithContentControl(title, tag),
             label
         ] as [Function, string]
     };
@@ -55,39 +64,39 @@ function prepareTemplate() {
     showBtns(btns);
 }
 
-function insertBtn([fun, label]:Btn, append:boolean = true) {
+function insertBtn([fun, label]: Btn, append: boolean = true) {
     if (!USERFORM) return;
     const htmlBtn = document.createElement('button');
-    append?USERFORM.appendChild(htmlBtn):USERFORM.prepend(htmlBtn);
+    append ? USERFORM.appendChild(htmlBtn) : USERFORM.prepend(htmlBtn);
     htmlBtn.innerText = label;
     htmlBtn.addEventListener('click', () => fun());
     return htmlBtn
 }
 
-  async function insertRichTextContentControlAroundSelection(): Promise<void> {
+async function insertContentControlAroundSelection(type:Word.ContentControlType = RichText): Promise<void> {
     await Word.run(async context => {
-      // get the current selection
-      const selection = context.document.getSelection();
+        // get the current selection
+        const selection = context.document.getSelection();
         selection.load('isEmpty');
-      await context.sync();
-  
-      // abort if nothing is selected
-      if (selection.isEmpty) {
-          return showNotification('Please select some text first.');
-      }
-  
-      // 3. Wrap the selection in a RichText content control
-    const cc = selection.insertContentControl(Word.ContentControlType.richText);
-    //cc.tag = window.prompt('Enter a tag for the new Rich Text control:', 'MyTag') || 'MyTag';
-    //cc.title = window.prompt('Enter a title for the new Rich Text control:', 'My Title') || 'My Title';
-    cc.appearance = Word.ContentControlAppearance.boundingBox;
-    cc.color = "blue";
+        await context.sync();
+
+        // abort if nothing is selected
+        if (selection.isEmpty) {
+            return showNotification('Please select some text first.');
+        }
+
+        // 3. Wrap the selection in a RichText content control
+        //@ts-expect-error
+        const cc = selection.insertContentControl(type);
+
+        cc.appearance = Bounding;
+        cc.color = "blue";
         // Log the content control properties
         showNotification(`ContentControl created with ID: ${cc.id}, Tag: ${cc.tag}, Title: ${cc.title}`);
-    await context.sync();
+        await context.sync();
     });
 }
-  
+
 
 function openInputDialog(data: object) {
     let dialog: Office.Dialog;
@@ -109,47 +118,20 @@ function openInputDialog(data: object) {
             // Send initial payload to the dialog
             dialog.messageChild(JSON.stringify(data));
             // Optionally handle messages sent back from the dialog
-  
+
             // Listen for messages from the dialog
             dialog.addEventHandler(Office.EventType.DialogMessageReceived, onDialogMessage);
         }
     );
 
-    function updateCtrls(): string{
-        //This function will get the updated content controls from the document and return them as a string to be sent to the dialog;
-        //for any select element in the dialog, each option will be converted into an object like {id: number, text: string, delete: boolean} where id is the id of the option, text = null. If the option is the selected option, the delete will be false, otherwise true.
-        const message:contentControl[] = [];
 
-        (document.querySelectorAll('.dropDown') as NodeListOf<HTMLSelectElement>)
-            .forEach(select => {
-            const options = select.options;
-                Array.from(options).forEach(opt =>
-                message.push({
-                id: Number(opt.id),
-                content: null,
-                delete: !opt.selected
-            }))
-            });
-        
-        (document.querySelectorAll('.checkBox') as NodeListOf<HTMLInputElement>)
-            .forEach(chbx=> {
-                message.push({
-                    id: Number(chbx.id),
-                    content: null,
-                    delete: !chbx.checked
-                })
-            });
-        
-        return JSON.stringify(message)
-
-    }
 
     async function onDialogMessage(arg: any) {
         //!args needs to be converted to an array of objects like {id: number, delete:boolean, text: string}
         const ctrls = JSON.parse(arg.message) as { id: number, delete: boolean, text: string }[];
         const text = arg.message;
         dialog.close();
-      
+
         await Word.run(async (context) => {
             //! Insert logic for looping the content controls and deleting those whose delete property is set to true, and updating the text of those with a text property.
             ctrls.forEach(async ctrl => {
@@ -172,67 +154,20 @@ function openInputDialog(data: object) {
 }
 
 
-async function processCtrls(wdDoc: Word.DocumentCreated | Word.Document, ctrls: contentControl[] | undefined, fun: Function) { 
-
-    if (!wdDoc || !ctrls || !fun) return showNotification('Either the document or the ctrls collection is/are missing');
-    await Word.run(wdDoc, async (context) => {
-        // Step 4: Iterate through the list of IDs and delete the corresponding content controls.
-        for (const ctrl of ctrls) {
-            if (!ctrl.title) continue;
-            const contentControl = context.document.contentControls.getByTitle(ctrl.title)?.items[0];
-            if (!contentControl) continue;
-            fun(contentControl, ctrl);
-
-            // Load a property to check if the content control exists.
-            //contentControl.load(['isNullObject', 'title']);
-            // Synchronize the state with the new document.
-            //await context.sync();
-
-            //if (contentControl.isNullObject) continue; // Skip to the next ID if the control doesn't exist.
-        
-        }
-
-        // Step 5: Execute all the delete commands at once on the new document.
-        await context.sync();
-
-        showNotification("All specified content controls have been deleted from the new document.");
-    });
-
-
-}
-
-           // Delete the content control and all of its content.
-function deleteCtrl(ctrl: Word.ContentControl, data: contentControl) {
-    if (!ctrl) return;
-    ctrl.delete(true);
-    showNotification(`Deleted content control with ID ${data.id}.`);
-}
-
-function editCtrlText(ctrl: Word.ContentControl, data: contentControl) {
-    if (!data.content || !ctrl) return;
-    // Edit the content control and all of its content.
-    const range = ctrl.getRange();
-    //range.clear();
-    range.insertText(data.content, "Replace")
-
-    showNotification(`Edited content control with ID ${data.id}.`);
-    
-}
-
 /**
  * Wraps every occurrence of text formatted with a specific character style in a rich text content control.
  *
  * @param style The name of the character style to find (e.g., "Emphasis", "Strong", "MyCustomStyle").
  * @returns A Promise that resolves when the operation is complete.
  */
-async function findTextAndWrapItWithContentControl(search:string[], styles: string[], title:string, tag:string, matchWildcards:boolean): Promise<void> {
+async function findTextAndWrapItWithContentControl(search: string[], styles: string[], title: string, tag: string, matchWildcards: boolean): Promise<void> {
     await Word.run(async (context) => {
         for (const el of search) {
             const ranges = await searchString(el, context, matchWildcards);
             if (!ranges) continue;
             await wrapMatchingStyleRangesWithContentControls(ranges, styles, title, tag);
         };
-        
+
     });
 }
 
@@ -240,97 +175,97 @@ async function wrapMatchingStyleRangesWithContentControls(ranges: Word.RangeColl
     ranges.load(['style', 'parentContentControlOrNullObject', 'parentContentControlOrNullObject.isNullObject', 'parentContentControlOrNullObject.tag']);
 
     await ranges.context.sync();
-    
+
     return ranges.items.map(async (range, index) => {
-            if (!styles.includes(range.style)) return;
-            const parent = range.parentContentControlOrNullObject;
-            if (!parent.isNullObject && parent.tag === tag) return;
-            return await insertContentControl(range, title, tag, index, range.style) 
+        if (!styles.includes(range.style)) return;
+        const parent = range.parentContentControlOrNullObject;
+        if (!parent.isNullObject && parent.tag === tag) return;
+        return await insertContentControl(range, title, tag, index, range.style)
     });
 }
 
-async function searchString(search:string, context:Word.RequestContext, matchWildcards:boolean) {
+async function searchString(search: string, context: Word.RequestContext, matchWildcards: boolean) {
     const searchResults = context.document.body.search(search, { matchWildcards: matchWildcards });
     await context.sync();
     if (!searchResults.items.length) {
         showNotification(`No text matching the search string was found in the document.`);
         return;
     }
-    
+
     showNotification(`Found ${searchResults.items.length} ranges matching the search string: ${search}.`);
-            
-    return searchResults    
+
+    return searchResults
 }
 
 async function addIDtoCtrlTitle(ctrls: Word.ContentControlCollection) {
-    ctrls.load(['title','id']);
+    ctrls.load(['title', 'id']);
     await ctrls.context.sync();
     ctrls.items
         .filter(ctrl => !ctrl.title.endsWith(`-${ctrl.id}`))
         .forEach(ctrl => ctrl.title = `${ctrl.title}-${ctrl.id}`);
-    
+
     await ctrls.context.sync();
-} 
+}
 
 async function insertRTSiAll() {
     await Word.run(async (context) => {
-      const paragraphs = context.document.body.paragraphs;
-      paragraphs.load(['style', 'text', 'range', 'parentContentControlOrNullObject']);
-      await context.sync();
+        const paragraphs = context.document.body.paragraphs;
+        paragraphs.load(['style', 'text', 'range', 'parentContentControlOrNullObject']);
+        await context.sync();
         const parags = paragraphs.items
             .filter(p => RTSiStyles.includes(p.style));
-      console.log(parags)
-      for (const parag of parags) {
-          parag.select();
-          try{
-            const parent = parag.parentContentControlOrNullObject;
-           parent.load(['tag']);
-            await parag.context.sync();
-            if(parent.tag ===RTSiTag) continue;   
-            showNotification(`range style: ${parag.style} & text = ${parag.text}`);
-              await insertContentControl(parag.getRange('Content'), RTSiTag, RTSiTag, parags.indexOf(parag), parag.style);
-            }catch(error){
-              showNotification(`error: ${error}`);
-              continue
+        console.log(parags)
+        for (const parag of parags) {
+            parag.select();
+            try {
+                const parent = parag.parentContentControlOrNullObject;
+                parent.load(['tag']);
+                await parag.context.sync();
+                if (parent.tag === RTSiTag) continue;
+                showNotification(`range style: ${parag.style} & text = ${parag.text}`);
+                await insertContentControl(parag.getRange('Content'), RTSiTag, RTSiTag, parags.indexOf(parag), parag.style);
+            } catch (error) {
+                showNotification(`error: ${error}`);
+                continue
             }
-      }
-      await context.sync();
-  
+        }
+        await context.sync();
+
     })
-  }
-async function insertContentControl(range: Word.Range, title: string, tag: string, index: number, style?:string) {
+}
+async function insertContentControl(range: Word.Range, title: string, tag: string, index: number, style?: string) {
     range.select();
     // Insert a rich text content control around the found range.
     const ctrl = range.insertContentControl();
     ctrl.load(['id']);
     await range.context.sync();
-  
+
     // Set properties for the new content control.
     ctrl.title = `${title}-${ctrl.id}`;
     ctrl.tag = tag;
     ctrl.cannotDelete = true;
     ctrl.cannotEdit = true;
-    ctrl.appearance = Word.ContentControlAppearance.boundingBox;
+    ctrl.appearance = Bounding;
     if (style) ctrl.style = style;
-  
+
     showNotification(`Wrapped text in range ${index || 1} with a content control.`);
     return ctrl
-  
+
 }
- 
-async function wrapAllSameStyleParagraphsWithContentControl(style:string, title:string, tag:string) {
-    await Word.run(async (context)=>{
+
+async function wrapAllSameStyleParagraphsWithContentControl(style: string, title: string, tag: string) {
+    await Word.run(async (context) => {
         const selection = context.document.getSelection();
         const range = selection.getRange('Content');
         range.load(['style']);
         await range.context.sync();
         if (range.style !== style) return;
-        await insertContentControl(range,title, tag, 0, style)
+        await insertContentControl(range, title, tag, 0, style)
     })
 };
 
-async function wrapSelectionWithContentControl(title:string, tag:string) {
-    await Word.run(async (context)=>{
+async function wrapSelectionWithContentControl(title: string, tag: string) {
+    await Word.run(async (context) => {
         const selection = context.document.getSelection();
         const range = selection.getRange('Content');
         await insertContentControl(range, title, tag, 0, range.style)
@@ -342,53 +277,51 @@ async function confirm(question: string, fun?: Function) {
     const container = createHTMLElement('div', 'promptContainer', '', USERFORM);
     const prompt = createHTMLElement('div', 'prompt', '', container);
     createHTMLElement('p', 'ask', question, prompt);
-    const btns =createHTMLElement('div', 'btns', '', prompt);
-    const btnOK =createHTMLElement('button', 'btnOK', 'OK', btns);
-    const btnNo =createHTMLElement('button', 'btnCancel', 'NO', btns);
-    
+    const btns = createHTMLElement('div', 'btns', '', prompt);
+    const btnOK = createHTMLElement('button', 'btnOK', 'OK', btns);
+    const btnNo = createHTMLElement('button', 'btnCancel', 'NO', btns);
+
     return new Promise((resolve, reject) => {
         btnOK.onclick = () => resolve(confirm(true));
         btnNo.onclick = () => resolve(confirm(false));
     });
-    
-    function confirm(confirm:boolean) {
+
+    function confirm(confirm: boolean) {
         container.remove();
         if (fun) fun(confirm);
         return confirm;
     }
-    
+
 };
 
 
 
 async function customizeContract() {
     USERFORM.innerHTML = '';
-    createHTMLElement('button', 'button', 'Download Document', USERFORM, '', true);
-
     await selectCtrls();
-    
+
     async function selectCtrls() {
         await Word.run(async (context) => {
-                const allRT = context.document.contentControls;
-                allRT.load(['title', 'tag', 'contentControls']);
-                await context.sync();
-                const ctrls = allRT.items
-                    .filter(ctrl => OPTIONS.includes(ctrl.tag))
-                    .entries();
-                const selected: string[] = [];
-                for (const ctrl of ctrls) 
-                    await promptForSelection(ctrl, selected);
-                
+            const allRT = context.document.contentControls;
+            allRT.load(['title', 'tag', 'contentControls']);
+            await context.sync();
+            const ctrls = allRT.items
+                .filter(ctrl => OPTIONS.includes(ctrl.tag))
+                .entries();
+            const selected: string[] = [];
+            for (const ctrl of ctrls)
+                await promptForSelection(ctrl, selected);
+
             const keep = selected.filter(title => !title.startsWith('!'));
             showNotification(`keep = ${keep.join(', ')}`);
-                try {
-                    await currentDoc();
-                    await createNewDoc();
-                } catch (error) {
-                    showNotification(`${error}`)
-                }
+            try {
+                await currentDoc();
+                await createNewDoc();
+            } catch (error) {
+                showNotification(`${error}`)
+            }
 
-            async function currentDoc() { 
+            async function currentDoc() {
                 for (const [i, ctrl] of ctrls) {
                     if (keep.includes(ctrl.title)) continue;
                     ctrl.select();
@@ -398,7 +331,7 @@ async function customizeContract() {
                 }
                 await context.sync();
             };
-                    
+
             async function createNewDoc() {
                 return;//!Desactivating working with new document created from template until we find a solution to the context issue
                 const template = await getTemplate() as Base64URLString;
@@ -408,23 +341,90 @@ async function customizeContract() {
                 const all = newDoc.contentControls;
                 all.load(['title', 'tag']);
                 await newDoc.context.sync();
-                
-                showNotification(`All ctrls from newDoc = : ${all.items.map(c=>c.title).join(', ')}`);
 
-                
-                    all.items.map(ctrl => {
-                        if (keep.includes(ctrl.title)) return;
-                        ctrl.cannotDelete = false;
-                        ctrl.delete(false);
-                    });
+                showNotification(`All ctrls from newDoc = : ${all.items.map(c => c.title).join(', ')}`);
+
+
+                all.items.map(ctrl => {
+                    if (keep.includes(ctrl.title)) return;
+                    ctrl.cannotDelete = false;
+                    ctrl.delete(false);
+                });
                 await newDoc.context.sync()
                 newDoc.open();
             }
-            
-        });      
+
+        });
     }
-    
-    
+
+    async function promptForSelection([index, ctrl]: [number, ContentControl], selected: string[]) {
+        if (selected.find(t => t.includes(ctrl.title))) return;//!We need to exclude any ctrl that has already been passed to the function or has been excluded: when a ctrl is excluded, its children are added to the array as excluded ctrls ("![ctrl.title]"), they do not hence need to be treated again since we already know theyare to be  excluded. This also avoids the problem that happens sometimes, when a ctrl has its parent amongst its children list (this is an apparently known weird behavior if the ctrl range overlaps somehow with the range of another ctrl)
+
+        ctrl.select();
+        const [container, btnNext, checkBox] = await showUI();
+
+        return new Promise((resolve, reject) => {
+            btnNext.onclick = () => nextCtrl(ctrl, checkBox as HTMLInputElement);
+            async function nextCtrl(ctrl: ContentControl, checkBox: HTMLInputElement) {
+                const checked = checkBox.checked;
+                container.remove();
+                ctrl.contentControls.load(['title', 'tag']);
+                await ctrl.context.sync();
+                const subOptions =
+                    ctrl.contentControls.items
+                        .filter(ctrl => OPTIONS.includes(ctrl.tag));
+                if (checked)
+                    await isSelected(ctrl, subOptions);
+                else isNotSelected(ctrl, subOptions);
+                resolve(selected);
+            };
+        });
+
+        async function isSelected(ctrl: ContentControl, subOptions: ContentControl[]) {
+            selected.push(ctrl.title);
+            const entries = subOptions.entries()
+            for (const entry of entries)
+                await promptForSelection(entry, selected);
+
+            console.log(selected);
+        };
+
+
+        function isNotSelected(ctrl: ContentControl, subOptions: ContentControl[]) {
+            const exclude = (title: string) => `!${title}`;
+            selected.push(exclude(ctrl.title));
+            subOptions
+                .forEach(ctrl => selected.push(exclude(ctrl.title)));
+            console.log(selected)
+        };
+
+
+        async function showUI() {
+            const children = ctrl.contentControls;
+            children.load(['title', 'tag']);
+            await ctrl.context.sync();
+            const RTSi = children.items.find(rt => rt.tag === RTSiTag);
+            if (!RTSi) throw new Error('No RTSi');
+            const ctrlRange = RTSi.getRange('Content');
+            ctrlRange.load(['text', 'paragraphs']);
+            await ctrl.context.sync();
+            return UI(ctrlRange.text);
+
+
+            function UI(text: string) {
+                const container = createHTMLElement('div', 'promptContainer', '', USERFORM, ctrl.title);
+                const prompt = createHTMLElement('div', 'selection', '', container);
+                const checkBox = createHTMLElement('input', 'checkBox', '', prompt) as HTMLInputElement;
+                createHTMLElement('label', 'label', text, prompt) as HTMLParagraphElement;
+                checkBox.type = 'checkbox';
+                const btns = createHTMLElement('div', 'btns', '', prompt);
+                const btnNext = createHTMLElement('button', 'btnOK', 'Next', btns);
+                return [container, btnNext, checkBox]
+            }
+
+        }
+    }
+
     function getFileURL() {
         let url;
         Office.context.document.getFilePropertiesAsync(undefined, (result) => {
@@ -437,23 +437,23 @@ async function customizeContract() {
     async function getTemplate() {
         try {
             return await getDocumentBase64();
-     } catch (error) {
-         showNotification(`Failed to create new Doc: ${error}`)
-     }
+        } catch (error) {
+            showNotification(`Failed to create new Doc: ${error}`)
+        }
     }
 };
 
-function promptForInput(question: string, fun?:Function) {
+function promptForInput(question: string, fun?: Function) {
     if (!question) return;
     const container = createHTMLElement('div', 'promptContainer', '', USERFORM);
     const prompt = createHTMLElement('div', 'prompt', '', container);
     const ask = createHTMLElement('p', 'ask', question, prompt);
-    const input =createHTMLElement('input', 'answer', '', prompt) as HTMLInputElement;
-    const btns =createHTMLElement('div', 'btns', '', prompt);
-    const btnOK =createHTMLElement('button', 'btnOK', 'OK', btns);
-    const btnCancel =createHTMLElement('button', 'btnCancel', 'Cancel', btns);
-    
-    let answer:string = '';
+    const input = createHTMLElement('input', 'answer', '', prompt) as HTMLInputElement;
+    const btns = createHTMLElement('div', 'btns', '', prompt);
+    const btnOK = createHTMLElement('button', 'btnOK', 'OK', btns);
+    const btnCancel = createHTMLElement('button', 'btnCancel', 'Cancel', btns);
+
+    let answer: string = '';
 
     btnOK.onclick = () => {
         answer = input.value;
@@ -462,7 +462,7 @@ function promptForInput(question: string, fun?:Function) {
         if (fun) fun(answer);
     };
     btnCancel.onclick = () => container.remove();
-    return answer ;
+    return answer;
 };
 
 /**
@@ -478,41 +478,41 @@ async function getDocumentBase64(): Promise<Base64URLString> {
         Office.context.document.getFileAsync(
             Office.FileType.Compressed,
             { sliceSize: sliceSize },
-            (fileResult)=>processFile(fileResult)
+            (fileResult) => processFile(fileResult)
         );
 
         function processFile(fileResult: Office.AsyncResult<Office.File>) {
             if (failed(fileResult))
-               return reject(fileResult.error);
+                return reject(fileResult.error);
 
             const file = fileResult.value;
             const sliceCount = file.sliceCount;
-            const slices: number[][] =  [];
-            
+            const slices: number[][] = [];
+
             getSlice();
-            
+
             function getSlice() {
                 file.getSliceAsync(slices.length, (sliceResult) => processSlice(sliceResult));
             }
-            
+
             function processSlice(sliceResult: Office.AsyncResult<Office.Slice>) {
                 try {
-                    if(failed(sliceResult)) 
+                    if (failed(sliceResult))
                         return file.closeAsync(() => reject(sliceResult.error));
 
                     slices.push(sliceResult.value.data);
 
                     if (slices.length < sliceCount) return getSlice();
 
-                    const binaryString = slices.map(slice => String.fromCharCode(...slice)).join(''); 
+                    const binaryString = slices.map(slice => String.fromCharCode(...slice)).join('');
                     const base64String = btoa(binaryString);
-                    file.closeAsync(()=>resolve(base64String));
-                    
+                    file.closeAsync(() => resolve(base64String));
+
                 } catch (error) {
                     showNotification(`${error}, succeeded = ${sliceResult.status}, loaded = ${slices.length}`)
                 }
 
-                
+
             }
         }
     });
@@ -520,89 +520,23 @@ async function getDocumentBase64(): Promise<Base64URLString> {
 
 
 
-async function promptForSelection([index, ctrl]: [number, Word.ContentControl], selected: string[]) {
-    if (selected.find(t=>t.includes(ctrl.title))) return;//!In some cases, ctrl.contentControl.items returns not only the child contentcontrols of ctrl, but includes also the parent contentcontrol of ctrl. Don't understand why this happens.
-    
-    ctrl.select();
-    const [container, btnNext, checkBox] = await showUI();
-    
-    return new Promise((resolve, reject) => {
-        btnNext.onclick = ()=>nextCtrl(ctrl, checkBox as HTMLInputElement);
-        async function nextCtrl(ctrl:Word.ContentControl, checkBox:HTMLInputElement) {
-            const checked = checkBox.checked;
-            container.remove();
-            ctrl.contentControls.load(['title', 'tag']);
-            await ctrl.context.sync();
-            const subOptions =
-                ctrl.contentControls.items
-                    .filter(ctrl => OPTIONS.includes(ctrl.tag));
-            if (checked)
-                await isSelected(ctrl, subOptions);
-            else isNotSelected(ctrl, subOptions);
-            resolve(selected);
-         }; 
-    });
-     
-    async function isSelected(ctrl: Word.ContentControl, subOptions:Word.ContentControl[]) {
-        selected.push(ctrl.title);
-        const entries = subOptions.entries()
-        for (const entry of entries) {
-            await promptForSelection(entry, selected);
-        }
-        console.log(selected);
-    };
 
 
-    function isNotSelected(ctrl: Word.ContentControl, subTitles: Word.ContentControl[]) {
-        const exclude = (title: string) => `!${title}`;
-        selected.push(exclude(ctrl.title));
-        subTitles
-            .forEach(ctrl=> selected.push(exclude(ctrl.title)));
-        console.log(selected)
-    };
-
-
-    async function showUI() {
-        const children = ctrl.contentControls;
-        children.load(['title', 'tag']);
-        await ctrl.context.sync();
-        const RTSi = children.items.find(rt => rt.tag === RTSiTag);
-        if (!RTSi) throw new Error('No RTSi');
-        const ctrlRange = RTSi.getRange('Content');
-        ctrlRange.load(['text', 'paragraphs']);
-        await ctrl.context.sync();
-        return UI(ctrlRange.text);
-       
-    
-        function UI(text:string) {
-            const container = createHTMLElement('div', 'promptContainer', '', USERFORM, ctrl.title);
-                const prompt = createHTMLElement('div', 'selection', '', container);
-                const checkBox = createHTMLElement('input', 'checkBox', '', prompt) as HTMLInputElement;
-                createHTMLElement('label', 'label', text, prompt) as HTMLParagraphElement;
-                checkBox.type = 'checkbox';
-                const btns = createHTMLElement('div', 'btns', '', prompt);
-                const btnNext = createHTMLElement('button', 'btnOK', 'Next', btns);
-                return [container, btnNext, checkBox]
-        }
-
-    }
-}
-
-async function deleteAllNotSelected(selected: string[], wdDoc:Word.Document | Word.DocumentCreated) {
-        const all = wdDoc.contentControls;
-        all.load(['items', 'title', 'tag']);
-        await wdDoc.context.sync();
+async function deleteAllNotSelected(selected: string[], wdDoc: Word.Document | Word.DocumentCreated) {
+    const all = wdDoc.contentControls;
+    all.load(['items', 'title', 'tag']);
+    await wdDoc.context.sync();
     all.items
         .filter(ctrl => !selected.includes(ctrl.title))
         .forEach(ctrl => {
             ctrl.select();
             ctrl.cannotDelete = false;
             ctrl.delete(true);
-    });
-        await wdDoc.context.sync();
+        });
+    await wdDoc.context.sync();
 }
 
-function createHTMLElement(tag: string, css: string, innerText:string, parent: HTMLElement | Document, id?:string, append:boolean = true) {
+function createHTMLElement(tag: string, css: string, innerText: string, parent: HTMLElement | Document, id?: string, append: boolean = true) {
     const el = document.createElement(tag);
     if (innerText) el.innerText = innerText;
     el.classList.add(css);
