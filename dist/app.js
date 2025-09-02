@@ -66,26 +66,6 @@ function insertBtn([fun, label], append = true) {
     htmlBtn.addEventListener('click', () => fun());
     return htmlBtn;
 }
-async function insertContentControlAroundSelection(type = RichText) {
-    await Word.run(async (context) => {
-        // get the current selection
-        const selection = context.document.getSelection();
-        selection.load('isEmpty');
-        await context.sync();
-        // abort if nothing is selected
-        if (selection.isEmpty) {
-            return showNotification('Please select some text first.');
-        }
-        // 3. Wrap the selection in a RichText content control
-        //@ts-expect-error
-        const cc = selection.insertContentControl(type);
-        cc.appearance = Bounding;
-        cc.color = "blue";
-        // Log the content control properties
-        showNotification(`ContentControl created with ID: ${cc.id}, Tag: ${cc.tag}, Title: ${cc.title}`);
-        await context.sync();
-    });
-}
 function openInputDialog(data) {
     let dialog;
     Office.context.ui.displayDialogAsync("https://mbibawi.github.io/ContractsPWA/dialog.html", {
@@ -210,6 +190,8 @@ async function insertContentControl(range, title, tag, index, style) {
     // Insert a rich text content control around the found range.
     const ctrl = range.insertContentControl();
     ctrl.load(['id']);
+    if (!style)
+        style;
     await range.context.sync();
     // Set properties for the new content control.
     ctrl.title = `${title}-${ctrl.id}`;
@@ -223,23 +205,29 @@ async function insertContentControl(range, title, tag, index, style) {
     return ctrl;
 }
 async function wrapAllSameStyleParagraphsWithContentControl(style, title, tag) {
-    await Word.run(async (context) => {
-        const selection = context.document.getSelection();
-        const range = selection.getRange('Content');
-        range.load(['style']);
-        await range.context.sync();
-        if (range.style !== style)
-            return;
-        await insertContentControl(range, title, tag, 0, style);
-    });
+    const range = await getSelectionRange();
+    if (!range || range.style !== style)
+        return;
+    await insertContentControl(range, title, tag, 0, style);
 }
 ;
-async function wrapSelectionWithContentControl(title, tag) {
-    await Word.run(async (context) => {
-        const selection = context.document.getSelection();
-        const range = selection.getRange('Content');
-        await insertContentControl(range, title, tag, 0, range.style);
+async function getSelectionRange() {
+    return await Word.run(async (context) => {
+        const range = context.document
+            .getSelection()
+            .getRange('Content');
+        range.load(['style', 'isEmpty']);
+        await context.sync();
+        if (range.isEmpty)
+            return showNotification('The selection range is empty');
+        return range;
     });
+}
+async function wrapSelectionWithContentControl(title, tag) {
+    const range = await getSelectionRange();
+    if (!range)
+        return;
+    await insertContentControl(range, title, tag, 0, range.style);
 }
 ;
 async function confirm(question, fun) {
