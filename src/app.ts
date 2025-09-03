@@ -126,6 +126,7 @@ async function wrapMatchingStyleRangesWithContentControls(ranges: Word.RangeColl
 
 async function searchString(search: string, context: Word.RequestContext, matchWildcards: boolean) {
     const searchResults = context.document.body.search(search, { matchWildcards: matchWildcards });
+    searchResults.load(['style']);
     await context.sync();
     if (!searchResults.items.length) {
         showNotification(`No text matching the search string was found in the document.`);

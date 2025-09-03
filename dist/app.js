@@ -112,6 +112,7 @@ async function wrapMatchingStyleRangesWithContentControls(ranges, styles, title,
 }
 async function searchString(search, context, matchWildcards) {
     const searchResults = context.document.body.search(search, { matchWildcards: matchWildcards });
+    searchResults.load(['style']);
     await context.sync();
     if (!searchResults.items.length) {
         showNotification(`No text matching the search string was found in the document.`);
