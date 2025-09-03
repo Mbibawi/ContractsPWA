@@ -3,7 +3,6 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'];
 const RTDuplicateTag = 'RTRepeat';
 const RTSectionTag = 'RTSection';
 const RTSelectTag = 'RTSelect';
-const RTSelectTitle = 'RTSelect';
 const RTObsTag = 'RTObs';
 const RTDescriptionTag = 'RTDesc';
 const RTDescriptionStyle = 'RTDescription';
@@ -50,11 +49,11 @@ function prepareTemplate() {
         ];
     }
     ;
-    const insertDescription = () => findTextAndWrapItWithContentControl([`"*"`, `«*»`], [RTDescriptionStyle], RTDescriptionTag, RTDescriptionTag, true);
+    const insertDescription = () => findTextAndWrapItWithContentControl([RTDescriptionStyle], RTDescriptionTag, RTDescriptionTag);
     const btns = [
         wrap(RTSiTag, RTSiTag, 'Insert Single RT Si', RTSiStyles[0]),
         wrap(RTDescriptionTag, RTDescriptionTag, 'Insert Single RT Description', RTDescriptionStyle),
-        wrap(RTSelectTitle, RTSelectTag, 'Insert Single RT Select'),
+        wrap(RTSelectTag, RTSelectTag, 'Insert Single RT Select'),
         wrap(RTSectionTag, RTSectionTag, 'Insert Single RT Section'),
         wrap(RTDuplicateTag, RTDuplicateTag, 'Insert Single RT Dublicate Block'),
         wrap(RTObsTag, RTObsTag, 'Insert Single RT Obs', RTObsTag),
@@ -78,7 +77,17 @@ function insertBtn([fun, label], append = true) {
  * @param style The name of the character style to find (e.g., "Emphasis", "Strong", "MyCustomStyle").
  * @returns A Promise that resolves when the operation is complete.
  */
-async function findTextAndWrapItWithContentControl(search, styles, title, tag, matchWildcards) {
+async function findTextAndWrapItWithContentControl(styles, title, tag) {
+    var _a, _b;
+    const separator = '_&_';
+    const search = (_a = (await promptForInput(`Provide the search string. You can provide more than one string to search by separated by ${separator} witohout space`, separator))) === null || _a === void 0 ? void 0 : _a.split(separator);
+    if (!(search === null || search === void 0 ? void 0 : search.length))
+        return showNotification('The provided search string is not valid');
+    const matchWildcards = await promptConfirm('Match Wild Cards');
+    if (!styles)
+        styles = ((_b = (await promptForInput(`Provide the styles that that need to be matched separated by ","`))) === null || _b === void 0 ? void 0 : _b.split(',')) || [];
+    if (!(styles === null || styles === void 0 ? void 0 : styles.length))
+        return showNotification(`The styles[] has 0 length, no styles are included, the function will return`);
     await Word.run(async (context) => {
         for (const el of search) {
             const ranges = await searchString(el, context, matchWildcards);
@@ -93,9 +102,10 @@ async function wrapMatchingStyleRangesWithContentControls(ranges, styles, title,
     ranges.load(['style', 'parentContentControlOrNullObject', 'parentContentControlOrNullObject.isNullObject', 'parentContentControlOrNullObject.tag']);
     await ranges.context.sync();
     return ranges.items.map(async (range, index) => {
+        var _a;
         if (!styles.includes(range.style))
             return;
-        if (range.parentContentControlOrNullObject.tag === tag)
+        if (((_a = range.parentContentControlOrNullObject) === null || _a === void 0 ? void 0 : _a.tag) === tag)
             return;
         return await insertContentControl(range, title, tag, index, range.style);
     });
@@ -198,9 +208,9 @@ async function wrapSelectionWithContentControl(title, tag, style) {
     await insertContentControl(range, title, tag, 0, style);
 }
 ;
-async function confirm(question, fun) {
+async function promptConfirm(question, fun) {
     if (!question)
-        return;
+        question = 'No question was provided !!!';
     const container = createHTMLElement('div', 'promptContainer', '', USERFORM);
     const prompt = createHTMLElement('div', 'prompt', '', container);
     createHTMLElement('p', 'ask', question, prompt);
@@ -386,7 +396,7 @@ async function customizeContract() {
     }
 }
 ;
-async function promptForInput(question, fun) {
+async function promptForInput(question, deflt, fun) {
     if (!question)
         return '';
     const container = createHTMLElement('div', 'promptContainer', '', USERFORM);
@@ -396,6 +406,8 @@ async function promptForInput(question, fun) {
     const btns = createHTMLElement('div', 'btns', '', prompt);
     const btnOK = createHTMLElement('button', 'btnOK', 'OK', btns);
     const btnCancel = createHTMLElement('button', 'btnCancel', 'Cancel', btns);
+    if (deflt)
+        input.value = deflt;
     return new Promise((resolve, reject) => {
         btnCancel.onclick = () => reject(container.remove());
         btnOK.onclick = () => {
