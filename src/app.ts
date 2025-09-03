@@ -1,4 +1,5 @@
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'];
+const RTDropDownTag = 'RTList';
 const RTDuplicateTag = 'RTRepeat';
 const RTSectionTag = 'RTSection';
 const RTSelectTag = 'RTSelect';
@@ -8,9 +9,12 @@ const RTDescriptionStyle = 'RTDescription';
 const RTSiTag = 'RTSi';
 const RTSiStyles = ['RTSi0cm', 'RTSi1cm', 'RTSi2cm', 'RTSi3cm', 'RTSi4cm'];
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
-let RichText: Word.ContentControlType,
-    RichTextInline: Word.ContentControlType,
-    RichTextParag: Word.ContentControlType,
+let RichText: ContentControlType,
+    RichTextInline: ContentControlType,
+    RichTextParag: ContentControlType,
+    ComboBox: ContentControlType,
+    CheckBox: ContentControlType,
+    dropDownList: ContentControlType,
     Bounding: Word.ContentControlAppearance,
     Hidden: Word.ContentControlAppearance
 
@@ -24,6 +28,9 @@ Office.onReady((info) => {
     RichText = Word.ContentControlType.richText;
     RichTextInline = Word.ContentControlType.richTextInline;
     RichTextParag = Word.ContentControlType.richTextParagraphs;
+    ComboBox = Word.ContentControlType.comboBox;
+    CheckBox = Word.ContentControlType.checkBox;
+    dropDownList = Word.ContentControlType.dropDownList;
     Bounding = Word.ContentControlAppearance.boundingBox;
     Hidden= Word.ContentControlAppearance.hidden;
     
@@ -51,9 +58,9 @@ function mainUI() {
 
 function prepareTemplate() {
     USERFORM.innerHTML = '';
-    function wrap(title: string, tag: string, label: string, style?:string) {
+    function wrap(title: string, tag: string, label: string, type:Word.ContentControlType, style?:string) {
         return [
-            () => wrapSelectionWithContentControl(title, tag, style),
+            () => wrapSelectionWithContentControl(title, tag, type, style),
             label
         ] as [Function, string]
     };
@@ -61,12 +68,13 @@ function prepareTemplate() {
     const insertDescription = () => findTextAndWrapItWithContentControl([RTDescriptionStyle], RTDescriptionTag, RTDescriptionTag);
 
     const btns = [
-        wrap(RTSiTag, RTSiTag, 'Insert Single RT Si', RTSiStyles[0]),
-        wrap(RTDescriptionTag, RTDescriptionTag, 'Insert Single RT Description', RTDescriptionStyle),
-        wrap(RTSelectTag, RTSelectTag, 'Insert Single RT Select'),
-        wrap(RTSectionTag, RTSectionTag, 'Insert Single RT Section'),
-        wrap(RTDuplicateTag, RTDuplicateTag, 'Insert Single RT Dublicate Block'),
-        wrap(RTObsTag, RTObsTag, 'Insert Single RT Obs', RTObsTag),
+        wrap(RTSiTag, RTSiTag, 'Insert Single RT Si', RichText, RTSiStyles[0]),
+        wrap(RTDescriptionTag, RTDescriptionTag, 'Insert Single RT Description', RichText, RTDescriptionStyle),
+        wrap(RTSelectTag, RTSelectTag, 'Insert Single RT Select', RichText),
+        wrap(RTSectionTag, RTSectionTag, 'Insert Single RT Section', RichText),
+        wrap(RTDuplicateTag, RTDuplicateTag, 'Insert Single RT Dublicate Block', RichText),
+        [insertDropDownList, 'Insert a Dropdown List from selection'],
+        wrap(RTObsTag, RTObsTag, 'Insert Single RT Obs', RichText, RTObsTag),
         [insertRTSiAll, 'Insert RT Si For All'],
         [insertDescription, 'Insert RT Description For All'],
     ] as [Function, string][];
@@ -113,14 +121,20 @@ async function findTextAndWrapItWithContentControl(styles: string[], title: stri
 
 async function wrapMatchingStyleRangesWithContentControls(ranges: Word.RangeCollection, styles: string[], title: string, tag: string) {
 
-    ranges.load(['style', 'parentContentControlOrNullObject', 'parentContentControlOrNullObject.isNullObject', 'parentContentControlOrNullObject.tag']);
+    ranges.load(['style', 'text', 'parentContentControlOrNullObject', 'parentContentControlOrNullObject.isNullObject', 'parentContentControlOrNullObject.tag']);
 
     await ranges.context.sync();
+    if (!ranges.items.length) {
+        showNotification(`No text matching the search string was found in the document.`);
+        return;
+    }
+
+    showNotification(`Found ${ranges.items.length} ranges matching the search string. First range text = ${ranges.items[0].text}`);
 
     return ranges.items.map(async (range, index) => {
         if (!styles.includes(range.style)) return;
         if(range.parentContentControlOrNullObject?.tag === tag) return;
-        return await insertContentControl(range, title, tag, index, range.style)
+        return await insertContentControl(range, title, tag, index, RichText, range.style)
     });
 }
 
@@ -128,13 +142,6 @@ async function searchString(search: string, context: Word.RequestContext, matchW
     const searchResults = context.document.body.search(search, { matchWildcards: matchWildcards });
     searchResults.load(['style']);
     await context.sync();
-    if (!searchResults.items.length) {
-        showNotification(`No text matching the search string was found in the document.`);
-        return;
-    }
-
-    showNotification(`Found ${searchResults.items.length} ranges matching the search string: ${search}.`);
-
     return searchResults
 }
 
@@ -164,7 +171,7 @@ async function insertRTSiAll() {
                 await parag.context.sync();
                 if (parent.tag === RTSiTag) continue;
                 showNotification(`range style: ${parag.style} & text = ${parag.text}`);
-                await insertContentControl(parag.getRange('Content'), RTSiTag, RTSiTag, parags.indexOf(parag), parag.style);
+                await insertContentControl(parag.getRange('Content'), RTSiTag, RTSiTag, parags.indexOf(parag), RichText, parag.style);
             } catch (error) {
                 showNotification(`error: ${error}`);
                 continue
@@ -174,12 +181,32 @@ async function insertRTSiAll() {
 
     })
 }
-async function insertContentControl(range: Word.Range, title: string, tag: string, index: number, style?: string) {
+
+async function insertDropDownList() {
+    const range = await getSelectionRange();
+    if (!range) return;
+    range.load(["text"]);
+    range.context.trackedObjects.add(range);//!This is important
+    await range.context.sync();
+  
+    const options = range.text.split("/");
+    if (!options.length) return showNotification("No options");
+    showNotification(options.join());
+  
+    const ctrl = await insertContentControl(range, RTDropDownTag, RTDropDownTag, 0, dropDownList);
+    if (!ctrl) return;
+    ctrl.cannotEdit = false;//! If we do not set it to false, it will not be possible to select from the list
+    ctrl.dropDownListContentControl.deleteAllListItems();
+    options.forEach(option => ctrl.dropDownListContentControl.addListItem(option));
+    await ctrl.context.sync();
+  }
+async function insertContentControl(range: Word.Range, title: string, tag: string, index: number, type:Word.ContentControlType, style?: string) {
     range.select();
     const styles = range.context.document.getStyles();
     styles.load(['nameLocal', 'type']);
     // Insert a rich text content control around the found range.
-    const ctrl = range.insertContentControl();
+    //@ts-expect-error
+    const ctrl = range.insertContentControl(type);
     ctrl.load(["id"]);
     range.context.trackedObjects.remove(range);
     range.context.trackedObjects.add(ctrl);//!This is very important otherwise we will not be able to call range.context.sync() after calling range.context.sync();
@@ -187,6 +214,7 @@ async function insertContentControl(range: Word.Range, title: string, tag: strin
     // Set properties for the new content control.
     if (ctrl.id) showNotification(`the newly created ContentControl id = ${ctrl.id} `);
     try {
+        ctrl.select();
         ctrl.title = `${title}&${ctrl.id}`;
         ctrl.tag = tag;
         ctrl.cannotDelete = true;
@@ -194,7 +222,6 @@ async function insertContentControl(range: Word.Range, title: string, tag: strin
         ctrl.appearance = Word.ContentControlAppearance.boundingBox;
         const foundStyle = styles.items.find(s => s.nameLocal === style);
         if (style && foundStyle?.type === Word.StyleType.character ) ctrl.style = style; 
-        range.context.trackedObjects.remove(ctrl);
         await range.context.sync();
         showNotification(`Wrapped text in range ${index || 1} with a content control.`);
     } catch (error) {
@@ -216,11 +243,11 @@ async function getSelectionRange() {
     });
 }
 
-async function wrapSelectionWithContentControl(title: string, tag: string, style?:string) {
+async function wrapSelectionWithContentControl(title: string, tag: string, type:Word.ContentControlType, style?:string) {
     const range = await getSelectionRange();
     if (!range) return;
     if (RTSiStyles.includes(range.style)) style = range.style;
-    await insertContentControl(range, title, tag, 0, style);
+    await insertContentControl(range, title, tag, 0, type, style);
 };
 
 async function promptConfirm(question: string, fun?: Function):Promise<boolean> {
