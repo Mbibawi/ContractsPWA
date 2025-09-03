@@ -1,5 +1,7 @@
-const OPTIONS = ['Select', 'Show', 'Edit'];
-const RTSelectTag = 'Select';
+const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'];
+const RTDuplicateTag = 'RTRepeat';
+const RTSectionTag = 'RTSection';
+const RTSelectTag = 'RTSelect';
 const RTSelectTitle = 'RTSelect';
 const RTObsTag = 'RTObs';
 const RTDescriptionTag = 'RTDesc';
@@ -50,9 +52,9 @@ function mainUI() {
 
 function prepareTemplate() {
     USERFORM.innerHTML = '';
-    function wrap(title: string, tag: string, label: string) {
+    function wrap(title: string, tag: string, label: string, style?:string) {
         return [
-            () => wrapSelectionWithContentControl(title, tag),
+            () => wrapSelectionWithContentControl(title, tag, style),
             label
         ] as [Function, string]
     };
@@ -60,10 +62,12 @@ function prepareTemplate() {
     const insertDescription = () => findTextAndWrapItWithContentControl([`"*"`, `«*»`], [RTDescriptionStyle], RTDescriptionTag, RTDescriptionTag, true);
 
     const btns = [
-        wrap(RTSiTag, RTSiTag, 'Insert Single RT Si'),
-        wrap(RTDescriptionTag, RTDescriptionTag, 'Insert Single RT Description'),
+        wrap(RTSiTag, RTSiTag, 'Insert Single RT Si', RTSiStyles[0]),
+        wrap(RTDescriptionTag, RTDescriptionTag, 'Insert Single RT Description', RTDescriptionStyle),
         wrap(RTSelectTitle, RTSelectTag, 'Insert Single RT Select'),
-        wrap(RTObsTag, RTObsTag, 'Insert Single RT Obs'),
+        wrap(RTSectionTag, RTSectionTag, 'Insert Single RT Section'),
+        wrap(RTDuplicateTag, RTDuplicateTag, 'Insert Single RT Dublicate Block'),
+        wrap(RTObsTag, RTObsTag, 'Insert Single RT Obs', RTObsTag),
         [insertRTSiAll, 'Insert RT Si For All'],
         [insertDescription, 'Insert RT Description For All'],
     ] as [Function, string][];
@@ -79,62 +83,6 @@ function insertBtn([fun, label]: Btn, append: boolean = true) {
     htmlBtn.addEventListener('click', () => fun());
     return htmlBtn
 }
-
-function openInputDialog(data: object) {
-    let dialog: Office.Dialog;
-    Office.context.ui.displayDialogAsync(
-        "https://mbibawi.github.io/ContractsPWA/dialog.html",
-        {
-            height: 60,
-            width: 60,
-            promptBeforeOpen: false,
-            displayInIframe: false
-        },
-        (asyncResult) => {
-            if (asyncResult.status === Office.AsyncResultStatus.Failed) {
-                showNotification(`failed to open an got ${asyncResult.error.message}`);
-                return;
-            }
-
-            dialog = asyncResult.value;
-            // Send initial payload to the dialog
-            dialog.messageChild(JSON.stringify(data));
-            // Optionally handle messages sent back from the dialog
-
-            // Listen for messages from the dialog
-            dialog.addEventHandler(Office.EventType.DialogMessageReceived, onDialogMessage);
-        }
-    );
-
-
-
-    async function onDialogMessage(arg: any) {
-        //!args needs to be converted to an array of objects like {id: number, delete:boolean, text: string}
-        const ctrls = JSON.parse(arg.message) as { id: number, delete: boolean, text: string }[];
-        const text = arg.message;
-        dialog.close();
-
-        await Word.run(async (context) => {
-            //! Insert logic for looping the content controls and deleting those whose delete property is set to true, and updating the text of those with a text property.
-            ctrls.forEach(async ctrl => {
-                const cc = context.document.contentControls.getByIdOrNullObject(ctrl.id);
-                cc.load("isNullObject");
-                await context.sync();
-                if (cc.isNullObject) {
-                    showNotification(`ContentControl id=${ctrl.id} not found.`);
-                    return;
-                }
-                if (ctrl.delete) {
-                    cc.delete(true);
-                } else if (ctrl.text) {
-                    cc.insertText(ctrl.text, Word.InsertLocation.replace);
-                }
-                await context.sync();
-            });
-        });
-    }
-}
-
 
 /**
  * Wraps every occurrence of text formatted with a specific character style in a rich text content control.
@@ -160,8 +108,7 @@ async function wrapMatchingStyleRangesWithContentControls(ranges: Word.RangeColl
 
     return ranges.items.map(async (range, index) => {
         if (!styles.includes(range.style)) return;
-        const parent = range.parentContentControlOrNullObject;
-        if (!parent.isNullObject && parent.tag === tag) return;
+        if(range.parentContentControlOrNullObject.tag === tag) return;
         return await insertContentControl(range, title, tag, index, range.style)
     });
 }
@@ -217,31 +164,32 @@ async function insertRTSiAll() {
 }
 async function insertContentControl(range: Word.Range, title: string, tag: string, index: number, style?: string) {
     range.select();
+    const styles = range.context.document.getStyles();
+    styles.load(['nameLocal', 'type']);
     // Insert a rich text content control around the found range.
     const ctrl = range.insertContentControl();
-    ctrl.load(['id']);
-    if (!style) style;
-    range.context.trackedObjects.remove(range)
+    ctrl.load(["id"]);
+    range.context.trackedObjects.remove(range);
+    range.context.trackedObjects.add(ctrl);//!This is very important otherwise we will not be able to call range.context.sync() after calling range.context.sync();
     await range.context.sync();
-
     // Set properties for the new content control.
-    ctrl.title = `${title}-${ctrl.id}`;
-    ctrl.tag = tag;
-    ctrl.cannotDelete = true;
-    ctrl.cannotEdit = true;
-    ctrl.appearance = Bounding;
-    if (style) ctrl.style = style;
-
-    showNotification(`Wrapped text in range ${index || 1} with a content control.`);
-    return ctrl
-
-}
-
-async function wrapAllSameStyleParagraphsWithContentControl(style: string, title: string, tag: string) {
-    const range = await getSelectionRange();
-    if (!range || range.style !== style) return;
-    await insertContentControl(range, title, tag, 0, style);
-};
+    if (ctrl.id) showNotification(`the newly created ContentControl id = ${ctrl.id} `);
+    try {
+        ctrl.title = `${title}&${ctrl.id}`;
+        ctrl.tag = tag;
+        ctrl.cannotDelete = true;
+        ctrl.cannotEdit = true;
+        ctrl.appearance = Word.ContentControlAppearance.boundingBox;
+        const foundStyle = styles.items.find(s => s.nameLocal === style);
+        if (style && foundStyle?.type === Word.StyleType.character ) ctrl.style = style; 
+        range.context.trackedObjects.remove(ctrl);
+        await range.context.sync();
+        showNotification(`Wrapped text in range ${index || 1} with a content control.`);
+    } catch (error) {
+        showNotification(`There was an error while setting the properties of the newly crated contentcontrol by insertContentControl(): ${error}.`);
+    }
+    return ctrl;
+  }
 
 async function getSelectionRange() {
     return await Word.run(async (context) => {
@@ -256,10 +204,11 @@ async function getSelectionRange() {
     });
 }
 
-async function wrapSelectionWithContentControl(title: string, tag: string) {
+async function wrapSelectionWithContentControl(title: string, tag: string, style?:string) {
     const range = await getSelectionRange();
-    if (!range) return
-    await insertContentControl(range, title, tag, 0, range.style);
+    if (!range) return;
+    if (RTSiStyles.includes(range.style)) style = range.style;
+    await insertContentControl(range, title, tag, 0, style);
 };
 
 async function confirm(question: string, fun?: Function) {
@@ -293,26 +242,28 @@ async function customizeContract() {
     async function selectCtrls() {
         await Word.run(async (context) => {
             const allRT = context.document.contentControls;
-            allRT.load(['title', 'tag', 'contentControls']);
+            allRT.load(['title', 'tag', 'contentControls/items/title', 'contentControls/items/tag']);
             await context.sync();
-            const ctrls = allRT.items
-                .filter(ctrl => OPTIONS.includes(ctrl.tag))
-                .entries();
+
+            const tags = [...OPTIONS, RTDuplicateTag];
+
+            const selectCtrls = allRT.items
+                .filter(ctrl => tags.includes(ctrl.tag))
             const selected: string[] = [];
-            for (const ctrl of ctrls)
+            for (const ctrl of selectCtrls)
                 await promptForSelection(ctrl, selected);
 
             const keep = selected.filter(title => !title.startsWith('!'));
             showNotification(`keep = ${keep.join(', ')}`);
             try {
                 await currentDoc();
-                await createNewDoc();
+                //await createNewDoc();
             } catch (error) {
                 showNotification(`${error}`)
             }
 
             async function currentDoc() {
-                for (const [i, ctrl] of ctrls) {
+                for (const ctrl of selectCtrls) {
                     if (keep.includes(ctrl.title)) continue;
                     ctrl.select();
                     ctrl.cannotDelete = false;
@@ -344,10 +295,13 @@ async function customizeContract() {
                 newDoc.open();
             }
 
+
         });
     }
 
-    async function promptForSelection([index, ctrl]: [number, ContentControl], selected: string[]) {
+    async function promptForSelection(ctrl: ContentControl, selected: string[]) {
+        if (ctrl.tag === RTDuplicateTag) return await duplicateBlock(ctrl);
+
         if (selected.find(t => t.includes(ctrl.title))) return;//!We need to exclude any ctrl that has already been passed to the function or has been excluded: when a ctrl is excluded, its children are added to the array as excluded ctrls ("![ctrl.title]"), they do not hence need to be treated again since we already know theyare to be  excluded. This also avoids the problem that happens sometimes, when a ctrl has its parent amongst its children list (this is an apparently known weird behavior if the ctrl range overlaps somehow with the range of another ctrl)
 
         ctrl.select();
@@ -358,8 +312,8 @@ async function customizeContract() {
             async function nextCtrl(ctrl: ContentControl, checkBox: HTMLInputElement) {
                 const checked = checkBox.checked;
                 container.remove();
-                ctrl.contentControls.load(['title', 'tag']);
-                await ctrl.context.sync();
+                //ctrl.contentControls.load(['title', 'tag']);
+                //await ctrl.context.sync();
                 const subOptions =
                     ctrl.contentControls.items
                         .filter(ctrl => OPTIONS.includes(ctrl.tag));
@@ -372,9 +326,8 @@ async function customizeContract() {
 
         async function isSelected(ctrl: ContentControl, subOptions: ContentControl[]) {
             selected.push(ctrl.title);
-            const entries = subOptions.entries()
-            for (const entry of entries)
-                await promptForSelection(entry, selected);
+            for (const ctrl of subOptions)
+                await promptForSelection(ctrl, selected);
 
             console.log(selected);
         };
@@ -413,6 +366,36 @@ async function customizeContract() {
             }
 
         }
+
+        async function duplicateBlock(ctrl:ContentControl) {
+            try {
+                await duplicate();
+            } catch (error) {
+                showNotification(`${error}`)
+            }
+
+            async function duplicate() {                 
+                const label = ctrl.contentControls.items.find(c => c.tag === RTSectionTag);
+                if (!label) return showNotification(`No Section RT Within the Range of the Duplicate Ctrl. Ctrl id = ${ctrl.id}`);
+                label?.load(['text']);
+                const ctrlContent = ctrl.getOoxml();
+                const range = ctrl.getRange();
+                await ctrl.context.sync();
+                
+                if (!label.text) return showNotification("No lable text");
+                ctrl.select();
+                const message = `How many ${label.text} parties are there?`;
+                const answer = Number(await promptForInput(message)); 
+                if (isNaN(answer))
+                    return showNotification(`The provided text cannot be converted into a number: ${answer}`);
+                for (let i = 1; i < answer; i++) {
+                        range
+                        .insertOoxml(ctrlContent.value, Word.InsertLocation.after);
+                }
+    
+                await ctrl.context.sync()
+            }
+        }
     }
 
     function getFileURL() {
@@ -433,8 +416,8 @@ async function customizeContract() {
     }
 };
 
-function promptForInput(question: string, fun?: Function) {
-    if (!question) return;
+async function promptForInput(question: string, fun?: Function) {
+    if (!question) return '';
     const container = createHTMLElement('div', 'promptContainer', '', USERFORM);
     const prompt = createHTMLElement('div', 'prompt', '', container);
     const ask = createHTMLElement('p', 'ask', question, prompt);
@@ -442,17 +425,18 @@ function promptForInput(question: string, fun?: Function) {
     const btns = createHTMLElement('div', 'btns', '', prompt);
     const btnOK = createHTMLElement('button', 'btnOK', 'OK', btns);
     const btnCancel = createHTMLElement('button', 'btnCancel', 'Cancel', btns);
+    
+    return new Promise((resolve, reject) => {
+        btnCancel.onclick = () => reject(container.remove());
+        btnOK.onclick = () => {
+            const answer = input.value;
+            console.log('user answer = ', answer);
+            container.remove();
+            if (fun) fun(answer);
+            resolve(answer)
+        };
+    });
 
-    let answer: string = '';
-
-    btnOK.onclick = () => {
-        answer = input.value;
-        console.log('user answer = ', answer);
-        container.remove();
-        if (fun) fun(answer);
-    };
-    btnCancel.onclick = () => container.remove();
-    return answer;
 };
 
 /**
