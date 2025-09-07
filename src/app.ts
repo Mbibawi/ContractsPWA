@@ -58,23 +58,23 @@ function mainUI() {
 
 function prepareTemplate() {
     USERFORM.innerHTML = '';
-    function wrap(title: string, tag: string, label: string, type:Word.ContentControlType, style?:string) {
+    function wrap(title: string, tag: string, label: string, type:Word.ContentControlType, style:string|null, cannotEdit:boolean, cannotDelete:boolean) {
         return [
-            () => wrapSelectionWithContentControl(title, tag, type, style),
+            () => wrapSelectionWithContentControl(title, tag, type, style, cannotEdit, cannotDelete),
             label
         ] as [Function, string]
     };
 
-    const insertDescription = () => findTextAndWrapItWithContentControl([RTDescriptionStyle], RTDescriptionTag, RTDescriptionTag);
+    const insertDescription = () => findTextAndWrapItWithContentControl([RTDescriptionStyle], RTDescriptionTag, RTDescriptionTag, true, true);
 
     const btns = [
-        wrap(RTSiTag, RTSiTag, 'Insert Single RT Si', RichText, RTSiStyles[0]),
-        wrap(RTDescriptionTag, RTDescriptionTag, 'Insert Single RT Description', RichText, RTDescriptionStyle),
-        wrap(RTSelectTag, RTSelectTag, 'Insert Single RT Select', RichText),
-        wrap(RTSectionTag, RTSectionTag, 'Insert Single RT Section', RichText),
-        wrap(RTDuplicateTag, RTDuplicateTag, 'Insert Single RT Dublicate Block', RichText),
+        wrap(RTSiTag, RTSiTag, 'Insert Single RT Si', RichText, RTSiStyles[0], true, true),
+        wrap(RTDescriptionTag, RTDescriptionTag, 'Insert Single RT Description', RichText, RTDescriptionStyle, true, true),
+        wrap(RTSelectTag, RTSelectTag, 'Insert Single RT Select', RichText, null, false, true),
+        wrap(RTSectionTag, RTSectionTag, 'Insert Single RT Section', RichText, RTSectionTag, true, true),
+        wrap(RTDuplicateTag, RTDuplicateTag, 'Insert Single RT Dublicate Block', RichText, null, false, true),
         [insertDropDownList, 'Insert a Dropdown List from selection'],
-        wrap(RTObsTag, RTObsTag, 'Insert Single RT Obs', RichText, RTObsTag),
+        wrap(RTObsTag, RTObsTag, 'Insert Single RT Obs', RichText, RTObsTag, true, true),
         [insertRTSiAll, 'Insert RT Si For All'],
         [insertDescription, 'Insert RT Description For All'],
     ] as [Function, string][];
@@ -97,7 +97,7 @@ function insertBtn([fun, label]: Btn, append: boolean = true) {
  * @param style The name of the character style to find (e.g., "Emphasis", "Strong", "MyCustomStyle").
  * @returns A Promise that resolves when the operation is complete.
  */
-async function findTextAndWrapItWithContentControl(styles: string[], title: string, tag: string): Promise<void> {
+async function findTextAndWrapItWithContentControl(styles: string[], title: string, tag: string, cannotEdit:boolean, cannotDelete:boolean): Promise<void> {
     const separator = '_&_'
     const search = (await promptForInput(`Provide the search string. You can provide more than one string to search by separated by ${separator} witohout space`, separator))?.split(separator) as string[];
 
@@ -113,13 +113,13 @@ async function findTextAndWrapItWithContentControl(styles: string[], title: stri
         for (const el of search) {
             const ranges = await searchString(el, context, matchWildcards);
             if (!ranges) continue;
-            await wrapMatchingStyleRangesWithContentControls(ranges, styles, title, tag);
+            await wrapMatchingStyleRangesWithContentControls(ranges, styles, title, tag, cannotEdit, cannotDelete);
         };
 
     });
 }
 
-async function wrapMatchingStyleRangesWithContentControls(ranges: Word.RangeCollection, styles: string[], title: string, tag: string) {
+async function wrapMatchingStyleRangesWithContentControls(ranges: Word.RangeCollection, styles: string[], title: string, tag: string, cannotEdit:boolean, cannotDelete:boolean) {
 
     ranges.load(['style', 'text', 'parentContentControlOrNullObject', 'parentContentControlOrNullObject.isNullObject', 'parentContentControlOrNullObject.tag']);
 
@@ -134,7 +134,7 @@ async function wrapMatchingStyleRangesWithContentControls(ranges: Word.RangeColl
     return ranges.items.map(async (range, index) => {
         if (!styles.includes(range.style)) return;
         if(range.parentContentControlOrNullObject?.tag === tag) return;
-        return await insertContentControl(range, title, tag, index, RichText, range.style)
+        return await insertContentControl(range, title, tag, index, RichText, range.style, cannotEdit, cannotDelete)
     });
 }
 
@@ -193,14 +193,14 @@ async function insertDropDownList() {
     if (!options.length) return showNotification("No options");
     showNotification(options.join());
   
-    const ctrl = await insertContentControl(range, RTDropDownTag, RTDropDownTag, 0, dropDownList);
+    const ctrl = await insertContentControl(range, RTDropDownTag, RTDropDownTag, 0, dropDownList, null);
     if (!ctrl) return;
     ctrl.cannotEdit = false;//! If we do not set it to false, it will not be possible to select from the list
     ctrl.dropDownListContentControl.deleteAllListItems();
     options.forEach(option => ctrl.dropDownListContentControl.addListItem(option));
     await ctrl.context.sync();
   }
-async function insertContentControl(range: Word.Range, title: string, tag: string, index: number, type:Word.ContentControlType, style?: string) {
+async function insertContentControl(range: Word.Range, title: string, tag: string, index: number, type:Word.ContentControlType, style: string|null, cannotEdit:boolean = true, cannotDelete:boolean = true) {
     range.select();
     const styles = range.context.document.getStyles();
     styles.load(['nameLocal', 'type']);
@@ -217,11 +217,12 @@ async function insertContentControl(range: Word.Range, title: string, tag: strin
         ctrl.select();
         ctrl.title = `${title}&${ctrl.id}`;
         ctrl.tag = tag;
-        ctrl.cannotDelete = true;
-        ctrl.cannotEdit = true;
+        ctrl.cannotDelete = cannotDelete;
+        ctrl.cannotEdit = cannotEdit;
         ctrl.appearance = Word.ContentControlAppearance.boundingBox;
         const foundStyle = styles.items.find(s => s.nameLocal === style);
-        if (style && foundStyle?.type === Word.StyleType.character ) ctrl.style = style; 
+        if (style && foundStyle?.type === Word.StyleType.character)
+            ctrl.style = style; 
         await range.context.sync();
         showNotification(`Wrapped text in range ${index || 1} with a content control.`);
     } catch (error) {
@@ -243,11 +244,11 @@ async function getSelectionRange() {
     });
 }
 
-async function wrapSelectionWithContentControl(title: string, tag: string, type:Word.ContentControlType, style?:string) {
+async function wrapSelectionWithContentControl(title: string, tag: string, type:Word.ContentControlType, style:string|null, cannotEdit:boolean, cannotDelete:boolean) {
     const range = await getSelectionRange();
     if (!range) return;
     if (RTSiStyles.includes(range.style)) style = range.style;
-    await insertContentControl(range, title, tag, 0, type, style);
+    await insertContentControl(range, title, tag, 0, type, style, cannotEdit, cannotDelete);
 };
 
 async function promptConfirm(question: string, fun?: Function):Promise<boolean> {
@@ -559,3 +560,17 @@ function showNotification(message: string, clear: boolean = false) {
     if (clear) NOTIFICATION.innerHTML = '';
     createHTMLElement('p', 'notification', message, NOTIFICATION, '', true);
 }
+
+async function setCanBeEditedForAllSelectCtrls(edit:boolean=true){
+    await Word.run(async (context) => {
+      const ctrls = context.document
+        .contentControls;
+      ctrls.load(['title', 'tag']);
+      await context.sync();
+      ctrls.items.forEach(ctrl=>{
+        if(OPTIONS.indexOf(ctrl.tag)>-1)
+          ctrl.cannotEdit = edit;
+      });
+      await context.sync();
+    });
+  }
