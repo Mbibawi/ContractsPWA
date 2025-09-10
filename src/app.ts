@@ -32,8 +32,8 @@ Office.onReady((info) => {
     CheckBox = Word.ContentControlType.checkBox;
     dropDownList = Word.ContentControlType.dropDownList;
     Bounding = Word.ContentControlAppearance.boundingBox;
-    Hidden= Word.ContentControlAppearance.hidden;
-    
+    Hidden = Word.ContentControlAppearance.hidden;
+
     mainUI();
 });
 
@@ -58,7 +58,7 @@ function mainUI() {
 
 function prepareTemplate() {
     USERFORM.innerHTML = '';
-    function wrap(title: string, tag: string, label: string, type:Word.ContentControlType, style:string|null, cannotEdit:boolean, cannotDelete:boolean) {
+    function wrap(title: string, tag: string, label: string, type: Word.ContentControlType, style: string | null, cannotEdit: boolean, cannotDelete: boolean) {
         return [
             () => wrapSelectionWithContentControl(title, tag, type, style, cannotEdit, cannotDelete),
             label
@@ -97,7 +97,7 @@ function insertBtn([fun, label]: Btn, append: boolean = true) {
  * @param style The name of the character style to find (e.g., "Emphasis", "Strong", "MyCustomStyle").
  * @returns A Promise that resolves when the operation is complete.
  */
-async function findTextAndWrapItWithContentControl(styles: string[], title: string, tag: string, cannotEdit:boolean, cannotDelete:boolean): Promise<void> {
+async function findTextAndWrapItWithContentControl(styles: string[], title: string, tag: string, cannotEdit: boolean, cannotDelete: boolean): Promise<void> {
     const separator = '_&_'
     const search = (await promptForInput(`Provide the search string. You can provide more than one string to search by separated by ${separator} witohout space`, separator))?.split(separator) as string[];
 
@@ -119,7 +119,7 @@ async function findTextAndWrapItWithContentControl(styles: string[], title: stri
     });
 }
 
-async function wrapMatchingStyleRangesWithContentControls(ranges: Word.RangeCollection, styles: string[], title: string, tag: string, cannotEdit:boolean, cannotDelete:boolean) {
+async function wrapMatchingStyleRangesWithContentControls(ranges: Word.RangeCollection, styles: string[], title: string, tag: string, cannotEdit: boolean, cannotDelete: boolean) {
 
     ranges.load(['style', 'text', 'parentContentControlOrNullObject', 'parentContentControlOrNullObject.isNullObject', 'parentContentControlOrNullObject.tag']);
 
@@ -133,7 +133,7 @@ async function wrapMatchingStyleRangesWithContentControls(ranges: Word.RangeColl
 
     return ranges.items.map(async (range, index) => {
         if (!styles.includes(range.style)) return;
-        if(range.parentContentControlOrNullObject?.tag === tag) return;
+        if (range.parentContentControlOrNullObject?.tag === tag) return;
         return await insertContentControl(range, title, tag, index, RichText, range.style, cannotEdit, cannotDelete)
     });
 }
@@ -165,13 +165,15 @@ async function insertRTSiAll() {
         console.log(parags)
         for (const parag of parags) {
             parag.select();
+            const style = RTSiStyles.includes(parag.style) ? parag.style : RTSiStyles[0];
             try {
                 const parent = parag.parentContentControlOrNullObject;
                 parent.load(['tag']);
                 await parag.context.sync();
                 if (parent.tag === RTSiTag) continue;
                 showNotification(`range style: ${parag.style} & text = ${parag.text}`);
-                await insertContentControl(parag.getRange('Content'), RTSiTag, RTSiTag, parags.indexOf(parag), RichText, parag.style);
+                await insertContentControl(parag.getRange('Content'),
+                RTSiTag, RTSiTag, parags.indexOf(parag), RichText, style);
             } catch (error) {
                 showNotification(`error: ${error}`);
                 continue
@@ -188,19 +190,21 @@ async function insertDropDownList() {
     range.load(["text"]);
     range.context.trackedObjects.add(range);//!This is important
     await range.context.sync();
-  
+
     const options = range.text.split("/");
     if (!options.length) return showNotification("No options");
     showNotification(options.join());
-  
-    const ctrl = await insertContentControl(range, RTDropDownTag, RTDropDownTag, 0, dropDownList, null);
+
+    const ctrl = await insertContentControl(range, RTDropDownTag, RTDropDownTag, 0, dropDownList, null, false, true);
     if (!ctrl) return;
-    ctrl.cannotEdit = false;//! If we do not set it to false, it will not be possible to select from the list
+    const color = '#991c63'
     ctrl.dropDownListContentControl.deleteAllListItems();
     options.forEach(option => ctrl.dropDownListContentControl.addListItem(option));
+    setCtrlsFontColor([ctrl], color);
+    setCtrlsColor([ctrl], color);
     await ctrl.context.sync();
-  }
-async function insertContentControl(range: Word.Range, title: string, tag: string, index: number, type:Word.ContentControlType, style: string|null, cannotEdit:boolean = true, cannotDelete:boolean = true) {
+}
+async function insertContentControl(range: Word.Range, title: string, tag: string, index: number, type: Word.ContentControlType, style: string | null, cannotEdit: boolean = true, cannotDelete: boolean = true) {
     range.select();
     const styles = range.context.document.getStyles();
     styles.load(['nameLocal', 'type']);
@@ -221,15 +225,16 @@ async function insertContentControl(range: Word.Range, title: string, tag: strin
         ctrl.cannotEdit = cannotEdit;
         ctrl.appearance = Word.ContentControlAppearance.boundingBox;
         const foundStyle = styles.items.find(s => s.nameLocal === style);
-        if (style && foundStyle?.type === Word.StyleType.character)
-            ctrl.style = style; 
+        //if (style && foundStyle?.type === Word.StyleType.character)
+        // ctrl.style = style;
+        if(style) setRangeStyle([ctrl], style);
         await range.context.sync();
         showNotification(`Wrapped text in range ${index || 1} with a content control.`);
     } catch (error) {
         showNotification(`There was an error while setting the properties of the newly crated contentcontrol by insertContentControl(): ${error}.`);
     }
     return ctrl;
-  }
+}
 
 async function getSelectionRange() {
     return await Word.run(async (context) => {
@@ -244,14 +249,14 @@ async function getSelectionRange() {
     });
 }
 
-async function wrapSelectionWithContentControl(title: string, tag: string, type:Word.ContentControlType, style:string|null, cannotEdit:boolean, cannotDelete:boolean) {
+async function wrapSelectionWithContentControl(title: string, tag: string, type: Word.ContentControlType, style: string | null, cannotEdit: boolean, cannotDelete: boolean) {
     const range = await getSelectionRange();
     if (!range) return;
     if (RTSiStyles.includes(range.style)) style = range.style;
     await insertContentControl(range, title, tag, 0, type, style, cannotEdit, cannotDelete);
 };
 
-async function promptConfirm(question: string, fun?: Function):Promise<boolean> {
+async function promptConfirm(question: string, fun?: Function): Promise<boolean> {
     if (!question) question = 'No question was provided !!!';
     const container = createHTMLElement('div', 'promptContainer', '', USERFORM);
     const prompt = createHTMLElement('div', 'prompt', '', container);
@@ -407,32 +412,32 @@ async function customizeContract() {
 
         }
 
-        async function duplicateBlock(ctrl:ContentControl) {
+        async function duplicateBlock(ctrl: ContentControl) {
             try {
                 await duplicate();
             } catch (error) {
                 showNotification(`${error}`)
             }
 
-            async function duplicate() {                 
+            async function duplicate() {
                 const label = ctrl.contentControls.items.find(c => c.tag === RTSectionTag);
                 if (!label) return showNotification(`No Section RT Within the Range of the Duplicate Ctrl. Ctrl id = ${ctrl.id}`);
                 label?.load(['text']);
                 const ctrlContent = ctrl.getOoxml();
                 const range = ctrl.getRange();
                 await ctrl.context.sync();
-                
+
                 if (!label.text) return showNotification("No lable text");
                 ctrl.select();
                 const message = `How many ${label.text} parties are there?`;
-                const answer = Number(await promptForInput(message)); 
+                const answer = Number(await promptForInput(message));
                 if (isNaN(answer))
                     return showNotification(`The provided text cannot be converted into a number: ${answer}`);
                 for (let i = 1; i < answer; i++) {
-                        range
+                    range
                         .insertOoxml(ctrlContent.value, Word.InsertLocation.after);
                 }
-    
+
                 await ctrl.context.sync()
             }
         }
@@ -456,7 +461,7 @@ async function customizeContract() {
     }
 };
 
-async function promptForInput(question: string, deflt?:string, fun?: Function):Promise<string|void> {
+async function promptForInput(question: string, deflt?: string, fun?: Function): Promise<string | void> {
     if (!question) return '';
     const container = createHTMLElement('div', 'promptContainer', '', USERFORM);
     const prompt = createHTMLElement('div', 'prompt', '', container);
@@ -561,16 +566,68 @@ function showNotification(message: string, clear: boolean = false) {
     createHTMLElement('p', 'notification', message, NOTIFICATION, '', true);
 }
 
-async function setCanBeEditedForAllSelectCtrls(edit:boolean=true){
+async function setCanBeEditedForAllSelectCtrls(edit: boolean = true) {
     await Word.run(async (context) => {
-      const ctrls = context.document
-        .contentControls;
-      ctrls.load(['title', 'tag']);
-      await context.sync();
-      ctrls.items.forEach(ctrl=>{
-        if(OPTIONS.indexOf(ctrl.tag)>-1)
-          ctrl.cannotEdit = edit;
-      });
-      await context.sync();
+        const ctrls = context.document
+            .contentControls;
+        ctrls.load(['title', 'tag']);
+        await context.sync();
+        ctrls.items.forEach(ctrl => {
+            if (OPTIONS.indexOf(ctrl.tag) > -1)
+                ctrl.cannotEdit = edit;
+        });
+        await context.sync();
     });
-  }
+}
+
+function deleteCtrlById() {
+    Word.run(async (context) => {
+        let title = await promptForInput('Provide the title or the id of the control. If you provide the title, the id will be extracted from it');
+        if (!title) return showNotification(`You did not provide a valid id or title: ${title}`);
+        if(title.includes('&')) title = title.split('&')[1];
+        const id = Number(title);
+        if (isNaN(id)) return showNotification(`The id could not be extracted from the title: ${title}`);
+        const ctrl = context.document.contentControls.getById(id);
+        const ctrls = ctrl.getContentControls();
+        ctrls.load(['tag', 'id']);
+        await context.sync();
+        console.log('Ctrls = ', ctrls.items.map(c => c.tag));
+        ctrl.cannotDelete = false;
+        ctrls.items.forEach(ctrl => ctrl.cannotDelete = false);
+        ctrl.delete(false);
+        await context.sync();
+    });
+}
+
+function updateAllCtrlsTitles() {
+    Word.run(async (context) => {
+        const ctrls = context.document.getContentControls();
+        ctrls.load(['title', 'tag', 'id']);
+        await context.sync();
+        ctrls.items
+            .filter(ctrl => ctrl.tag)
+            .forEach(ctrl => ctrl.title = `${ctrl.tag}&${ctrl.id}`);
+        await context.sync();
+    });
+}
+async function selectAllCtrlsByTag(tag: string, color:string) {
+    Word.run(async (context) => {
+        const ctrls = context.document.getContentControls();
+        ctrls.load(['tag']);
+        await context.sync();
+        const sameTag = ctrls.items.filter(c => c.tag === tag);
+        await setCtrlsColor(sameTag, color);
+        await setCtrlsFontColor(sameTag, color);
+        await context.sync();
+    });
+}
+async function setCtrlsColor(ctrls:ContentControl[], color:string) {
+        ctrls.forEach(ctrl => ctrl.color = color);
+}
+function setCtrlsFontColor(ctrls: ContentControl[], color: string) {
+    ctrls.forEach(c=>c.getRange().font.color = color);
+}
+
+function setRangeStyle(ctrls: ContentControl[], style: string) {
+    ctrls.forEach(c => c.getRange().style = style);
+}

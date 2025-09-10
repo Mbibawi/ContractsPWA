@@ -144,6 +144,7 @@ async function insertRTSiAll() {
         console.log(parags);
         for (const parag of parags) {
             parag.select();
+            const style = RTSiStyles.includes(parag.style) ? parag.style : RTSiStyles[0];
             try {
                 const parent = parag.parentContentControlOrNullObject;
                 parent.load(['tag']);
@@ -151,7 +152,7 @@ async function insertRTSiAll() {
                 if (parent.tag === RTSiTag)
                     continue;
                 showNotification(`range style: ${parag.style} & text = ${parag.text}`);
-                await insertContentControl(parag.getRange('Content'), RTSiTag, RTSiTag, parags.indexOf(parag), RichText, parag.style);
+                await insertContentControl(parag.getRange('Content'), RTSiTag, RTSiTag, parags.indexOf(parag), RichText, style);
             }
             catch (error) {
                 showNotification(`error: ${error}`);
@@ -172,12 +173,14 @@ async function insertDropDownList() {
     if (!options.length)
         return showNotification("No options");
     showNotification(options.join());
-    const ctrl = await insertContentControl(range, RTDropDownTag, RTDropDownTag, 0, dropDownList, null);
+    const ctrl = await insertContentControl(range, RTDropDownTag, RTDropDownTag, 0, dropDownList, null, false, true);
     if (!ctrl)
         return;
-    ctrl.cannotEdit = false; //! If we do not set it to false, it will not be possible to select from the list
+    const color = '#991c63';
     ctrl.dropDownListContentControl.deleteAllListItems();
     options.forEach(option => ctrl.dropDownListContentControl.addListItem(option));
+    setCtrlsFontColor([ctrl], color);
+    setCtrlsColor([ctrl], color);
     await ctrl.context.sync();
 }
 async function insertContentControl(range, title, tag, index, type, style, cannotEdit = true, cannotDelete = true) {
@@ -202,8 +205,10 @@ async function insertContentControl(range, title, tag, index, type, style, canno
         ctrl.cannotEdit = cannotEdit;
         ctrl.appearance = Word.ContentControlAppearance.boundingBox;
         const foundStyle = styles.items.find(s => s.nameLocal === style);
-        if (style && (foundStyle === null || foundStyle === void 0 ? void 0 : foundStyle.type) === Word.StyleType.character)
-            ctrl.style = style;
+        //if (style && foundStyle?.type === Word.StyleType.character)
+        // ctrl.style = style;
+        if (style)
+            setRangeStyle([ctrl], style);
         await range.context.sync();
         showNotification(`Wrapped text in range ${index || 1} with a content control.`);
     }
@@ -526,5 +531,57 @@ async function setCanBeEditedForAllSelectCtrls(edit = true) {
         });
         await context.sync();
     });
+}
+function deleteCtrlById() {
+    Word.run(async (context) => {
+        let title = await promptForInput('Provide the title or the id of the control. If you provide the title, the id will be extracted from it');
+        if (!title)
+            return showNotification(`You did not provide a valid id or title: ${title}`);
+        if (title.includes('&'))
+            title = title.split('&')[1];
+        const id = Number(title);
+        if (isNaN(id))
+            return showNotification(`The id could not be extracted from the title: ${title}`);
+        const ctrl = context.document.contentControls.getById(id);
+        const ctrls = ctrl.getContentControls();
+        ctrls.load(['tag', 'id']);
+        await context.sync();
+        console.log('Ctrls = ', ctrls.items.map(c => c.tag));
+        ctrl.cannotDelete = false;
+        ctrls.items.forEach(ctrl => ctrl.cannotDelete = false);
+        ctrl.delete(false);
+        await context.sync();
+    });
+}
+function updateAllCtrlsTitles() {
+    Word.run(async (context) => {
+        const ctrls = context.document.getContentControls();
+        ctrls.load(['title', 'tag', 'id']);
+        await context.sync();
+        ctrls.items
+            .filter(ctrl => ctrl.tag)
+            .forEach(ctrl => ctrl.title = `${ctrl.tag}&${ctrl.id}`);
+        await context.sync();
+    });
+}
+async function selectAllCtrlsByTag(tag, color) {
+    Word.run(async (context) => {
+        const ctrls = context.document.getContentControls();
+        ctrls.load(['tag']);
+        await context.sync();
+        const sameTag = ctrls.items.filter(c => c.tag === tag);
+        await setCtrlsColor(sameTag, color);
+        await setCtrlsFontColor(sameTag, color);
+        await context.sync();
+    });
+}
+async function setCtrlsColor(ctrls, color) {
+    ctrls.forEach(ctrl => ctrl.color = color);
+}
+function setCtrlsFontColor(ctrls, color) {
+    ctrls.forEach(c => c.getRange().font.color = color);
+}
+function setRangeStyle(ctrls, style) {
+    ctrls.forEach(c => c.getRange().style = style);
 }
 //# sourceMappingURL=app.js.map
