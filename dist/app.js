@@ -201,14 +201,14 @@ async function insertContentControl(range, title, tag, index, type, style, canno
         ctrl.select();
         ctrl.title = `${title}&${ctrl.id}`;
         ctrl.tag = tag;
-        ctrl.cannotDelete = cannotDelete;
-        ctrl.cannotEdit = cannotEdit;
         ctrl.appearance = Word.ContentControlAppearance.boundingBox;
         const foundStyle = styles.items.find(s => s.nameLocal === style);
-        //if (style && foundStyle?.type === Word.StyleType.character)
-        // ctrl.style = style;
+        if (style && (foundStyle === null || foundStyle === void 0 ? void 0 : foundStyle.type) === Word.StyleType.character)
+            ctrl.style = style;
         if (style)
             setRangeStyle([ctrl], style);
+        ctrl.cannotDelete = cannotDelete;
+        ctrl.cannotEdit = cannotEdit; //!This must come at the end after the style has been set.
         await range.context.sync();
         showNotification(`Wrapped text in range ${index || 1} with a content control.`);
     }
