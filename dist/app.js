@@ -1,6 +1,7 @@
 "use strict";
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'];
 const RTDropDownTag = 'RTList';
+const RTDropDownColor = '#991c63';
 const RTDuplicateTag = 'RTRepeat';
 const RTSectionTag = 'RTSection';
 const RTSelectTag = 'RTSelect';
@@ -53,7 +54,6 @@ function prepareTemplate() {
         ];
     }
     ;
-    const insertDescription = () => findTextAndWrapItWithContentControl([RTDescriptionStyle], RTDescriptionTag, RTDescriptionTag, true, true);
     const btns = [
         wrap(RTSiTag, RTSiTag, 'Insert Single RT Si', RichText, RTSiStyles[0], true, true),
         wrap(RTDescriptionTag, RTDescriptionTag, 'Insert Single RT Description', RichText, RTDescriptionStyle, true, true),
@@ -63,7 +63,7 @@ function prepareTemplate() {
         [insertDropDownList, 'Insert a Dropdown List from selection'],
         wrap(RTObsTag, RTObsTag, 'Insert Single RT Obs', RichText, RTObsTag, true, true),
         [insertRTSiAll, 'Insert RT Si For All'],
-        [insertDescription, 'Insert RT Description For All'],
+        [insertRTDescription, 'Insert RT Description For All'],
     ];
     showBtns(btns);
 }
@@ -93,14 +93,19 @@ async function findTextAndWrapItWithContentControl(styles, title, tag, cannotEdi
         styles = ((_b = (await promptForInput(`Provide the styles that that need to be matched separated by ","`))) === null || _b === void 0 ? void 0 : _b.split(',')) || [];
     if (!(styles === null || styles === void 0 ? void 0 : styles.length))
         return showNotification(`The styles[] has 0 length, no styles are included, the function will return`);
-    await Word.run(async (context) => {
+    const all = [];
+    return await Word.run(async (context) => {
         for (const el of search) {
             const ranges = await searchString(el, context, matchWildcards);
             if (!ranges)
                 continue;
-            await wrapMatchingStyleRangesWithContentControls(ranges, styles, title, tag, cannotEdit, cannotDelete);
+            const ctrls = await wrapMatchingStyleRangesWithContentControls(ranges, styles, title, tag, cannotEdit, cannotDelete);
+            if (!ctrls)
+                continue;
+            all.push(ctrls);
         }
         ;
+        return all.flat();
     });
 }
 async function wrapMatchingStyleRangesWithContentControls(ranges, styles, title, tag, cannotEdit, cannotDelete) {
@@ -111,7 +116,7 @@ async function wrapMatchingStyleRangesWithContentControls(ranges, styles, title,
         return;
     }
     showNotification(`Found ${ranges.items.length} ranges matching the search string. First range text = ${ranges.items[0].text}`);
-    return ranges.items.map(async (range, index) => {
+    const ctrls = ranges.items.map(async (range, index) => {
         var _a;
         if (!styles.includes(range.style))
             return;
@@ -119,6 +124,7 @@ async function wrapMatchingStyleRangesWithContentControls(ranges, styles, title,
             return;
         return await insertContentControl(range, title, tag, index, RichText, range.style, cannotEdit, cannotDelete);
     });
+    return Promise.all(ctrls);
 }
 async function searchString(search, context, matchWildcards) {
     const searchResults = context.document.body.search(search, { matchWildcards: matchWildcards });
@@ -133,6 +139,21 @@ async function addIDtoCtrlTitle(ctrls) {
         .filter(ctrl => !ctrl.title.endsWith(`-${ctrl.id}`))
         .forEach(ctrl => ctrl.title = `${ctrl.title}-${ctrl.id}`);
     await ctrls.context.sync();
+}
+async function insertRTDescription(style = 'Normal') {
+    var _a;
+    const ctrls = await findTextAndWrapItWithContentControl([RTDescriptionStyle], RTDescriptionTag, RTDescriptionTag, true, true);
+    if (!ctrls)
+        return;
+    for (const ctrl of ctrls) {
+        if (!ctrl)
+            continue;
+        const range = ctrl.getRange();
+        const inserted = range.insertText('[*]\u00A0', Word.InsertLocation.before);
+        inserted.style = style;
+        inserted.font.bold = true;
+    }
+    await ((_a = ctrls[0]) === null || _a === void 0 ? void 0 : _a.context.sync());
 }
 async function insertRTSiAll() {
     await Word.run(async (context) => {
@@ -176,11 +197,10 @@ async function insertDropDownList() {
     const ctrl = await insertContentControl(range, RTDropDownTag, RTDropDownTag, 0, dropDownList, null, false, true);
     if (!ctrl)
         return;
-    const color = '#991c63';
     ctrl.dropDownListContentControl.deleteAllListItems();
     options.forEach(option => ctrl.dropDownListContentControl.addListItem(option));
-    setCtrlsFontColor([ctrl], color);
-    setCtrlsColor([ctrl], color);
+    setCtrlsFontColor([ctrl], RTDropDownColor);
+    setCtrlsColor([ctrl], RTDropDownColor);
     await ctrl.context.sync();
 }
 async function insertContentControl(range, title, tag, index, type, style, cannotEdit = true, cannotDelete = true) {
@@ -206,7 +226,7 @@ async function insertContentControl(range, title, tag, index, type, style, canno
         if (style && (foundStyle === null || foundStyle === void 0 ? void 0 : foundStyle.type) === Word.StyleType.character)
             ctrl.style = style;
         if (style)
-            setRangeStyle([ctrl], style);
+            ctrl.getRange().style = style;
         ctrl.cannotDelete = cannotDelete;
         ctrl.cannotEdit = cannotEdit; //!This must come at the end after the style has been set.
         await range.context.sync();
@@ -581,7 +601,35 @@ async function setCtrlsColor(ctrls, color) {
 function setCtrlsFontColor(ctrls, color) {
     ctrls.forEach(c => c.getRange().font.color = color);
 }
-function setRangeStyle(ctrls, style) {
-    ctrls.forEach(c => c.getRange().style = style);
+function setRangeStyle(objs, style) {
+    objs.forEach(o => o.getRange().style = style);
+}
+async function finalizeContract() {
+    const tags = [RTSiTag, RTDescriptionTag, RTObsTag, RTDropDownTag];
+    await removeRTs(tags);
+}
+async function removeRTs(tags) {
+    Word.run(async (context) => {
+        for (const tag of tags) {
+            const ctrls = context.document.getContentControls().getByTag(tag);
+            ctrls.load('tag');
+            await context.sync();
+            ctrls.items.forEach(ctrl => {
+                ctrl.select();
+                ctrl.cannotDelete = false;
+                ctrl.delete(tag === RTDropDownTag);
+            });
+            await context.sync();
+        }
+    });
+}
+async function changeAllSameTagCtrlsCannEdit(tag, edit) {
+    Word.run(async (context) => {
+        const ctrls = context.document.getContentControls().getByTag(tag);
+        ctrls.load('tag');
+        await context.sync();
+        ctrls.items.forEach(ctrl => ctrl.cannotEdit = edit);
+        await context.sync();
+    });
 }
 //# sourceMappingURL=app.js.map
