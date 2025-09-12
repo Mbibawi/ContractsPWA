@@ -400,7 +400,7 @@ async function customizeContract() {
 
     async function insertPromptBlock(ctrl: ContentControl, addBtn: boolean, labelTag: string): Promise<selectBlock | void> {
         try {
-            const rangeSi = getFirstByTag(ctrl, labelTag);
+            const rangeSi = getFirstByTag(ctrl, labelTag).getRange('Content');
             rangeSi.load(['text']);
             await ctrl.context.sync();
             return { ctrl, ...appendHTMLElements(rangeSi.text, ctrl.title, addBtn) } as selectBlock;//The checkBox will have as id the title of the "select" contentcontrol}
@@ -477,7 +477,7 @@ async function customizeContract() {
         }
 
         async function duplicate() {
-                const label = getFirstByTag(ctrl, RTSectionTag);
+                const label = getFirstByTag(ctrl, RTSectionTag).getRange('Content');
                 if (!label) return showNotification(`No Section RT Within the Range of the Duplicate Ctrl. Ctrl id = ${ctrl.id}`);
                 label.load(['text']);
                 await ctrl.context.sync();
