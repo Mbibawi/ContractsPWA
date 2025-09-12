@@ -1,4 +1,3 @@
-import { get } from 'request';
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'];
 const RTDropDownTag = 'RTList';
 const RTDropDownColor = '#991c63';
