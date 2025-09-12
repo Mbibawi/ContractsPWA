@@ -375,9 +375,12 @@ async function customizeContract() {
             const ctrlSi = getFirstByTag(ctrl, labelTag);
             ctrlSi.load(['id', 'title', 'tag']);
             const rangeSi = ctrlSi.getRange();
+            rangeSi.font.hidden = false; //!We must unhide the text, otherwise we will get an empty string
             rangeSi.load(['text']);
             await ctrlSi.context.sync();
             const text = rangeSi.text;
+            rangeSi.font.hidden = true;
+            await ctrlSi.context.sync();
             return { ctrl, ...appendHTMLElements(text, ctrl.title, addBtn) }; //The checkBox will have as id the title of the "select" contentcontrol}
         }
         catch (error) {
