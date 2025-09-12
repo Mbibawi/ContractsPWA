@@ -400,7 +400,7 @@ async function customizeContract() {
 
     async function insertPromptBlock(ctrl: ContentControl, addBtn: boolean, labelTag: string): Promise<selectBlock | void> {
         try {
-            const rangeSi = getFirstByTag(ctrl, labelTag).getRange();
+            const rangeSi = getFirstByTag(ctrl, labelTag);
             rangeSi.load(['text']);
             await ctrl.context.sync();
             return { ctrl, ...appendHTMLElements(rangeSi.text, ctrl.title, addBtn) } as selectBlock;//The checkBox will have as id the title of the "select" contentcontrol}
@@ -460,12 +460,10 @@ async function customizeContract() {
 
     async function getSubOptions(ctrl: ContentControl) {
         if (!ctrl) return;
-        return Word.run(async (context) => {
             const children = ctrl.getContentControls();
             children.load(['id', 'tag', 'title']);
-            await context.sync();
+            await ctrl.context.sync();
             return getSelectCtrls(children.items)
-        });
     }
 
 
