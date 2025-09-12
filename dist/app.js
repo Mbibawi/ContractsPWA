@@ -1,10 +1,10 @@
-"use strict";
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'];
 const RTDropDownTag = 'RTList';
 const RTDropDownColor = '#991c63';
 const RTDuplicateTag = 'RTRepeat';
 const RTSectionTag = 'RTSection';
 const RTSelectTag = 'RTSelect';
+const RTOrTag = 'RTOr';
 const RTObsTag = 'RTObs';
 const RTDescriptionTag = 'RTDesc';
 const RTDescriptionStyle = 'RTDescription';
@@ -47,7 +47,7 @@ function mainUI() {
 }
 function prepareTemplate() {
     USERFORM.innerHTML = '';
-    function wrap(title, tag, label, type, style, cannotEdit, cannotDelete) {
+    function wrap(title, tag, type, style, cannotEdit, cannotDelete, label) {
         return [
             () => wrapSelectionWithContentControl(title, tag, type, style, cannotEdit, cannotDelete),
             label
@@ -55,13 +55,14 @@ function prepareTemplate() {
     }
     ;
     const btns = [
-        wrap(RTSiTag, RTSiTag, 'Insert Single RT Si', RichText, RTSiStyles[0], true, true),
-        wrap(RTDescriptionTag, RTDescriptionTag, 'Insert Single RT Description', RichText, RTDescriptionStyle, true, true),
-        wrap(RTSelectTag, RTSelectTag, 'Insert Single RT Select', RichText, null, false, true),
-        wrap(RTSectionTag, RTSectionTag, 'Insert Single RT Section', RichText, RTSectionTag, true, true),
-        wrap(RTDuplicateTag, RTDuplicateTag, 'Insert Single RT Dublicate Block', RichText, null, false, true),
+        wrap(RTSiTag, RTSiTag, RichText, RTSiStyles[0], true, true, 'Insert Single RT Si'),
+        [() => insertRTDescription(true), 'Insert Single RT Description'],
+        wrap(RTSelectTag, RTSelectTag, RichText, null, false, true, 'Insert Single RT Select'),
+        wrap(RTSectionTag, RTSectionTag, RichText, RTSectionTag, true, true, 'Insert Single RT Section'),
+        wrap(RTOrTag, RTOrTag, RichText, null, false, true, 'Insert Single RT OR'),
+        wrap(RTDuplicateTag, RTDuplicateTag, RichText, null, false, true, 'Insert Single RT Dublicate Block'),
         [insertDropDownList, 'Insert a Dropdown List from selection'],
-        wrap(RTObsTag, RTObsTag, 'Insert Single RT Obs', RichText, RTObsTag, true, true),
+        wrap(RTObsTag, RTObsTag, RichText, RTObsTag, true, true, 'Insert Single RT Obs'),
         [insertRTSiAll, 'Insert RT Si For All'],
         [insertRTDescription, 'Insert RT Description For All'],
     ];
@@ -137,13 +138,21 @@ async function addIDtoCtrlTitle(ctrls) {
     await ctrls.context.sync();
     ctrls.items
         .filter(ctrl => !ctrl.title.endsWith(`-${ctrl.id}`))
-        .forEach(ctrl => ctrl.title = `${ctrl.title}-${ctrl.id}`);
+        .forEach(ctrl => ctrl.title = getCtrlTitle(ctrl.tag, ctrl.id));
     await ctrls.context.sync();
 }
-async function insertRTDescription(style = 'Normal') {
+async function insertRTDescription(selection = false, style = 'Normal') {
     var _a;
-    const ctrls = await findTextAndWrapItWithContentControl([RTDescriptionStyle], RTDescriptionTag, RTDescriptionTag, true, true);
-    if (!ctrls)
+    let ctrls;
+    if (selection) {
+        const range = await getSelectionRange();
+        if (!range)
+            return showNotification('No Text Was selected !');
+        ctrls = [await insertContentControl(range, RTDescriptionTag, RTDescriptionTag, 0, RichText, RTDescriptionStyle, true, true)];
+    }
+    else
+        ctrls = await findTextAndWrapItWithContentControl([RTDescriptionStyle], RTDescriptionTag, RTDescriptionTag, true, true);
+    if (!(ctrls === null || ctrls === void 0 ? void 0 : ctrls.length))
         return;
     for (const ctrl of ctrls) {
         if (!ctrl)
@@ -219,7 +228,7 @@ async function insertContentControl(range, title, tag, index, type, style, canno
         showNotification(`the newly created ContentControl id = ${ctrl.id} `);
     try {
         ctrl.select();
-        ctrl.title = `${title}&${ctrl.id}`;
+        ctrl.title = getCtrlTitle(title, ctrl.id);
         ctrl.tag = tag;
         ctrl.appearance = Word.ContentControlAppearance.boundingBox;
         const foundStyle = styles.items.find(s => s.nameLocal === style);
@@ -282,16 +291,16 @@ async function promptConfirm(question, fun) {
 ;
 async function customizeContract() {
     USERFORM.innerHTML = '';
+    const TAGS = [...OPTIONS, RTDuplicateTag];
+    const getSelectCtrls = (ctrls) => ctrls.filter(ctrl => TAGS.includes(ctrl.tag));
+    const selected = [];
     await selectCtrls();
     async function selectCtrls() {
         await Word.run(async (context) => {
-            const allRT = context.document.contentControls;
-            allRT.load(['title', 'tag', 'contentControls/items/title', 'contentControls/items/tag']);
+            const allRT = context.document.getContentControls();
+            allRT.load(['id', 'title', 'tag']);
             await context.sync();
-            const tags = [...OPTIONS, RTDuplicateTag];
-            const selectCtrls = allRT.items
-                .filter(ctrl => tags.includes(ctrl.tag));
-            const selected = [];
+            const selectCtrls = getSelectCtrls(allRT.items);
             for (const ctrl of selectCtrls)
                 await promptForSelection(ctrl, selected);
             const keep = selected.filter(title => !title.startsWith('!'));
@@ -304,6 +313,10 @@ async function customizeContract() {
                 showNotification(`${error}`);
             }
             async function currentDoc() {
+                const allRT = context.document.getContentControls();
+                allRT.load(['id', 'title', 'tag']);
+                await context.sync();
+                const selectCtrls = getSelectCtrls(allRT.items); //!We need to retrieve all the selected items again because we may have added new ctrls by cloning the 'Duplicate' ctrls
                 for (const ctrl of selectCtrls) {
                     if (keep.includes(ctrl.title))
                         continue;
@@ -338,95 +351,156 @@ async function customizeContract() {
         });
     }
     async function promptForSelection(ctrl, selected) {
-        if (ctrl.tag === RTDuplicateTag)
-            return await duplicateBlock(ctrl);
         if (selected.find(t => t.includes(ctrl.title)))
             return; //!We need to exclude any ctrl that has already been passed to the function or has been excluded: when a ctrl is excluded, its children are added to the array as excluded ctrls ("![ctrl.title]"), they do not hence need to be treated again since we already know theyare to be  excluded. This also avoids the problem that happens sometimes, when a ctrl has its parent amongst its children list (this is an apparently known weird behavior if the ctrl range overlaps somehow with the range of another ctrl)
         ctrl.select();
-        const [container, btnNext, checkBox] = await showUI();
+        return showSelectPrompt([ctrl]);
+    }
+    async function showSelectPrompt(selectCtrls, labelTag = RTSiTag) {
+        const blocks = [];
+        for (const ctrl of selectCtrls) {
+            if (ctrl.tag === RTDuplicateTag) {
+                await duplicateBlock(ctrl);
+                continue;
+            }
+            ;
+            const addBtn = selectCtrls.indexOf(ctrl) + 1 === selectCtrls.length;
+            blocks.push(await insertPromptBlock(ctrl, addBtn, labelTag) || undefined);
+        }
+        return btnPromise(blocks);
+    }
+    async function insertPromptBlock(ctrl, addBtn, labelTag) {
+        try {
+            const rangeSi = getFirstByTag(ctrl, labelTag).getRange();
+            rangeSi.load(['text']);
+            await ctrl.context.sync();
+            return { ctrl, ...appendHTMLElements(rangeSi.text, ctrl.title, addBtn) }; //The checkBox will have as id the title of the "select" contentcontrol}
+        }
+        catch (error) {
+            return showNotification(`${error}`);
+        }
+    }
+    function appendHTMLElements(text, id, addBtn = false) {
+        const container = createHTMLElement('div', 'promptContainer', '', USERFORM);
+        const checkBox = createHTMLElement('input', 'checkBox', '', container, id);
+        createHTMLElement('label', 'label', text, container);
+        checkBox.type = 'checkbox';
+        if (!addBtn)
+            return { container, checkBox };
+        const btns = createHTMLElement('div', 'btns', '', container);
+        const btnNext = createHTMLElement('button', 'btnOK', 'Next', btns);
+        return { container, checkBox, btnNext };
+    }
+    function btnPromise(blocks) {
         return new Promise((resolve, reject) => {
-            btnNext.onclick = () => nextCtrl(ctrl, checkBox);
-            async function nextCtrl(ctrl, checkBox) {
-                const checked = checkBox.checked;
-                container.remove();
-                //ctrl.contentControls.load(['title', 'tag']);
-                //await ctrl.context.sync();
-                const subOptions = ctrl.contentControls.items
-                    .filter(ctrl => OPTIONS.includes(ctrl.tag));
-                if (checked)
-                    await isSelected(ctrl, subOptions);
-                else
-                    isNotSelected(ctrl, subOptions);
+            var _a;
+            const btn = (_a = blocks.find(container => container === null || container === void 0 ? void 0 : container.btnNext)) === null || _a === void 0 ? void 0 : _a.btnNext;
+            !btn ? resolve(selected) : btn.onclick = processBlocks;
+            async function processBlocks() {
+                const values = blocks
+                    .filter(block => (block === null || block === void 0 ? void 0 : block.ctrl) && block.checkBox)
+                    //@ts-ignore
+                    .map(block => [block.ctrl, block.checkBox.checked]);
+                blocks.forEach(block => block === null || block === void 0 ? void 0 : block.container.remove()); //We start by removing all the containers
+                for (const [ctrl, checked] of values) {
+                    if (!ctrl)
+                        continue;
+                    const subOptions = await getSubOptions(ctrl);
+                    if (checked)
+                        await isSelected(ctrl.title, subOptions);
+                    else
+                        isNotSelected(ctrl.title, subOptions);
+                }
                 resolve(selected);
             }
             ;
         });
-        async function isSelected(ctrl, subOptions) {
-            selected.push(ctrl.title);
-            for (const ctrl of subOptions)
-                await promptForSelection(ctrl, selected);
-            console.log(selected);
+    }
+    async function isSelected(title, subOptions) {
+        selected.push(title);
+        if (subOptions)
+            await showSelectPrompt(subOptions);
+    }
+    ;
+    function isNotSelected(title, subOptions) {
+        const exclude = (title) => `!${title}`;
+        selected.push(exclude(title));
+        subOptions === null || subOptions === void 0 ? void 0 : subOptions.forEach(ctrl => selected.push(exclude(ctrl.title)));
+        console.log(selected);
+    }
+    ;
+    async function getSubOptions(ctrl) {
+        if (!ctrl)
+            return;
+        return Word.run(async (context) => {
+            const children = ctrl.getContentControls();
+            children.load(['id', 'tag', 'title']);
+            await context.sync();
+            return getSelectCtrls(children.items);
+        });
+    }
+    async function duplicateBlock(ctrl) {
+        const replace = Word.InsertLocation.replace;
+        const after = Word.InsertLocation.after;
+        try {
+            await duplicate();
+        }
+        catch (error) {
+            showNotification(`${error}`);
+        }
+        async function duplicate() {
+            const label = getFirstByTag(ctrl, RTSectionTag);
+            if (!label)
+                return showNotification(`No Section RT Within the Range of the Duplicate Ctrl. Ctrl id = ${ctrl.id}`);
+            label.load(['text']);
+            await ctrl.context.sync();
+            if (!label.text)
+                return showNotification("No lable text");
+            ctrl.select();
+            const message = `How many ${label.text} parties are there?`;
+            const answer = Number(await promptForInput(message));
+            if (isNaN(answer))
+                return showNotification(`The provided text cannot be converted into a number: ${answer}`);
+            await insertClones(ctrl, answer);
+        }
+        async function insertClones(ctrl, answer) {
+            const title = getCtrlTitle(ctrl.tag, ctrl.id);
+            ctrl.title = title; //!We update the title in case it is no matching the id in the template.
+            const ctrlContent = ctrl.getOoxml();
+            await ctrl.context.sync();
+            for (let i = 1; i < answer; i++)
+                ctrl.getRange().insertOoxml(ctrlContent.value, after);
+            const clones = ctrl.context.document.getContentControls().getByTitle(title);
+            clones.load(['id', 'tag', 'title']);
+            await ctrl.context.sync();
+            const items = clones.items; //!clones.items.entries() caused the for loop to fail in scriptLab. The reason is unknown
+            for (const clone of items)
+                await processClone(clone, items.indexOf(clone) + 1);
+            await ctrl.context.sync();
+        }
+        async function processClone(clone, i) {
+            if (!clone)
+                return;
+            clone.title = getCtrlTitle(clone.tag, clone.id) + `-${i}`;
+            const children = clone.getRange().getContentControls();
+            children.load(['id', 'tag', 'title']);
+            const label = children.getByTag(RTSectionTag).getFirst();
+            label.load(['text']);
+            await clone.context.sync();
+            children.items
+                .filter(ctrl => ctrl !== clone)
+                .forEach(ctrl => ctrl.title = getCtrlTitle(ctrl.tag, ctrl.id)); //!We must update the title of the ctrls in order to udpated them with the new id
+            const text = `${label.text} ${i}`;
+            label.cannotEdit = false;
+            label.select();
+            label.getRange('Content').insertText(text, replace);
+            const div = createHTMLElement('div', '', text, undefined, '', false);
+            USERFORM.insertAdjacentElement('beforebegin', div);
+            const selectCtrls = getSelectCtrls(children.items);
+            await showSelectPrompt(selectCtrls);
+            div.remove();
         }
         ;
-        function isNotSelected(ctrl, subOptions) {
-            const exclude = (title) => `!${title}`;
-            selected.push(exclude(ctrl.title));
-            subOptions
-                .forEach(ctrl => selected.push(exclude(ctrl.title)));
-            console.log(selected);
-        }
-        ;
-        async function showUI() {
-            const children = ctrl.contentControls;
-            children.load(['title', 'tag']);
-            await ctrl.context.sync();
-            const RTSi = children.items.find(rt => rt.tag === RTSiTag);
-            if (!RTSi)
-                throw new Error('No RTSi');
-            const ctrlRange = RTSi.getRange('Content');
-            ctrlRange.load(['text', 'paragraphs']);
-            await ctrl.context.sync();
-            return UI(ctrlRange.text);
-            function UI(text) {
-                const container = createHTMLElement('div', 'promptContainer', '', USERFORM, ctrl.title);
-                const prompt = createHTMLElement('div', 'selection', '', container);
-                const checkBox = createHTMLElement('input', 'checkBox', '', prompt);
-                createHTMLElement('label', 'label', text, prompt);
-                checkBox.type = 'checkbox';
-                const btns = createHTMLElement('div', 'btns', '', prompt);
-                const btnNext = createHTMLElement('button', 'btnOK', 'Next', btns);
-                return [container, btnNext, checkBox];
-            }
-        }
-        async function duplicateBlock(ctrl) {
-            try {
-                await duplicate();
-            }
-            catch (error) {
-                showNotification(`${error}`);
-            }
-            async function duplicate() {
-                const label = ctrl.contentControls.items.find(c => c.tag === RTSectionTag);
-                if (!label)
-                    return showNotification(`No Section RT Within the Range of the Duplicate Ctrl. Ctrl id = ${ctrl.id}`);
-                label === null || label === void 0 ? void 0 : label.load(['text']);
-                const ctrlContent = ctrl.getOoxml();
-                const range = ctrl.getRange();
-                await ctrl.context.sync();
-                if (!label.text)
-                    return showNotification("No lable text");
-                ctrl.select();
-                const message = `How many ${label.text} parties are there?`;
-                const answer = Number(await promptForInput(message));
-                if (isNaN(answer))
-                    return showNotification(`The provided text cannot be converted into a number: ${answer}`);
-                for (let i = 1; i < answer; i++) {
-                    range
-                        .insertOoxml(ctrlContent.value, Word.InsertLocation.after);
-                }
-                await ctrl.context.sync();
-            }
-        }
     }
     function getFileURL() {
         let url;
@@ -472,6 +546,12 @@ async function promptForInput(question, deflt, fun) {
     });
 }
 ;
+function getCtrlTitle(tag, id) {
+    return `${tag}&${id}`;
+}
+function getFirstByTag(range, tag) {
+    return range.getContentControls().getByTag(tag).getFirst();
+}
 /**
  * Asynchronously gets the entire document content as a Base64 string.
  * This function handles multi-slice documents by requesting each slice in parallel.
@@ -531,6 +611,8 @@ function createHTMLElement(tag, css, innerText, parent, id, append = true) {
     el.classList.add(css);
     if (id)
         el.id = id;
+    if (!parent)
+        return el;
     append ? parent.appendChild(el) : parent.prepend(el);
     return el;
 }
@@ -580,7 +662,7 @@ function updateAllCtrlsTitles() {
         await context.sync();
         ctrls.items
             .filter(ctrl => ctrl.tag)
-            .forEach(ctrl => ctrl.title = `${ctrl.tag}&${ctrl.id}`);
+            .forEach(ctrl => ctrl.title = getCtrlTitle(ctrl.tag, ctrl.id));
         await context.sync();
     });
 }
@@ -632,4 +714,5 @@ async function changeAllSameTagCtrlsCannEdit(tag, edit) {
         await context.sync();
     });
 }
+export {};
 //# sourceMappingURL=app.js.map
