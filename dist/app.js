@@ -1,4 +1,3 @@
-"use strict";
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'];
 const RTDropDownTag = 'RTList';
 const RTDropDownColor = '#991c63';
@@ -372,10 +371,13 @@ async function customizeContract() {
     }
     async function insertPromptBlock(ctrl, addBtn, labelTag) {
         try {
-            const rangeSi = getFirstByTag(ctrl, labelTag);
-            rangeSi.load(['id', 'title', 'tag', 'text']);
-            await rangeSi.context.sync();
-            return { ctrl, ...appendHTMLElements(rangeSi.text, ctrl.title, addBtn) }; //The checkBox will have as id the title of the "select" contentcontrol}
+            const ctrlSi = getFirstByTag(ctrl, labelTag);
+            ctrlSi.load(['id', 'title', 'tag']);
+            const rangeSi = ctrlSi.getRange();
+            rangeSi.load(['text']);
+            await ctrlSi.context.sync();
+            const text = rangeSi.text;
+            return { ctrl, ...appendHTMLElements(text, ctrl.title, addBtn) }; //The checkBox will have as id the title of the "select" contentcontrol}
         }
         catch (error) {
             return showNotification(`${error}`);
@@ -713,4 +715,5 @@ async function changeAllSameTagCtrlsCannEdit(tag, edit) {
         await context.sync();
     });
 }
+export {};
 //# sourceMappingURL=app.js.map
