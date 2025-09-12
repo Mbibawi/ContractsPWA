@@ -1,3 +1,4 @@
+"use strict";
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'];
 const RTDropDownTag = 'RTList';
 const RTDropDownColor = '#991c63';
@@ -714,5 +715,4 @@ async function changeAllSameTagCtrlsCannEdit(tag, edit) {
         await context.sync();
     });
 }
-export {};
 //# sourceMappingURL=app.js.map

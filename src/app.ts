@@ -1,6 +1,3 @@
-import { get } from "request";
-import { isContext } from "vm";
-
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'];
 const RTDropDownTag = 'RTList';
 const RTDropDownColor = '#991c63';
