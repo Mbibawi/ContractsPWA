@@ -550,16 +550,20 @@ async function customizeContract() {
             label.font.hidden = false;
             label.load(['text']);
             await label.context.sync();
-            children.items
-                .filter(ctrl => ctrl !== clone)
-                .forEach(ctrl => ctrl.title = getCtrlTitle(ctrl.tag, ctrl.id));//!We must update the title of the ctrls in order to udpated them with the new id
+            
             const text = `${label.text} ${i}`;
             label.getRange('Content').insertText(text, replace);
             const subOptions = await getSubOptions(clone, true, children.items);//!We select only the direct select ctrls children
             label.font.hidden = true;
             label.cannotEdit = false;
-            [label, children].forEach(obj => obj.untrack());
             await label.context.sync();
+            for (const ctrl of children.items) {
+                if (ctrl === clone) continue;
+                ctrl.load(['id', 'title', 'tag']);
+                ctrl.title = getCtrlTitle(ctrl.tag, ctrl.id);//!We must update the title of the ctrls in order to udpated them with the new id
+                await ctrl.context.sync()
+            }
+            [label, children].forEach(obj => obj.untrack());
             const div = createHTMLElement('div', '', text, USERFORM, '', false);
             await showSelectPrompt(subOptions);
             div.remove();
