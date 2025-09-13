@@ -354,28 +354,38 @@ async function customizeContract() {
     async function promptForSelection(ctrl, selected) {
         if (selected.find(t => t.includes(ctrl.title)))
             return; //!We need to exclude any ctrl that has already been passed to the function or has been excluded: when a ctrl is excluded, its children are added to the array as excluded ctrls ("![ctrl.title]"), they do not hence need to be treated again since we already know theyare to be  excluded. This also avoids the problem that happens sometimes, when a ctrl has its parent amongst its children list (this is an apparently known weird behavior if the ctrl range overlaps somehow with the range of another ctrl)
-        ctrl.select();
-        return showSelectPrompt([ctrl]);
+        try {
+            ctrl.select();
+            await showSelectPrompt([ctrl]);
+        }
+        catch (error) {
+            showNotification(`Error from promptForSelection() = ${error}`);
+        }
     }
     async function showSelectPrompt(selectCtrls, labelTag = RTSiTag) {
         const blocks = [];
-        for (const ctrl of selectCtrls) {
-            if (ctrl.tag === RTDuplicateTag) {
-                await duplicateBlock(ctrl);
-                continue;
+        try {
+            for (const ctrl of selectCtrls) {
+                if (ctrl.tag === RTDuplicateTag) {
+                    await duplicateBlock(ctrl);
+                    continue;
+                }
+                ;
+                const addBtn = selectCtrls.indexOf(ctrl) + 1 === selectCtrls.length;
+                blocks.push(await insertPromptBlock(ctrl, addBtn, labelTag) || undefined);
             }
-            ;
-            const addBtn = selectCtrls.indexOf(ctrl) + 1 === selectCtrls.length;
-            blocks.push(await insertPromptBlock(ctrl, addBtn, labelTag) || undefined);
+            await btnPromise(blocks);
         }
-        return btnPromise(blocks);
+        catch (error) {
+            return showNotification(`Error from showSelectPrompt() = ${error}`);
+        }
     }
     async function insertPromptBlock(ctrl, addBtn, labelTag) {
         try {
             return await wordRun();
         }
         catch (error) {
-            return showNotification(`${error}`);
+            return showNotification(`Error from insertPromptBlock() = ${error}`);
         }
         async function wordRun() {
             return await Word.run(async (context) => {
@@ -384,11 +394,12 @@ async function customizeContract() {
                 ctrlSi.load(['id', 'title', 'tag']);
                 ctrlSi.cannotEdit = false; //!We must unlock the text in order to be able to change the font.hidden property
                 const rangeSi = ctrlSi.getRange();
-                rangeSi.load(['text', 'font']);
+                rangeSi.font.hidden = false; //!We must set the hidden proeprty to false before reading the text proprety.
                 await context.sync();
-                rangeSi.font.hidden = false; //!We must unhide the text, otherwise we will get an empty string
-                await context.sync(); //!We mus sync after changing the font.hidden property
+                rangeSi.load(['text']);
+                await context.sync();
                 const text = rangeSi.text;
+                showNotification(`CtrlSi.text = ${text}`);
                 rangeSi.font.hidden = true;
                 ctrlSi.cannotEdit = true;
                 await context.sync();
@@ -490,7 +501,6 @@ async function customizeContract() {
             const items = clones.items; //!clones.items.entries() caused the for loop to fail in scriptLab. The reason is unknown
             for (const clone of items)
                 await processClone(clone, items.indexOf(clone) + 1);
-            await ctrl.context.sync();
         }
         async function processClone(clone, i) {
             if (!clone)
