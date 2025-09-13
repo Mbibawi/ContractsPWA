@@ -400,13 +400,13 @@ async function customizeContract() {
 
     async function insertPromptBlock(ctrl: ContentControl, addBtn: boolean, labelTag: string): Promise<selectBlock | void> {
         try {
-            return await wordRun();
+            return wordRun();
         } catch (error) {
             return showNotification(`${error}`)
         }
 
-        function wordRun() {
-            return Word.run(async (context) => {
+        async function wordRun() {
+            return await Word.run(async (context) => {
                 const ctrlSi = getFirstByTag(ctrl, labelTag);
                 ctrlSi.select();
                 ctrlSi.load(['id', 'title', 'tag']);
@@ -417,7 +417,6 @@ async function customizeContract() {
                 rangeSi.font.hidden = false;//!We must unhide the text, otherwise we will get an empty string
                 await context.sync();//!We mus sync after changing the font.hidden property
                 const text = rangeSi.text;
-                await context.sync();//!We must call the rangeSi.context.sync() not the ctrlSi.context.sync() because the rangeSi is the object that has been modified
                 rangeSi.font.hidden = true;
                 ctrlSi.cannotEdit = true;
                 await context.sync();
