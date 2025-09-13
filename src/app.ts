@@ -400,7 +400,7 @@ async function customizeContract() {
 
     async function insertPromptBlock(ctrl: ContentControl, addBtn: boolean, labelTag: string): Promise<selectBlock | void> {
         try {
-            return wordRun();
+            return await wordRun();
         } catch (error) {
             return showNotification(`${error}`)
         }

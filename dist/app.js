@@ -372,7 +372,7 @@ async function customizeContract() {
     }
     async function insertPromptBlock(ctrl, addBtn, labelTag) {
         try {
-            return wordRun();
+            return await wordRun();
         }
         catch (error) {
             return showNotification(`${error}`);
