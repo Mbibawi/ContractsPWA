@@ -402,12 +402,14 @@ async function customizeContract() {
         try {
             const ctrlSi = getFirstByTag(ctrl, labelTag);
             ctrlSi.load(['id', 'title', 'tag']);
+            ctrlSi.cannotEdit = false;//!We must unlock the text in order to be able to change the font.hidden property
             const rangeSi = ctrlSi.getRange();
-            rangeSi.font.hidden = false;//!We must unhide the text, otherwise we will get an empty string
-            rangeSi.load(['text']);
+            rangeSi.load(['text', 'font']);
             await ctrlSi.context.sync();
+            rangeSi.font.hidden = false;//!We must unhide the text, otherwise we will get an empty string
             const text = rangeSi.text;
             rangeSi.font.hidden = true;
+            ctrlSi.cannotEdit = true;
             await ctrlSi.context.sync();
             return { ctrl, ...appendHTMLElements(text, ctrl.title, addBtn) } as selectBlock;//The checkBox will have as id the title of the "select" contentcontrol}
         } catch (error) {
