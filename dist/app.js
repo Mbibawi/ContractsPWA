@@ -392,13 +392,14 @@ async function customizeContract() {
         async function wordRun() {
             await Word.run(async (context) => {
                 const ctrl = context.document.contentControls.getById(id);
+                ctrl.load(props);
                 const ctrlSi = getFirstByTag(ctrl, labelTag);
                 ctrlSi.load(props);
                 ctrlSi.select();
                 ctrlSi.cannotEdit = false; //!We must unlock the text in order to be able to change the font.hidden property
                 const rangeSi = ctrlSi.getRange();
-                rangeSi.load(['text']);
                 rangeSi.font.hidden = false; //!We must set the hidden proeprty to false before reading the text proprety.
+                rangeSi.load(['text']);
                 await context.sync();
                 const text = rangeSi.text;
                 showNotification(`CtrlSi.text = ${text}`);
