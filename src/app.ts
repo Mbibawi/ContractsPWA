@@ -400,22 +400,29 @@ async function customizeContract() {
 
     async function insertPromptBlock(ctrl: ContentControl, addBtn: boolean, labelTag: string): Promise<selectBlock | void> {
         try {
-            const ctrlSi = getFirstByTag(ctrl, labelTag);
-            ctrlSi.load(['id', 'title', 'tag']);
-            ctrlSi.cannotEdit = false;//!We must unlock the text in order to be able to change the font.hidden property
-            const rangeSi = ctrlSi.getRange();
-            rangeSi.load(['text', 'font']);
-            await ctrlSi.context.sync();
-            rangeSi.font.hidden = false;//!We must unhide the text, otherwise we will get an empty string
-            await rangeSi.context.sync();//!We mus sync after changing the font.hidden property
-            const text = rangeSi.text;
-            rangeSi.font.hidden = true;
-            await rangeSi.context.sync();//!We must call the rangeSi.context.sync() not the ctrlSi.context.sync() because the rangeSi is the object that has been modified
-            ctrlSi.cannotEdit = true;
-            await ctrlSi.context.sync();
-            return { ctrl, ...appendHTMLElements(text, ctrl.title, addBtn) } as selectBlock;//The checkBox will have as id the title of the "select" contentcontrol}
+            return await wordRun();
         } catch (error) {
             return showNotification(`${error}`)
+        }
+
+        function wordRun() {
+            return Word.run(async (context) => {
+                const ctrlSi = getFirstByTag(ctrl, labelTag);
+                ctrlSi.select();
+                ctrlSi.load(['id', 'title', 'tag']);
+                ctrlSi.cannotEdit = false;//!We must unlock the text in order to be able to change the font.hidden property
+                const rangeSi = ctrlSi.getRange();
+                rangeSi.load(['text', 'font']);
+                await context.sync();
+                rangeSi.font.hidden = false;//!We must unhide the text, otherwise we will get an empty string
+                await context.sync();//!We mus sync after changing the font.hidden property
+                const text = rangeSi.text;
+                await context.sync();//!We must call the rangeSi.context.sync() not the ctrlSi.context.sync() because the rangeSi is the object that has been modified
+                rangeSi.font.hidden = true;
+                ctrlSi.cannotEdit = true;
+                await context.sync();
+                return { ctrl, ...appendHTMLElements(text, ctrl.title, addBtn) } as selectBlock;//The checkBox will have as id the title of the "select" contentcontrol}
+            })
         }
     }
 
