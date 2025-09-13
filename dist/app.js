@@ -388,23 +388,25 @@ async function customizeContract() {
             return showNotification(`Error from insertPromptBlock() = ${error}`);
         }
         async function wordRun() {
-            return await Word.run(async (context) => {
-                const ctrlSi = getFirstByTag(ctrl, labelTag);
-                ctrlSi.select();
-                ctrlSi.load(['id', 'title', 'tag']);
-                ctrlSi.cannotEdit = false; //!We must unlock the text in order to be able to change the font.hidden property
-                const rangeSi = ctrlSi.getRange();
-                rangeSi.font.hidden = false; //!We must set the hidden proeprty to false before reading the text proprety.
-                await context.sync();
-                rangeSi.load(['text']);
-                await context.sync();
-                const text = rangeSi.text;
-                showNotification(`CtrlSi.text = ${text}`);
-                rangeSi.font.hidden = true;
-                ctrlSi.cannotEdit = true;
-                await context.sync();
-                return { ctrl, ...appendHTMLElements(text, ctrl.title, addBtn) }; //The checkBox will have as id the title of the "select" contentcontrol}
-            });
+            const ctrlSi = getFirstByTag(ctrl, labelTag);
+            ctrlSi.load(['id', 'title', 'tag']);
+            ctrlSi.track();
+            ctrlSi.select();
+            ctrlSi.cannotEdit = false; //!We must unlock the text in order to be able to change the font.hidden property
+            const rangeSi = ctrlSi.getRange();
+            rangeSi.track();
+            rangeSi.font.hidden = false; //!We must set the hidden proeprty to false before reading the text proprety.
+            await ctrlSi.context.sync();
+            rangeSi.load(['text']);
+            await rangeSi.context.sync();
+            const text = rangeSi.text;
+            showNotification(`CtrlSi.text = ${text}`);
+            rangeSi.font.hidden = true;
+            ctrlSi.cannotEdit = true;
+            ctrlSi.untrack();
+            rangeSi.untrack();
+            await ctrlSi.context.sync();
+            return { ctrl, ...appendHTMLElements(text, ctrl.title, addBtn) }; //The checkBox will have as id the title of the "select" contentcontrol}
         }
     }
     function appendHTMLElements(text, id, addBtn = false) {
