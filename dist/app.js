@@ -379,9 +379,10 @@ async function customizeContract() {
             rangeSi.load(['text', 'font']);
             await ctrlSi.context.sync();
             rangeSi.font.hidden = false; //!We must unhide the text, otherwise we will get an empty string
-            await ctrlSi.context.sync(); //!We mus sync after changing the font.hidden property
+            await rangeSi.context.sync(); //!We mus sync after changing the font.hidden property
             const text = rangeSi.text;
             rangeSi.font.hidden = true;
+            await rangeSi.context.sync(); //!We must call the rangeSi.context.sync() not the ctrlSi.context.sync() because the rangeSi is the object that has been modified
             ctrlSi.cannotEdit = true;
             await ctrlSi.context.sync();
             return { ctrl, ...appendHTMLElements(text, ctrl.title, addBtn) }; //The checkBox will have as id the title of the "select" contentcontrol}
