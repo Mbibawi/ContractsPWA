@@ -292,6 +292,7 @@ async function promptConfirm(question, fun) {
 ;
 async function customizeContract() {
     USERFORM.innerHTML = '';
+    const processed = (ctrl) => selected.find(t => t.includes(ctrl.title));
     const TAGS = [...OPTIONS, RTDuplicateTag];
     const getSelectCtrls = (ctrls) => ctrls.filter(ctrl => TAGS.includes(ctrl.tag));
     const selected = [];
@@ -352,8 +353,6 @@ async function customizeContract() {
         });
     }
     async function promptForSelection(ctrl, selected) {
-        if (selected.find(t => t.includes(ctrl.title)))
-            return; //!We need to exclude any ctrl that has already been passed to the function or has been excluded: when a ctrl is excluded, its children are added to the array as excluded ctrls ("![ctrl.title]"), they do not hence need to be treated again since we already know theyare to be  excluded. This also avoids the problem that happens sometimes, when a ctrl has its parent amongst its children list (this is an apparently known weird behavior if the ctrl range overlaps somehow with the range of another ctrl)
         try {
             ctrl.select();
             await showSelectPrompt([ctrl]);
@@ -366,6 +365,8 @@ async function customizeContract() {
         const blocks = [];
         try {
             for (const ctrl of selectCtrls) {
+                if (processed(ctrl))
+                    continue; //!We must escape the ctrls that have already been processed
                 if (ctrl.tag === RTDuplicateTag) {
                     await duplicateBlock(ctrl);
                     continue;
