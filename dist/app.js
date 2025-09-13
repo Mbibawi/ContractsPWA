@@ -369,7 +369,7 @@ async function customizeContract() {
                 if (processed(ctrl))
                     continue; //!We must escape the ctrls that have already been processed
                 if (ctrl.tag === RTDuplicateTag) {
-                    await duplicateBlock(ctrl);
+                    await duplicateBlock(ctrl.id);
                     continue;
                 }
                 ;
@@ -476,43 +476,39 @@ async function customizeContract() {
             });
         }
     }
-    async function duplicateBlock(ctrl) {
+    async function duplicateBlock(id) {
         const replace = Word.InsertLocation.replace;
         const after = Word.InsertLocation.after;
         try {
-            await duplicate();
+            await insertClones();
         }
         catch (error) {
             showNotification(`${error}`);
         }
-        async function duplicate() {
-            const label = getFirstByTag(ctrl, RTSectionTag).getRange('Content');
-            if (!label)
-                return showNotification(`No Section RT Within the Range of the Duplicate Ctrl. Ctrl id = ${ctrl.id}`);
-            label.load(['text']);
-            await ctrl.context.sync();
-            if (!label.text)
-                return showNotification("No lable text");
-            ctrl.select();
-            const message = `How many ${label.text} parties are there?`;
-            const answer = Number(await promptForInput(message));
-            if (isNaN(answer))
-                return showNotification(`The provided text cannot be converted into a number: ${answer}`);
-            await insertClones(ctrl.id, answer);
-        }
-        async function insertClones(id, answer) {
+        async function insertClones() {
             await Word.run(async (context) => {
-                ctrl = context.document.contentControls.getById(id);
+                const ctrl = context.document.contentControls.getById(id);
                 ctrl.load(props);
+                const label = getFirstByTag(ctrl, RTSectionTag).getRange('Content');
+                label.font.hidden = false;
+                label.load(['text']);
                 await context.sync();
-                const title = getCtrlTitle(ctrl.tag, ctrl.id);
-                ctrl.title = getCtrlTitle(ctrl.tag, ctrl.id); //!We update the title in case it is no matching the id in the template.
+                if (!label.text)
+                    return showNotification("No lable text");
+                ctrl.select();
+                const message = `How many ${label.text} parties are there?`;
+                const answer = Number(await promptForInput(message));
+                if (isNaN(answer))
+                    return showNotification(`The provided text cannot be converted into a number: ${answer}`);
+                const title = getCtrlTitle(ctrl.tag, id);
+                ctrl.title = title; //!We update the title in case it is no matching the id in the template.
                 const ctrlContent = ctrl.getOoxml();
                 await ctrl.context.sync();
                 for (let i = 1; i < answer; i++)
                     ctrl.getRange().insertOoxml(ctrlContent.value, after);
                 const clones = ctrl.context.document.getContentControls().getByTitle(title);
                 clones.load(props);
+                label.font.hidden = true;
                 await context.sync();
                 const items = clones.items; //!clones.items.entries() caused the for loop to fail in scriptLab. The reason is unknown
                 try {
@@ -531,14 +527,15 @@ async function customizeContract() {
                 const children = clone.getContentControls();
                 children.load(props);
                 const label = getFirstByTag(clone, RTSectionTag);
-                label.font.hidden = false;
                 label.cannotEdit = false;
-                label.load(['text']);
+                const range = label.getRange('Content');
+                range.font.hidden = false;
+                range.load(['text']);
                 await context.sync();
                 clone.title = `${getCtrlTitle(clone.tag, clone.id)}-${i}`;
-                const text = `${label.text} ${i}`;
-                label.getRange('Content').insertText(text, replace);
-                label.font.hidden = true;
+                const text = `${range.text} ${i}`;
+                range.insertText(text, replace);
+                range.font.hidden = true;
                 label.cannotEdit = true;
                 children.items
                     .filter(ctrl => ctrl !== clone)
