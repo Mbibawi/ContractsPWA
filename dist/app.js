@@ -375,7 +375,7 @@ async function customizeContract() {
                 const addBtn = selectCtrls.indexOf(ctrl) + 1 === selectCtrls.length;
                 blocks.push(await insertPromptBlock(ctrl, addBtn, labelTag) || undefined);
             }
-            await btnPromise(blocks);
+            await btnOnClick(blocks);
         }
         catch (error) {
             return showNotification(`Error from showSelectPrompt() = ${error}`);
@@ -421,7 +421,7 @@ async function customizeContract() {
         const btnNext = createHTMLElement('button', 'btnOK', 'Next', btns);
         return { container, checkBox, btnNext };
     }
-    function btnPromise(blocks) {
+    function btnOnClick(blocks) {
         return new Promise((resolve, reject) => {
             var _a;
             const btn = (_a = blocks.find(container => container === null || container === void 0 ? void 0 : container.btnNext)) === null || _a === void 0 ? void 0 : _a.btnNext;
@@ -435,7 +435,7 @@ async function customizeContract() {
                 for (const [ctrl, checked] of values) {
                     if (!ctrl)
                         continue;
-                    const subOptions = await getSubOptions(ctrl);
+                    const subOptions = await getSubOptions(ctrl, checked);
                     if (checked)
                         await isSelected(ctrl.title, subOptions);
                     else
@@ -455,16 +455,17 @@ async function customizeContract() {
     function isNotSelected(title, subOptions) {
         const exclude = (title) => `!${title}`;
         selected.push(exclude(title));
-        subOptions === null || subOptions === void 0 ? void 0 : subOptions.forEach(ctrl => selected.push(exclude(ctrl.title)));
+        subOptions
+            .forEach(ctrl => selected.push(exclude(ctrl.title)));
         console.log(selected);
     }
     ;
-    async function getSubOptions(ctrl) {
-        if (!ctrl)
-            return;
+    async function getSubOptions(ctrl, checked) {
         const children = ctrl.getContentControls();
         children.load(['id', 'tag', 'title', 'parentContentControl']);
         await ctrl.context.sync();
+        if (!checked)
+            return getSelectCtrls(children.items);
         return getSelectCtrls(children.items).filter(c => { var _a; return ((_a = c.parentContentControl) === null || _a === void 0 ? void 0 : _a.id) === ctrl.id; }); //!We need to make sure we get only the direct children of the ctrl and not all the nested ctrls
     }
     async function duplicateBlock(ctrl) {

@@ -394,7 +394,7 @@ async function customizeContract() {
                 const addBtn = selectCtrls.indexOf(ctrl) +1 === selectCtrls.length;
                 blocks.push(await insertPromptBlock(ctrl, addBtn, labelTag) || undefined);
             }
-            await btnPromise(blocks)      
+            await btnOnClick(blocks)      
         } catch (error) {
             return showNotification(`Error from showSelectPrompt() = ${error}`)
         }
@@ -444,7 +444,7 @@ async function customizeContract() {
         return { container, checkBox, btnNext }
     }
 
-    function btnPromise(blocks: (selectBlock | undefined)[]): Promise<string[]> {
+    function btnOnClick(blocks: (selectBlock | undefined)[]): Promise<string[]> {
         return new Promise((resolve, reject) => {
             const btn = blocks.find(container => container?.btnNext)?.btnNext;
             !btn ? resolve(selected) : btn.onclick = processBlocks;
@@ -457,7 +457,7 @@ async function customizeContract() {
                 blocks.forEach(block => block?.container.remove());//We start by removing all the containers
                 for (const [ctrl, checked] of values) {
                     if (!ctrl) continue;
-                    const subOptions = await getSubOptions(ctrl);
+                    const subOptions = await getSubOptions(ctrl, checked);
                     if (checked)
                         await isSelected(ctrl.title, subOptions);
                     else isNotSelected(ctrl.title, subOptions);
@@ -474,20 +474,20 @@ async function customizeContract() {
         if (subOptions) await showSelectPrompt(subOptions);
     };
 
-    function isNotSelected(title: string, subOptions: ContentControl[] | undefined) {
+    function isNotSelected(title:string, subOptions: ContentControl[]) {
         const exclude = (title: string) => `!${title}`;
         selected.push(exclude(title));
         subOptions
-            ?.forEach(ctrl => selected.push(exclude(ctrl.title)));
+            .forEach(ctrl => selected.push(exclude(ctrl.title)));
         console.log(selected)
     };
 
-    async function getSubOptions(ctrl: ContentControl) {
-        if (!ctrl) return;
+    async function getSubOptions(ctrl: ContentControl, checked:boolean) {
             const children = ctrl.getContentControls();
             children.load(['id', 'tag', 'title', 'parentContentControl']);
-            await ctrl.context.sync();
-            return getSelectCtrls(children.items).filter(c=>c.parentContentControl?.id === ctrl.id);//!We need to make sure we get only the direct children of the ctrl and not all the nested ctrls
+        await ctrl.context.sync();
+        if (!checked) return getSelectCtrls(children.items);
+        return getSelectCtrls(children.items).filter(c=>c.parentContentControl?.id === ctrl.id);//!We need to make sure we get only the direct children of the ctrl and not all the nested ctrls
     }
 
 
