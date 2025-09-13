@@ -294,13 +294,14 @@ async function customizeContract() {
     USERFORM.innerHTML = '';
     const processed = (ctrl) => selected.find(t => t.includes(ctrl.title));
     const TAGS = [...OPTIONS, RTDuplicateTag];
+    const props = ['id', 'tag', 'title'];
     const getSelectCtrls = (ctrls) => ctrls.filter(ctrl => TAGS.includes(ctrl.tag));
     const selected = [];
     await selectCtrls();
     async function selectCtrls() {
         await Word.run(async (context) => {
             const allRT = context.document.getContentControls();
-            allRT.load(['id', 'title', 'tag']);
+            allRT.load(props);
             await context.sync();
             const selectCtrls = getSelectCtrls(allRT.items);
             for (const ctrl of selectCtrls)
@@ -316,7 +317,7 @@ async function customizeContract() {
             }
             async function currentDoc() {
                 const allRT = context.document.getContentControls();
-                allRT.load(['id', 'title', 'tag']);
+                allRT.load(props);
                 await context.sync();
                 const selectCtrls = getSelectCtrls(allRT.items); //!We need to retrieve all the selected items again because we may have added new ctrls by cloning the 'Duplicate' ctrls
                 for (const ctrl of selectCtrls) {
@@ -373,7 +374,7 @@ async function customizeContract() {
                 }
                 ;
                 const addBtn = selectCtrls.indexOf(ctrl) + 1 === selectCtrls.length;
-                blocks.push(await insertPromptBlock(ctrl, addBtn, labelTag) || undefined);
+                blocks.push(await insertPromptBlock(ctrl.id, addBtn, labelTag) || undefined);
             }
             await btnOnClick(blocks);
         }
@@ -381,7 +382,7 @@ async function customizeContract() {
             return showNotification(`Error from showSelectPrompt() = ${error}`);
         }
     }
-    async function insertPromptBlock(ctrl, addBtn, labelTag) {
+    async function insertPromptBlock(id, addBtn, labelTag) {
         try {
             return await wordRun();
         }
@@ -389,25 +390,23 @@ async function customizeContract() {
             return showNotification(`Error from insertPromptBlock() = ${error}`);
         }
         async function wordRun() {
-            const ctrlSi = getFirstByTag(ctrl, labelTag);
-            ctrlSi.load(['id', 'title', 'tag']);
-            ctrlSi.track();
-            ctrlSi.select();
-            ctrlSi.cannotEdit = false; //!We must unlock the text in order to be able to change the font.hidden property
-            const rangeSi = ctrlSi.getRange();
-            rangeSi.track();
-            rangeSi.font.hidden = false; //!We must set the hidden proeprty to false before reading the text proprety.
-            await ctrlSi.context.sync();
-            rangeSi.load(['text']);
-            await rangeSi.context.sync();
-            const text = rangeSi.text;
-            showNotification(`CtrlSi.text = ${text}`);
-            rangeSi.font.hidden = true;
-            ctrlSi.cannotEdit = true;
-            ctrlSi.untrack();
-            rangeSi.untrack();
-            await ctrlSi.context.sync();
-            return { ctrl, ...appendHTMLElements(text, ctrl.title, addBtn) }; //The checkBox will have as id the title of the "select" contentcontrol}
+            await Word.run(async (context) => {
+                const ctrl = context.document.contentControls.getById(id);
+                const ctrlSi = getFirstByTag(ctrl, labelTag);
+                ctrlSi.load(props);
+                ctrlSi.select();
+                ctrlSi.cannotEdit = false; //!We must unlock the text in order to be able to change the font.hidden property
+                const rangeSi = ctrlSi.getRange();
+                rangeSi.load(['text']);
+                rangeSi.font.hidden = false; //!We must set the hidden proeprty to false before reading the text proprety.
+                await context.sync();
+                const text = rangeSi.text;
+                showNotification(`CtrlSi.text = ${text}`);
+                rangeSi.font.hidden = true;
+                ctrlSi.cannotEdit = true;
+                await context.sync();
+                return { ctrl, ...appendHTMLElements(text, ctrl.title, addBtn) }; //The checkBox will have as id the title of the "select" contentcontrol}
+            });
         }
     }
     function appendHTMLElements(text, id, addBtn = false) {
@@ -435,7 +434,7 @@ async function customizeContract() {
                 for (const [ctrl, checked] of values) {
                     if (!ctrl)
                         continue;
-                    const subOptions = await getSubOptions(ctrl, checked);
+                    const subOptions = await getSubOptions(ctrl.id, checked);
                     if (checked)
                         await isSelected(ctrl.title, subOptions);
                     else
@@ -460,17 +459,20 @@ async function customizeContract() {
         console.log(selected);
     }
     ;
-    async function getSubOptions(ctrl, directChildren, children) {
+    async function getSubOptions(id, directChildren, children) {
         if (!children)
             children = await getChildren();
         if (!directChildren)
             return getSelectCtrls(children);
-        return getSelectCtrls(children).filter(c => { var _a; return ((_a = c.parentContentControl) === null || _a === void 0 ? void 0 : _a.id) === ctrl.id; }); //!We need to make sure we get only the direct children of the ctrl and not all the nested ctrls
+        return getSelectCtrls(children).filter(c => { var _a; return ((_a = c.parentContentControl) === null || _a === void 0 ? void 0 : _a.id) === id; }); //!We need to make sure we get only the direct children of the ctrl and not all the nested ctrls
         async function getChildren() {
-            const children = ctrl.getContentControls();
-            children.load(['id', 'tag', 'title', 'parentContentControl']);
-            await ctrl.context.sync();
-            return children.items;
+            return Word.run(async (context) => {
+                const ctrl = context.document.getContentControls().getById(id);
+                const children = ctrl === null || ctrl === void 0 ? void 0 : ctrl.getContentControls();
+                children.load([...props, 'parentContentControl']);
+                await context.sync();
+                return children.items;
+            });
         }
     }
     async function duplicateBlock(ctrl) {
@@ -495,57 +497,57 @@ async function customizeContract() {
             const answer = Number(await promptForInput(message));
             if (isNaN(answer))
                 return showNotification(`The provided text cannot be converted into a number: ${answer}`);
-            await insertClones(ctrl, answer);
+            await insertClones(ctrl.id, answer);
         }
-        async function insertClones(ctrl, answer) {
-            const title = getCtrlTitle(ctrl.tag, ctrl.id);
-            ctrl.title = getCtrlTitle(ctrl.tag, ctrl.id); //!We update the title in case it is no matching the id in the template.
-            const ctrlContent = ctrl.getOoxml();
-            await ctrl.context.sync();
-            for (let i = 1; i < answer; i++)
-                ctrl.getRange().insertOoxml(ctrlContent.value, after);
-            const clones = ctrl.context.document.getContentControls().getByTitle(title);
-            clones.load(['id', 'tag', 'title']);
-            await ctrl.context.sync();
-            const items = clones.items; //!clones.items.entries() caused the for loop to fail in scriptLab. The reason is unknown
-            try {
-                for (const clone of items)
-                    await processClone(clone, items.indexOf(clone) + 1);
-            }
-            catch (error) {
-                showNotification(`Error from processClone() = ${error}`);
-            }
-        }
-        async function processClone(clone, i) {
-            if (!clone)
-                return;
-            clone.title = `${getCtrlTitle(clone.tag, clone.id)}-${i}`;
-            const children = clone.getRange().getContentControls();
-            children.load(['id', 'tag', 'title']);
-            children.track();
-            await children.context.sync();
-            const label = getFirstByTag(clone, RTSectionTag);
-            label.track();
-            label.font.hidden = false;
-            label.load(['text']);
-            await label.context.sync();
-            const text = `${label.text} ${i}`;
-            label.getRange('Content').insertText(text, replace);
-            const subOptions = await getSubOptions(clone, true, children.items); //!We select only the direct select ctrls children
-            label.font.hidden = true;
-            label.cannotEdit = false;
-            await label.context.sync();
-            for (const ctrl of children.items) {
-                if (ctrl === clone)
-                    continue;
-                ctrl.load(['id', 'title', 'tag']);
-                ctrl.title = getCtrlTitle(ctrl.tag, ctrl.id); //!We must update the title of the ctrls in order to udpated them with the new id
+        async function insertClones(id, answer) {
+            await Word.run(async (context) => {
+                ctrl = context.document.contentControls.getById(id);
+                ctrl.load(props);
+                await context.sync();
+                const title = getCtrlTitle(ctrl.tag, ctrl.id);
+                ctrl.title = getCtrlTitle(ctrl.tag, ctrl.id); //!We update the title in case it is no matching the id in the template.
+                const ctrlContent = ctrl.getOoxml();
                 await ctrl.context.sync();
-            }
-            [label, children].forEach(obj => obj.untrack());
-            const div = createHTMLElement('div', '', text, USERFORM, '', false);
-            await showSelectPrompt(subOptions);
-            div.remove();
+                for (let i = 1; i < answer; i++)
+                    ctrl.getRange().insertOoxml(ctrlContent.value, after);
+                const clones = ctrl.context.document.getContentControls().getByTitle(title);
+                clones.load(props);
+                await context.sync();
+                const items = clones.items; //!clones.items.entries() caused the for loop to fail in scriptLab. The reason is unknown
+                try {
+                    for (const clone of items)
+                        await processClone(clone.id, items.indexOf(clone) + 1);
+                }
+                catch (error) {
+                    showNotification(`Error from processClone() = ${error}`);
+                }
+            });
+        }
+        async function processClone(id, i) {
+            await Word.run(async (context) => {
+                const clone = context.document.contentControls.getById(id);
+                clone.load(props);
+                const children = clone.getContentControls();
+                children.load(props);
+                const label = getFirstByTag(clone, RTSectionTag);
+                label.font.hidden = false;
+                label.cannotEdit = false;
+                label.load(['text']);
+                await context.sync();
+                clone.title = `${getCtrlTitle(clone.tag, clone.id)}-${i}`;
+                const text = `${label.text} ${i}`;
+                label.getRange('Content').insertText(text, replace);
+                label.font.hidden = true;
+                label.cannotEdit = true;
+                children.items
+                    .filter(ctrl => ctrl !== clone)
+                    .forEach(ctrl => ctrl.title = getCtrlTitle(ctrl.tag, ctrl.id)); //!We must update the title of the ctrls in order to udpated them with the new id )
+                await context.sync();
+                const subOptions = await getSubOptions(clone.id, true, children.items); //!We select only the direct select ctrls children
+                const div = createHTMLElement('div', '', text, USERFORM, '', false);
+                await showSelectPrompt(subOptions);
+                div.remove();
+            });
         }
         ;
     }
