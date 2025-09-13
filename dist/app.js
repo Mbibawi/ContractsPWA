@@ -379,6 +379,7 @@ async function customizeContract() {
             rangeSi.load(['text', 'font']);
             await ctrlSi.context.sync();
             rangeSi.font.hidden = false; //!We must unhide the text, otherwise we will get an empty string
+            await ctrlSi.context.sync(); //!We mus sync after changing the font.hidden property
             const text = rangeSi.text;
             rangeSi.font.hidden = true;
             ctrlSi.cannotEdit = true;
