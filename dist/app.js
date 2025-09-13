@@ -460,13 +460,18 @@ async function customizeContract() {
         console.log(selected);
     }
     ;
-    async function getSubOptions(ctrl, checked) {
-        const children = ctrl.getContentControls();
-        children.load(['id', 'tag', 'title', 'parentContentControl']);
-        await ctrl.context.sync();
-        if (!checked)
-            return getSelectCtrls(children.items);
-        return getSelectCtrls(children.items).filter(c => { var _a; return ((_a = c.parentContentControl) === null || _a === void 0 ? void 0 : _a.id) === ctrl.id; }); //!We need to make sure we get only the direct children of the ctrl and not all the nested ctrls
+    async function getSubOptions(ctrl, directChildren, children) {
+        if (!children)
+            children = await getChildren();
+        if (!directChildren)
+            return getSelectCtrls(children);
+        return getSelectCtrls(children).filter(c => { var _a; return ((_a = c.parentContentControl) === null || _a === void 0 ? void 0 : _a.id) === ctrl.id; }); //!We need to make sure we get only the direct children of the ctrl and not all the nested ctrls
+        async function getChildren() {
+            const children = ctrl.getContentControls();
+            children.load(['id', 'tag', 'title', 'parentContentControl']);
+            await ctrl.context.sync();
+            return children.items;
+        }
     }
     async function duplicateBlock(ctrl) {
         const replace = Word.InsertLocation.replace;
@@ -494,7 +499,7 @@ async function customizeContract() {
         }
         async function insertClones(ctrl, answer) {
             const title = getCtrlTitle(ctrl.tag, ctrl.id);
-            ctrl.title = title; //!We update the title in case it is no matching the id in the template.
+            ctrl.title = getCtrlTitle(ctrl.tag, ctrl.id); //!We update the title in case it is no matching the id in the template.
             const ctrlContent = ctrl.getOoxml();
             await ctrl.context.sync();
             for (let i = 1; i < answer; i++)
@@ -509,23 +514,29 @@ async function customizeContract() {
         async function processClone(clone, i) {
             if (!clone)
                 return;
-            clone.title = getCtrlTitle(clone.tag, clone.id) + `-${i}`;
+            clone.track();
+            clone.title = `${getCtrlTitle(clone.tag, clone.id)}-${i}`;
             const children = clone.getRange().getContentControls();
+            children.track();
             children.load(['id', 'tag', 'title']);
-            const label = children.getByTag(RTSectionTag).getFirst();
+            //const label = children.getByTag(RTSectionTag).getFirst();
+            const label = getFirstByTag(clone, RTSectionTag);
+            label.track();
+            label.font.hidden = false;
             label.load(['text']);
             await clone.context.sync();
             children.items
                 .filter(ctrl => ctrl !== clone)
                 .forEach(ctrl => ctrl.title = getCtrlTitle(ctrl.tag, ctrl.id)); //!We must update the title of the ctrls in order to udpated them with the new id
             const text = `${label.text} ${i}`;
-            label.cannotEdit = false;
-            label.select();
             label.getRange('Content').insertText(text, replace);
-            const div = createHTMLElement('div', '', text, undefined, '', false);
-            USERFORM.insertAdjacentElement('beforebegin', div);
-            const selectCtrls = getSelectCtrls(children.items);
-            await showSelectPrompt(selectCtrls);
+            const subOptions = await getSubOptions(clone, true, children.items); //!We select only the direct select ctrls children
+            label.font.hidden = true;
+            label.cannotEdit = false;
+            [clone, label, children].forEach(obj => obj.untrack());
+            await clone.context.sync();
+            const div = createHTMLElement('div', '', text, USERFORM, '', false);
+            await showSelectPrompt(subOptions);
             div.remove();
         }
         ;
