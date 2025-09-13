@@ -467,9 +467,9 @@ async function customizeContract() {
     async function getSubOptions(ctrl: ContentControl) {
         if (!ctrl) return;
             const children = ctrl.getContentControls();
-            children.load(['id', 'tag', 'title']);
+            children.load(['id', 'tag', 'title', 'parentContentControl']);
             await ctrl.context.sync();
-            return getSelectCtrls(children.items)
+            return getSelectCtrls(children.items).filter(c=>c.parentContentControl?.id === ctrl.id);//!We need to make sure we get only the direct children of the ctrl and not all the nested ctrls
     }
 
 

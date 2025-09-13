@@ -440,9 +440,9 @@ async function customizeContract() {
         if (!ctrl)
             return;
         const children = ctrl.getContentControls();
-        children.load(['id', 'tag', 'title']);
+        children.load(['id', 'tag', 'title', 'parentContentControl']);
         await ctrl.context.sync();
-        return getSelectCtrls(children.items);
+        return getSelectCtrls(children.items).filter(c => { var _a; return ((_a = c.parentContentControl) === null || _a === void 0 ? void 0 : _a.id) === ctrl.id; }); //!We need to make sure we get only the direct children of the ctrl and not all the nested ctrls
     }
     async function duplicateBlock(ctrl) {
         const replace = Word.InsertLocation.replace;
