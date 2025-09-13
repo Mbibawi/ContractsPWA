@@ -508,23 +508,27 @@ async function customizeContract() {
             clones.load(['id', 'tag', 'title']);
             await ctrl.context.sync();
             const items = clones.items; //!clones.items.entries() caused the for loop to fail in scriptLab. The reason is unknown
-            for (const clone of items)
-                await processClone(clone, items.indexOf(clone) + 1);
+            try {
+                for (const clone of items)
+                    await processClone(clone, items.indexOf(clone) + 1);
+            }
+            catch (error) {
+                showNotification(`Error from processClone() = ${error}`);
+            }
         }
         async function processClone(clone, i) {
             if (!clone)
                 return;
-            clone.track();
             clone.title = `${getCtrlTitle(clone.tag, clone.id)}-${i}`;
             const children = clone.getRange().getContentControls();
-            children.track();
             children.load(['id', 'tag', 'title']);
-            //const label = children.getByTag(RTSectionTag).getFirst();
+            children.track();
+            await children.context.sync();
             const label = getFirstByTag(clone, RTSectionTag);
             label.track();
             label.font.hidden = false;
             label.load(['text']);
-            await clone.context.sync();
+            await label.context.sync();
             children.items
                 .filter(ctrl => ctrl !== clone)
                 .forEach(ctrl => ctrl.title = getCtrlTitle(ctrl.tag, ctrl.id)); //!We must update the title of the ctrls in order to udpated them with the new id
@@ -533,8 +537,8 @@ async function customizeContract() {
             const subOptions = await getSubOptions(clone, true, children.items); //!We select only the direct select ctrls children
             label.font.hidden = true;
             label.cannotEdit = false;
-            [clone, label, children].forEach(obj => obj.untrack());
-            await clone.context.sync();
+            [label, children].forEach(obj => obj.untrack());
+            await label.context.sync();
             const div = createHTMLElement('div', '', text, USERFORM, '', false);
             await showSelectPrompt(subOptions);
             div.remove();
