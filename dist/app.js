@@ -125,7 +125,7 @@ async function findTextAndWrapItWithContentControl(styles, title, tag, cannotEdi
     const all = [];
     return await Word.run(async (context) => {
         for (const el of search) {
-            const ranges = await searchString(el, matchWildcards);
+            const ranges = await searchString(el, context, matchWildcards);
             if (!ranges)
                 continue;
             const ctrls = await wrapMatchingStyleRangesWithContentControls(ranges, styles, title, tag, cannotEdit, cannotDelete);
@@ -154,19 +154,17 @@ async function wrapMatchingStyleRangesWithContentControls(ranges, styles, title,
     });
     return Promise.all(ctrls);
 }
-async function searchString(search, matchWildcards, replaceWith) {
-    return await Word.run(async (context) => {
-        let searchResults = context.document.body.search(search, { matchWildcards: matchWildcards });
-        searchResults.load(['style', 'text']);
-        searchResults.track();
+async function searchString(search, context, matchWildcards, replaceWith) {
+    const searchResults = context.document.body.search(search, { matchWildcards: matchWildcards });
+    searchResults.load(['style', 'text']);
+    searchResults.track();
+    await context.sync();
+    if (replaceWith) {
+        for (const match of searchResults.items)
+            match.insertText(replaceWith, Word.InsertLocation.replace);
         await context.sync();
-        if (replaceWith) {
-            for (const match of searchResults.items)
-                match.insertText(replaceWith, Word.InsertLocation.replace);
-            await context.sync();
-        }
-        return searchResults;
-    });
+    }
+    return searchResults;
 }
 async function addIDtoCtrlTitle(ctrls) {
     ctrls.load(['title', 'id']);
@@ -234,8 +232,8 @@ async function insertDroDownListAll(index) {
     await range.context.sync();
     const original = range.text.replaceAll('/', '');
     try {
-        await searchString(original, false, range.text);
-        const matches = await searchString(range.text, false);
+        await searchString(original, range.context, false, range.text);
+        const matches = await searchString(range.text, range.context, false);
         for (const match of matches.items)
             await insertDropDownList(match, matches.items.indexOf(match) + 1);
     }

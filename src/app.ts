@@ -157,7 +157,7 @@ async function findTextAndWrapItWithContentControl(styles: string[], title: stri
     const all: (Word.ContentControl | undefined)[][] = [];
     return await Word.run(async (context) => {
         for (const el of search) {
-            const ranges = await searchString(el, matchWildcards);
+            const ranges = await searchString(el, context, matchWildcards);
             if (!ranges) continue;
             const ctrls = await wrapMatchingStyleRangesWithContentControls(ranges, styles, title, tag, cannotEdit, cannotDelete);
             if (!ctrls) continue
@@ -187,9 +187,8 @@ async function wrapMatchingStyleRangesWithContentControls(ranges: Word.RangeColl
     return Promise.all(ctrls);
 }
 
-async function searchString(search: string, matchWildcards: boolean, replaceWith?:string):Promise<Word.RangeCollection> {
-    return await Word.run(async (context)=>{
-        let searchResults = context.document.body.search(search, { matchWildcards: matchWildcards });
+async function searchString(search: string, context:Word.RequestContext, matchWildcards: boolean, replaceWith?:string):Promise<Word.RangeCollection> {
+        const searchResults = context.document.body.search(search, { matchWildcards: matchWildcards });
         searchResults.load(['style', 'text']);
         searchResults.track();
         await context.sync();
@@ -199,7 +198,6 @@ async function searchString(search: string, matchWildcards: boolean, replaceWith
             await context.sync();
         }
         return searchResults
-    })
 }
 
 async function addIDtoCtrlTitle(ctrls: Word.ContentControlCollection) {
@@ -270,8 +268,8 @@ async function insertDroDownListAll(index?: number) {
     const original = range.text.replaceAll('/', '');
     
     try {
-        await searchString(original, false, range.text);
-        const matches = await searchString(range.text, false);
+        await searchString(original, range.context, false, range.text);
+        const matches = await searchString(range.text, range.context, false);
         for (const match of matches.items)
             await insertDropDownList(match, matches.items.indexOf(match) +1);
     } catch (error) {
