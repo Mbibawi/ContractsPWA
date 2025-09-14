@@ -1,4 +1,28 @@
 /* General Body and Typography */
+.promptContainer{
+
+
+}
+.select{
+  display: inline-flex;
+  align-items: left;
+  margin-bottom: 10px; /* Space between options */
+  gap: 8px; /* Optional: Adjust spacing between checkbox and label */
+  width: 100%;
+  box-sizing: border-box; /* Include padding in width */
+  padding: 5px;
+  border: 1px solid #ccc; /* Light border */
+}
+.prompt{
+
+}
+.ask{
+color: #991c63
+}
+.answer{
+
+}
+
 body {
   font-family: 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   margin: 0;

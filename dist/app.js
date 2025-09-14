@@ -1,4 +1,3 @@
-"use strict";
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'], StylePrefix = 'Contrat_', RTDropDownTag = 'RTList', RTDropDownColor = '#991c63', RTDuplicateTag = 'RTRepeat', RTSectionTag = 'RTSection', RTSectionStyle = `${StylePrefix}${RTSectionTag}`, RTSelectTag = 'RTSelect', RTOrTag = 'RTOr', RTObsTag = 'RTObs', RTObsStyle = `${StylePrefix}${RTObsTag}`, RTDescriptionTag = 'RTDesc', RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`, RTSiTag = 'RTSi', RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
 let USERFORM, NOTIFICATION;
 let RichText, RichTextInline, RichTextParag, ComboBox, CheckBox, dropDownList, Bounding, Hidden;
@@ -429,9 +428,10 @@ async function customizeContract() {
     }
     function appendHTMLElements(text, id, addBtn = false) {
         const container = createHTMLElement('div', 'promptContainer', '', USERFORM);
-        const checkBox = createHTMLElement('input', 'checkBox', '', container, id);
-        createHTMLElement('label', 'label', text, container);
+        const option = createHTMLElement('div', 'select', '', container);
+        const checkBox = createHTMLElement('input', 'checkBox', '', option, id);
         checkBox.type = 'checkbox';
+        createHTMLElement('label', 'label', text, option);
         if (!addBtn)
             return { container, checkBox };
         const btns = createHTMLElement('div', 'btns', '', container);
@@ -778,4 +778,5 @@ async function changeAllSameTagCtrlsCannEdit(tag, edit) {
         await context.sync();
     });
 }
+export {};
 //# sourceMappingURL=app.js.map

@@ -1,3 +1,5 @@
+import { create } from "domain";
+
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     StylePrefix= 'Contrat_',
     RTDropDownTag = 'RTList',
@@ -460,9 +462,10 @@ async function customizeContract() {
 
     function appendHTMLElements(text: string, id: string, addBtn: boolean = false): selectBlock {
         const container = createHTMLElement('div', 'promptContainer', '', USERFORM) as HTMLDivElement;
-        const checkBox = createHTMLElement('input', 'checkBox', '', container, id) as HTMLInputElement;
-        createHTMLElement('label', 'label', text, container) as HTMLParagraphElement;
+        const option = createHTMLElement('div', 'select', '', container);
+        const checkBox = createHTMLElement('input', 'checkBox', '', option, id) as HTMLInputElement;
         checkBox.type = 'checkbox';
+        createHTMLElement('label', 'label', text, option) as HTMLParagraphElement;
         if (!addBtn) return { container, checkBox };
         const btns = createHTMLElement('div', 'btns', '', container);
         const btnNext = createHTMLElement('button', 'btnOK', 'Next', btns) as HTMLButtonElement;
