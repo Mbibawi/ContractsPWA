@@ -1,15 +1,18 @@
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
+    StylePrefix= 'Contrat_',
     RTDropDownTag = 'RTList',
     RTDropDownColor = '#991c63',
     RTDuplicateTag = 'RTRepeat',
     RTSectionTag = 'RTSection',
+    RTSectionStyle = `${StylePrefix}${RTSectionTag}`,
     RTSelectTag = 'RTSelect',
     RTOrTag = 'RTOr',
     RTObsTag = 'RTObs',
+    RTObsStyle = `${StylePrefix}${RTObsTag}`,
     RTDescriptionTag = 'RTDesc',
-    RTDescriptionStyle = 'RTDescription',
+    RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
-    RTSiStyles = ['RTSi0cm', 'RTSi1cm', 'RTSi2cm', 'RTSi3cm', 'RTSi4cm'];
+    RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -54,6 +57,7 @@ function mainUI() {
     btns.forEach(btn => btn?.addEventListener('click', () => insertBtn(back, false)));
     function goBack() {
         USERFORM.innerHTML = '';
+        document.getElementById('stylesList')?.remove();
         showBtns(main)
     }
 }
@@ -83,6 +87,38 @@ function prepareTemplate() {
     ] as [Function, string][];
 
     showBtns(btns);
+    showStylesList();
+
+    function showStylesList() {
+        const id = 'stylesList';
+        if( document.getElementById(id)) return;
+        Word.run(async (context) => {
+            const allStyles = context.document.getStyles();
+            allStyles.load(['nameLocal']);
+            await context.sync();
+            const styles = allStyles.items.filter(style =>style.nameLocal.startsWith(StylePrefix));
+            document.createElement('select')
+            const container = createHTMLElement('div', '', '', undefined, id) as HTMLDivElement;
+            USERFORM.insertAdjacentElement('beforebegin', container);
+            const select = createHTMLElement('select', '', '', container) as HTMLSelectElement;
+            styles.forEach(style => {
+                const option = createHTMLElement('option', '', style.nameLocal, select) as HTMLOptionElement;
+                option.value = style.nameLocal;
+            });
+            //const btn = createHTMLElement('button', '', 'Set Selected Style to all RT Si', container) as HTMLButtonElement;
+            //btn.onclick = apply;
+            select.onchange = apply;
+            async function apply(){
+                const style = select.value;
+                const range = await getSelectionRange();
+                if(!range) return;
+                range.style = style;
+                range.untrack();
+                await range.context.sync();
+            }
+        })
+
+    }
 }
 
 function insertBtn([fun, label]: Btn, append: boolean = true) {
@@ -268,7 +304,7 @@ async function getSelectionRange() {
             .getSelection()
             .getRange('Content');
         range.load(['style', 'isEmpty']);
-        context.trackedObjects.add(range);
+        range.track();
         await context.sync();
         if (range.isEmpty) return showNotification('The selection range is empty');
         return range

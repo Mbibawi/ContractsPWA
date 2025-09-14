@@ -1,5 +1,5 @@
 "use strict";
-const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'], RTDropDownTag = 'RTList', RTDropDownColor = '#991c63', RTDuplicateTag = 'RTRepeat', RTSectionTag = 'RTSection', RTSelectTag = 'RTSelect', RTOrTag = 'RTOr', RTObsTag = 'RTObs', RTDescriptionTag = 'RTDesc', RTDescriptionStyle = 'RTDescription', RTSiTag = 'RTSi', RTSiStyles = ['RTSi0cm', 'RTSi1cm', 'RTSi2cm', 'RTSi3cm', 'RTSi4cm'];
+const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'], StylePrefix = 'Contrat_', RTDropDownTag = 'RTList', RTDropDownColor = '#991c63', RTDuplicateTag = 'RTRepeat', RTSectionTag = 'RTSection', RTSectionStyle = `${StylePrefix}${RTSectionTag}`, RTSelectTag = 'RTSelect', RTOrTag = 'RTOr', RTObsTag = 'RTObs', RTObsStyle = `${StylePrefix}${RTObsTag}`, RTDescriptionTag = 'RTDesc', RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`, RTSiTag = 'RTSi', RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
 let USERFORM, NOTIFICATION;
 let RichText, RichTextInline, RichTextParag, ComboBox, CheckBox, dropDownList, Bounding, Hidden;
 Office.onReady((info) => {
@@ -31,7 +31,9 @@ function mainUI() {
     const back = [goBack, 'Go Back'];
     btns.forEach(btn => btn === null || btn === void 0 ? void 0 : btn.addEventListener('click', () => insertBtn(back, false)));
     function goBack() {
+        var _a;
         USERFORM.innerHTML = '';
+        (_a = document.getElementById('stylesList')) === null || _a === void 0 ? void 0 : _a.remove();
         showBtns(main);
     }
 }
@@ -57,6 +59,38 @@ function prepareTemplate() {
         [insertRTDescription, 'Insert RT Description For All'],
     ];
     showBtns(btns);
+    showStylesList();
+    function showStylesList() {
+        const id = 'stylesList';
+        if (document.getElementById(id))
+            return;
+        Word.run(async (context) => {
+            const allStyles = context.document.getStyles();
+            allStyles.load(['nameLocal']);
+            await context.sync();
+            const styles = allStyles.items.filter(style => style.nameLocal.startsWith(StylePrefix));
+            document.createElement('select');
+            const container = createHTMLElement('div', '', '', undefined, id);
+            USERFORM.insertAdjacentElement('beforebegin', container);
+            const select = createHTMLElement('select', '', '', container);
+            styles.forEach(style => {
+                const option = createHTMLElement('option', '', style.nameLocal, select);
+                option.value = style.nameLocal;
+            });
+            //const btn = createHTMLElement('button', '', 'Set Selected Style to all RT Si', container) as HTMLButtonElement;
+            //btn.onclick = apply;
+            select.onchange = apply;
+            async function apply() {
+                const style = select.value;
+                const range = await getSelectionRange();
+                if (!range)
+                    return;
+                range.style = style;
+                range.untrack();
+                await range.context.sync();
+            }
+        });
+    }
 }
 function insertBtn([fun, label], append = true) {
     if (!USERFORM)
@@ -242,7 +276,7 @@ async function getSelectionRange() {
             .getSelection()
             .getRange('Content');
         range.load(['style', 'isEmpty']);
-        context.trackedObjects.add(range);
+        range.track();
         await context.sync();
         if (range.isEmpty)
             return showNotification('The selection range is empty');
