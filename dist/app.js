@@ -69,6 +69,8 @@ function prepareTemplate() {
             allStyles.load(['nameLocal']);
             await context.sync();
             const styles = allStyles.items.filter(style => style.nameLocal.startsWith(StylePrefix));
+            if (!styles.length)
+                return;
             document.createElement('select');
             const container = createHTMLElement('div', '', '', undefined, id);
             USERFORM.insertAdjacentElement('beforebegin', container);
@@ -264,39 +266,37 @@ async function insertDropDownList(range, index = 0) {
     await ctrl.context.sync();
 }
 async function insertContentControl(range, title, tag, index = 1, type, style, cannotEdit = true, cannotDelete = true) {
-    return await Word.run(async (context) => {
-        range.select();
-        const styles = context.document.getStyles();
-        styles.load(['nameLocal', 'type']);
-        // Insert a rich text content control around the found range.
-        //@ts-expect-error
-        const ctrl = range.insertContentControl(type);
-        ctrl.load(["id"]);
-        await context.sync();
-        // Set properties for the new content control.
-        if (ctrl.id)
-            console.log(`the newly created ContentControl id = ${ctrl.id} `);
-        try {
-            ctrl.select();
-            ctrl.title = getCtrlTitle(title, ctrl.id);
-            ctrl.tag = tag;
-            ctrl.appearance = Word.ContentControlAppearance.boundingBox;
-            const foundStyle = styles.items.find(s => s.nameLocal === style);
-            if (style && foundStyle?.type === Word.StyleType.character)
-                ctrl.style = style;
-            if (style)
-                ctrl.getRange().style = style;
-            ctrl.cannotDelete = cannotDelete;
-            ctrl.cannotEdit = cannotEdit; //!This must come at the end after the style has been set.
-            await context.sync();
-            showNotification(`Wrapped text in range ${index} with a content control.`);
-            return ctrl;
-        }
-        catch (error) {
-            showNotification(`There was an error while setting the properties of the newly crated contentcontrol by insertContentControl(): ${error}.`);
-            return undefined;
-        }
-    });
+    range.select();
+    const styles = range.context.document.getStyles();
+    styles.load(['nameLocal', 'type']);
+    // Insert a rich text content control around the found range.
+    //@ts-expect-error
+    const ctrl = range.insertContentControl(type);
+    ctrl.load(['id']);
+    await range.context.sync();
+    // Set properties for the new content control.
+    if (ctrl.id)
+        console.log(`the newly created ContentControl id = ${ctrl.id} `);
+    try {
+        ctrl.select();
+        ctrl.title = getCtrlTitle(title, ctrl.id);
+        ctrl.tag = tag;
+        ctrl.appearance = Word.ContentControlAppearance.boundingBox;
+        const foundStyle = styles.items.find(s => s.nameLocal === style);
+        if (style && foundStyle?.type === Word.StyleType.character)
+            ctrl.style = style;
+        if (style)
+            ctrl.getRange().style = style;
+        ctrl.cannotDelete = cannotDelete;
+        ctrl.cannotEdit = cannotEdit; //!This must come at the end after the style has been set.
+        await range.context.sync();
+        showNotification(`Wrapped text in range ${index} with a content control.`);
+        return ctrl;
+    }
+    catch (error) {
+        showNotification(`There was an error while setting the properties of the newly crated contentcontrol by insertContentControl(): ${error}.`);
+        return undefined;
+    }
 }
 async function getSelectionRange() {
     return await Word.run(async (context) => {

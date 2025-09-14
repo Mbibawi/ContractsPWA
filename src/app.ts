@@ -98,6 +98,7 @@ function prepareTemplate() {
             allStyles.load(['nameLocal']);
             await context.sync();
             const styles = allStyles.items.filter(style =>style.nameLocal.startsWith(StylePrefix));
+            if (!styles.length) return;
             document.createElement('select')
             const container = createHTMLElement('div', '', '', undefined, id) as HTMLDivElement;
             USERFORM.insertAdjacentElement('beforebegin', container);
@@ -293,16 +294,15 @@ async function insertDropDownList(range:Word.Range|void, index: number=0) {
     setCtrlsColor([ctrl], RTDropDownColor);
     await ctrl.context.sync();
 }
-async function insertContentControl(range: Word.Range, title: string, tag: string, index: number =1, type: Word.ContentControlType, style: string | null, cannotEdit: boolean = true, cannotDelete: boolean = true):Promise<Word.ContentControl|undefined> {
-    return await Word.run(async (context) => { 
+async function insertContentControl(range: Word.Range, title: string, tag: string, index: number =1, type: Word.ContentControlType, style: string | null, cannotEdit: boolean = true, cannotDelete: boolean = true):Promise<Word.ContentControl|undefined> { 
         range.select();
-        const styles = context.document.getStyles();
+        const styles = range.context.document.getStyles();
         styles.load(['nameLocal', 'type']);
         // Insert a rich text content control around the found range.
         //@ts-expect-error
         const ctrl = range.insertContentControl(type);
-        ctrl.load(["id"]);
-        await context.sync();
+        ctrl.load(['id']);
+        await range.context.sync();
         // Set properties for the new content control.
         if (ctrl.id) console.log(`the newly created ContentControl id = ${ctrl.id} `);
         try {
@@ -316,14 +316,14 @@ async function insertContentControl(range: Word.Range, title: string, tag: strin
             if (style) ctrl.getRange().style = style;
             ctrl.cannotDelete = cannotDelete;
             ctrl.cannotEdit = cannotEdit;//!This must come at the end after the style has been set.
-            await context.sync();
+            await range.context.sync();
             showNotification(`Wrapped text in range ${index} with a content control.`);
             return ctrl;
         } catch (error) {
             showNotification(`There was an error while setting the properties of the newly crated contentcontrol by insertContentControl(): ${error}.`);
             return undefined
         }
-    });
+    
 }
 
 async function getSelectionRange() {
