@@ -653,7 +653,8 @@ function createHTMLElement(tag, css, innerText, parent, id, append = true) {
     const el = document.createElement(tag);
     if (innerText)
         el.innerText = innerText;
-    el.classList.add(css);
+    if (css)
+        el.classList.add(css);
     if (id)
         el.id = id;
     if (!parent)

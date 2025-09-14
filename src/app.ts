@@ -683,7 +683,7 @@ async function deleteAllNotSelected(selected: string[], wdDoc: Word.Document | W
 function createHTMLElement(tag: string, css: string, innerText: string, parent?: HTMLElement | Document, id?: string, append: boolean = true) {
     const el = document.createElement(tag);
     if (innerText) el.innerText = innerText;
-    el.classList.add(css);
+    if(css) el.classList.add(css);
     if (id) el.id = id;
     if (!parent) return el;
     append ? parent.appendChild(el) : parent.prepend(el);
