@@ -156,7 +156,7 @@ async function findTextAndWrapItWithContentControl(styles: string[], title: stri
     const all: (Word.ContentControl | undefined)[][] = [];
     return await Word.run(async (context) => {
         for (const el of search) {
-            const ranges = await searchString(el, context, matchWildcards);
+            const ranges = await searchString(el, matchWildcards);
             if (!ranges) continue;
             const ctrls = await wrapMatchingStyleRangesWithContentControls(ranges, styles, title, tag, cannotEdit, cannotDelete);
             if (!ctrls) continue
@@ -186,16 +186,18 @@ async function wrapMatchingStyleRangesWithContentControls(ranges: Word.RangeColl
     return Promise.all(ctrls);
 }
 
-async function searchString(search: string, context: Word.RequestContext, matchWildcards: boolean, replaceWith?:string) {
-    const searchResults = context.document.body.search(search, { matchWildcards: matchWildcards });
-    searchResults.load(['style', 'text']);
-    searchResults.track();
-    await context.sync();
-    if (!replaceWith) return searchResults;
-    for (const range of searchResults.items) 
-        range.insertText(replaceWith, Word.InsertLocation.replace);
-    await context.sync();
-    return await searchString(replaceWith, context, false)
+async function searchString(search: string, matchWildcards: boolean, replaceWith?:string):Promise<Word.RangeCollection> {
+    return await Word.run(async (context)=>{
+        const searchResults = context.document.body.search(search, { matchWildcards: matchWildcards });
+        searchResults.load(['style', 'text']);
+        searchResults.track();
+        await context.sync();
+        if (!replaceWith) return searchResults;
+        for (const range of searchResults.items) 
+            range.insertText(replaceWith, Word.InsertLocation.replace);
+        await context.sync();
+        return searchString(replaceWith, false);
+    })
 }
 
 async function addIDtoCtrlTitle(ctrls: Word.ContentControlCollection) {
@@ -264,7 +266,7 @@ async function insertDroDownListAll() {
     range.load(["text"]);
     await range.context.sync();
     const original = range.text.replaceAll('/', '');
-    const matches = await searchString(original, range.context, false, range.text);
+    const matches = await searchString(original, false, range.text);
     if (!matches) return showNotification('No matches found for the text "original".');
     showNotification(`Found ${matches.items.length} matches for the text "original".`);
     try {
