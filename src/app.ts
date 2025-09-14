@@ -1,5 +1,3 @@
-import { create } from "domain";
-
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     StylePrefix= 'Contrat_',
     RTDropDownTag = 'RTList',
@@ -107,14 +105,14 @@ function prepareTemplate() {
                 const option = createHTMLElement('option', '', style.nameLocal.split(StylePrefix)[1], select) as HTMLOptionElement;
                 option.value = style.nameLocal;
             });
-            //const btn = createHTMLElement('button', '', 'Set Selected Style to all RT Si', container) as HTMLButtonElement;
-            //btn.onclick = apply;
+
+            const range = await getSelectionRange();
+            select.value = Array.from(select.options).find(o=>o.value === range?.style)?.value || 'Style not found in selection';
+            
             select.onchange = apply;
             async function apply(){
-                const style = select.value;
-                const range = await getSelectionRange();
                 if(!range) return;
-                range.style = style;
+                range.style = select.value;;
                 range.untrack();
                 await range.context.sync();
             }

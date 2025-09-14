@@ -1,3 +1,4 @@
+"use strict";
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'], StylePrefix = 'Contrat_', RTDropDownTag = 'RTList', RTDropDownColor = '#991c63', RTDuplicateTag = 'RTRepeat', RTSectionTag = 'RTSection', RTSectionStyle = `${StylePrefix}${RTSectionTag}`, RTSelectTag = 'RTSelect', RTOrTag = 'RTOr', RTObsTag = 'RTObs', RTObsStyle = `${StylePrefix}${RTObsTag}`, RTDescriptionTag = 'RTDesc', RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`, RTSiTag = 'RTSi', RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
 let USERFORM, NOTIFICATION;
 let RichText, RichTextInline, RichTextParag, ComboBox, CheckBox, dropDownList, Bounding, Hidden;
@@ -64,6 +65,7 @@ function prepareTemplate() {
         if (document.getElementById(id))
             return;
         Word.run(async (context) => {
+            var _a;
             const allStyles = context.document.getStyles();
             allStyles.load(['nameLocal']);
             await context.sync();
@@ -76,15 +78,14 @@ function prepareTemplate() {
                 const option = createHTMLElement('option', '', style.nameLocal.split(StylePrefix)[1], select);
                 option.value = style.nameLocal;
             });
-            //const btn = createHTMLElement('button', '', 'Set Selected Style to all RT Si', container) as HTMLButtonElement;
-            //btn.onclick = apply;
+            const range = await getSelectionRange();
+            select.value = ((_a = Array.from(select.options).find(o => o.value === (range === null || range === void 0 ? void 0 : range.style))) === null || _a === void 0 ? void 0 : _a.value) || 'Style not found in selection';
             select.onchange = apply;
             async function apply() {
-                const style = select.value;
-                const range = await getSelectionRange();
                 if (!range)
                     return;
-                range.style = style;
+                range.style = select.value;
+                ;
                 range.untrack();
                 await range.context.sync();
             }
@@ -778,5 +779,4 @@ async function changeAllSameTagCtrlsCannEdit(tag, edit) {
         await context.sync();
     });
 }
-export {};
 //# sourceMappingURL=app.js.map
