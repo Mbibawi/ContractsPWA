@@ -65,7 +65,6 @@ function prepareTemplate() {
         if (document.getElementById(id))
             return;
         Word.run(async (context) => {
-            var _a;
             const allStyles = context.document.getStyles();
             allStyles.load(['nameLocal']);
             await context.sync();
@@ -78,17 +77,22 @@ function prepareTemplate() {
                 const option = createHTMLElement('option', '', style.nameLocal.split(StylePrefix)[1], select);
                 option.value = style.nameLocal;
             });
-            const range = await getSelectionRange();
-            select.value = ((_a = Array.from(select.options).find(o => o.value === (range === null || range === void 0 ? void 0 : range.style))) === null || _a === void 0 ? void 0 : _a.value) || 'Style not found in selection';
-            select.onchange = apply;
-            async function apply() {
+            select.onmouseenter = async () => {
+                var _a;
+                const range = await getSelectionRange();
+                if (!range)
+                    return;
+                select.value = ((_a = Array.from(select.options).find(o => o.value === (range === null || range === void 0 ? void 0 : range.style))) === null || _a === void 0 ? void 0 : _a.value) || range.style;
+                range.untrack();
+            };
+            select.onchange = async () => {
+                const range = await getSelectionRange();
                 if (!range)
                     return;
                 range.style = select.value;
-                ;
                 range.untrack();
                 await range.context.sync();
-            }
+            };
         });
     }
 }

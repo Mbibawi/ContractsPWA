@@ -106,13 +106,18 @@ function prepareTemplate() {
                 option.value = style.nameLocal;
             });
 
-            const range = await getSelectionRange();
-            select.value = Array.from(select.options).find(o=>o.value === range?.style)?.value || 'Style not found in selection';
+            select.onmouseenter = async () => {
+                const range = await getSelectionRange();
+                if (!range) return;
+                select.value = Array.from(select.options).find(o => o.value === range?.style)?.value || range.style;
+                range.untrack();
+
+            }
             
-            select.onchange = apply;
-            async function apply(){
+            select.onchange = async ()=>{
+                const range = await getSelectionRange();
                 if(!range) return;
-                range.style = select.value;;
+                range.style = select.value;
                 range.untrack();
                 await range.context.sync();
             }
