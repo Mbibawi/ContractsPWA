@@ -1,15 +1,16 @@
-const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'];
-const RTDropDownTag = 'RTList';
-const RTDropDownColor = '#991c63';
-const RTDuplicateTag = 'RTRepeat';
-const RTSectionTag = 'RTSection';
-const RTSelectTag = 'RTSelect';
-const RTOrTag = 'RTOr';
-const RTObsTag = 'RTObs';
-const RTDescriptionTag = 'RTDesc';
-const RTDescriptionStyle = 'RTDescription';
-const RTSiTag = 'RTSi';
-const RTSiStyles = ['RTSi0cm', 'RTSi1cm', 'RTSi2cm', 'RTSi3cm', 'RTSi4cm'];
+const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
+    RTDropDownTag = 'RTList',
+    RTDropDownColor = '#991c63',
+    RTDuplicateTag = 'RTRepeat',
+    RTSectionTag = 'RTSection',
+    RTSelectTag = 'RTSelect',
+    RTOrTag = 'RTOr',
+    RTObsTag = 'RTObs',
+    RTDescriptionTag = 'RTDesc',
+    RTDescriptionStyle = 'RTDescription',
+    RTSiTag = 'RTSi',
+    RTSiStyles = ['RTSi0cm', 'RTSi1cm', 'RTSi2cm', 'RTSi3cm', 'RTSi4cm'];
+
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
     RichTextInline: ContentControlType,
@@ -307,7 +308,7 @@ async function promptConfirm(question: string, fun?: Function): Promise<boolean>
 
 async function customizeContract() {
     USERFORM.innerHTML = '';
-    const processed = (ctrl:ContentControl)=>selected.find(t => t.includes(ctrl.title));
+    const processed = (id: number) => selected.find(t => t.includes(id.toString()));
     const TAGS = [...OPTIONS, RTDuplicateTag];
     const props = ['id', 'tag', 'title'];
     const getSelectCtrls = (ctrls: ContentControl[]) => ctrls.filter(ctrl => TAGS.includes(ctrl.tag));
@@ -384,15 +385,15 @@ async function customizeContract() {
         const blocks: (selectBlock | undefined)[] = [];
         try {
             for (const ctrl of selectCtrls) {
-                if(processed(ctrl)) continue;//!We must escape the ctrls that have already been processed
+                if (processed(ctrl.id)) continue;//!We must escape the ctrls that have already been processed
                 if (ctrl.tag === RTDuplicateTag) {
                     await duplicateBlock(ctrl.id);
                     continue
                 };
-                const addBtn = selectCtrls.indexOf(ctrl) +1 === selectCtrls.length;
+                const addBtn = selectCtrls.indexOf(ctrl) + 1 === selectCtrls.length;
                 blocks.push(await insertPromptBlock(ctrl.id, addBtn) || undefined);
             }
-            await btnOnClick(blocks) 
+            await btnOnClick(blocks)
         } catch (error) {
             return showNotification(`Error from showSelectPrompt() = ${error}`)
         }
@@ -413,11 +414,11 @@ async function customizeContract() {
                 label.select();
                 await context.sync();
                 const text = label.text;
-                showNotification(`CtrlSi.text = ${text}`);
+                // showNotification(`CtrlSi.text = ${text}`);
                 label.font.hidden = true;
                 await context.sync();
                 return { ctrl, ...appendHTMLElements(text, ctrl.title, addBtn) } as selectBlock;//The checkBox will have as id the title of the "select" contentcontrol}
-            });  
+            });
         }
     }
 
@@ -447,33 +448,33 @@ async function customizeContract() {
                     if (!ctrl) continue;
                     const subOptions = await getSubOptions(ctrl.id, checked);
                     if (checked)
-                        await isSelected(ctrl.title, subOptions);
-                    else isNotSelected(ctrl.title, subOptions);
+                        await isSelected(ctrl.id, subOptions);
+                    else isNotSelected(ctrl.id, subOptions);
                 }
                 resolve(selected);
             };
         });
     }
 
-    async function isSelected(title: string, subOptions: ContentControl[] | undefined) {
-        selected.push(title);
+    async function isSelected(id: number, subOptions: ContentControl[] | undefined) {
+        selected.push(`${id}`);
         if (subOptions) await showSelectPrompt(subOptions);
     };
 
-    function isNotSelected(title:string, subOptions: ContentControl[]) {
-        const exclude = (title: string) => `!${title}`;
-        selected.push(exclude(title));
+    function isNotSelected(id: number, subOptions: ContentControl[]) {
+        const exclude = (id: number) => `!${id}`;
+        selected.push(exclude(id));
         subOptions
-            .forEach(ctrl => selected.push(exclude(ctrl.title)));
+            .forEach(ctrl => selected.push(exclude(ctrl.id)));
         console.log(selected)
     };
 
-    async function getSubOptions(id: number, directChildren:boolean, children?:ContentControl[]) {
+    async function getSubOptions(id: number, directChildren: boolean, children?: ContentControl[]) {
         if (!children) children = await getChildren();
         if (!directChildren) return getSelectCtrls(children);
         return getSelectCtrls(children).filter(c => c.parentContentControl.id === id);//!We need to make sure we get only the direct children of the ctrl and not all the nested ctrls
         async function getChildren() {
-            return Word.run(async (context)=>{
+            return Word.run(async (context) => {
                 const ctrl = context.document.getContentControls().getById(id);
                 const children = ctrl.getContentControls();
                 children.load([...props, 'parentContentControl'])
@@ -484,9 +485,9 @@ async function customizeContract() {
     }
 
 
-    async function duplicateBlock(id:number) {
+    async function duplicateBlock(id: number) {
         const replace = Word.InsertLocation.replace;
-        const after = Word.InsertLocation.after; 
+        const after = Word.InsertLocation.after;
         try {
             await insertClones();
         } catch (error) {
@@ -494,7 +495,7 @@ async function customizeContract() {
         }
 
         async function insertClones() {
-            await Word.run(async (context) => { 
+            await Word.run(async (context) => {
                 const ctrl = context.document.contentControls.getById(id);
                 ctrl.load(props);
                 const label = labelRange(ctrl, RTSectionTag);
@@ -505,8 +506,8 @@ async function customizeContract() {
                 const answer = Number(await promptForInput(message));
                 if (isNaN(answer))
                     return showNotification(`The provided text cannot be converted into a number: ${answer}`);
-                const title = getCtrlTitle(ctrl.tag, id) 
-                ctrl.title = title ;//!We update the title in case it is no matching the id in the template.
+                const title = `${getCtrlTitle(ctrl.tag, id)}-Cloned ${answer}`
+                ctrl.title = title;//!We must update the title in case it is no matching the id in the template.
                 const ctrlContent = ctrl.getOoxml();
                 label.font.hidden = true;
                 await context.sync();
@@ -526,8 +527,8 @@ async function customizeContract() {
             });
         }
 
-        async function processClone(id:number, i: number) {
-            await Word.run(async (context) => { 
+        async function processClone(id: number, i: number) {
+            await Word.run(async (context) => {
                 const clone = context.document.contentControls.getById(id);
                 clone.load(props);
                 const label = labelRange(clone, RTSectionTag);
@@ -538,23 +539,18 @@ async function customizeContract() {
                 const text = `${label.text} ${i}`;
                 label.insertText(text, replace);
                 label.font.hidden = true;
-                /*
-                children.items
-                    .filter(ctrl => ctrl !== clone)
-                    .forEach(ctrl=>ctrl.title = getCtrlTitle(ctrl.tag, ctrl.id));//!We must update the title of the ctrls in order to udpated them with the new id )
-                */
                 await context.sync();
                 const subOptions = await getSubOptions(clone.id, true);//!We select only the direct select ctrls children
                 const div = createHTMLElement('div', '', text, USERFORM, '', false);
                 await showSelectPrompt(subOptions);
                 div.remove();
             });
-            
+
         };
-        
+
     }
 
-    function labelRange (parent: ContentControl, tag: string){
+    function labelRange(parent: ContentControl, tag: string) {
         const ctrl = getFirstByTag(parent, tag)
         const range = ctrl.getRange('Content');
         ctrl.cannotEdit = false;
@@ -608,7 +604,7 @@ function getCtrlTitle(tag: string, id: number) {
     return `${tag}&${id}`
 }
 
-function getFirstByTag(range:Word.Range|ContentControl, tag:string) {
+function getFirstByTag(range: Word.Range | ContentControl, tag: string) {
     return range.getContentControls().getByTag(tag).getFirst();
 }
 
@@ -683,7 +679,7 @@ async function deleteAllNotSelected(selected: string[], wdDoc: Word.Document | W
 function createHTMLElement(tag: string, css: string, innerText: string, parent?: HTMLElement | Document, id?: string, append: boolean = true) {
     const el = document.createElement(tag);
     if (innerText) el.innerText = innerText;
-    if(css) el.classList.add(css);
+    if (css) el.classList.add(css);
     if (id) el.id = id;
     if (!parent) return el;
     append ? parent.appendChild(el) : parent.prepend(el);

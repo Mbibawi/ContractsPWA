@@ -1,16 +1,5 @@
 "use strict";
-const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'];
-const RTDropDownTag = 'RTList';
-const RTDropDownColor = '#991c63';
-const RTDuplicateTag = 'RTRepeat';
-const RTSectionTag = 'RTSection';
-const RTSelectTag = 'RTSelect';
-const RTOrTag = 'RTOr';
-const RTObsTag = 'RTObs';
-const RTDescriptionTag = 'RTDesc';
-const RTDescriptionStyle = 'RTDescription';
-const RTSiTag = 'RTSi';
-const RTSiStyles = ['RTSi0cm', 'RTSi1cm', 'RTSi2cm', 'RTSi3cm', 'RTSi4cm'];
+const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'], RTDropDownTag = 'RTList', RTDropDownColor = '#991c63', RTDuplicateTag = 'RTRepeat', RTSectionTag = 'RTSection', RTSelectTag = 'RTSelect', RTOrTag = 'RTOr', RTObsTag = 'RTObs', RTDescriptionTag = 'RTDesc', RTDescriptionStyle = 'RTDescription', RTSiTag = 'RTSi', RTSiStyles = ['RTSi0cm', 'RTSi1cm', 'RTSi2cm', 'RTSi3cm', 'RTSi4cm'];
 let USERFORM, NOTIFICATION;
 let RichText, RichTextInline, RichTextParag, ComboBox, CheckBox, dropDownList, Bounding, Hidden;
 Office.onReady((info) => {
@@ -292,7 +281,7 @@ async function promptConfirm(question, fun) {
 ;
 async function customizeContract() {
     USERFORM.innerHTML = '';
-    const processed = (ctrl) => selected.find(t => t.includes(ctrl.title));
+    const processed = (id) => selected.find(t => t.includes(id.toString()));
     const TAGS = [...OPTIONS, RTDuplicateTag];
     const props = ['id', 'tag', 'title'];
     const getSelectCtrls = (ctrls) => ctrls.filter(ctrl => TAGS.includes(ctrl.tag));
@@ -366,7 +355,7 @@ async function customizeContract() {
         const blocks = [];
         try {
             for (const ctrl of selectCtrls) {
-                if (processed(ctrl))
+                if (processed(ctrl.id))
                     continue; //!We must escape the ctrls that have already been processed
                 if (ctrl.tag === RTDuplicateTag) {
                     await duplicateBlock(ctrl.id);
@@ -397,7 +386,7 @@ async function customizeContract() {
                 label.select();
                 await context.sync();
                 const text = label.text;
-                showNotification(`CtrlSi.text = ${text}`);
+                // showNotification(`CtrlSi.text = ${text}`);
                 label.font.hidden = true;
                 await context.sync();
                 return { ctrl, ...appendHTMLElements(text, ctrl.title, addBtn) }; //The checkBox will have as id the title of the "select" contentcontrol}
@@ -431,26 +420,26 @@ async function customizeContract() {
                         continue;
                     const subOptions = await getSubOptions(ctrl.id, checked);
                     if (checked)
-                        await isSelected(ctrl.title, subOptions);
+                        await isSelected(ctrl.id, subOptions);
                     else
-                        isNotSelected(ctrl.title, subOptions);
+                        isNotSelected(ctrl.id, subOptions);
                 }
                 resolve(selected);
             }
             ;
         });
     }
-    async function isSelected(title, subOptions) {
-        selected.push(title);
+    async function isSelected(id, subOptions) {
+        selected.push(`${id}`);
         if (subOptions)
             await showSelectPrompt(subOptions);
     }
     ;
-    function isNotSelected(title, subOptions) {
-        const exclude = (title) => `!${title}`;
-        selected.push(exclude(title));
+    function isNotSelected(id, subOptions) {
+        const exclude = (id) => `!${id}`;
+        selected.push(exclude(id));
         subOptions
-            .forEach(ctrl => selected.push(exclude(ctrl.title)));
+            .forEach(ctrl => selected.push(exclude(ctrl.id)));
         console.log(selected);
     }
     ;
@@ -492,8 +481,8 @@ async function customizeContract() {
                 const answer = Number(await promptForInput(message));
                 if (isNaN(answer))
                     return showNotification(`The provided text cannot be converted into a number: ${answer}`);
-                const title = getCtrlTitle(ctrl.tag, id);
-                ctrl.title = title; //!We update the title in case it is no matching the id in the template.
+                const title = `${getCtrlTitle(ctrl.tag, id)}-Cloned ${answer}`;
+                ctrl.title = title; //!We must update the title in case it is no matching the id in the template.
                 const ctrlContent = ctrl.getOoxml();
                 label.font.hidden = true;
                 await context.sync();
@@ -525,11 +514,6 @@ async function customizeContract() {
                 const text = `${label.text} ${i}`;
                 label.insertText(text, replace);
                 label.font.hidden = true;
-                /*
-                children.items
-                    .filter(ctrl => ctrl !== clone)
-                    .forEach(ctrl=>ctrl.title = getCtrlTitle(ctrl.tag, ctrl.id));//!We must update the title of the ctrls in order to udpated them with the new id )
-                */
                 await context.sync();
                 const subOptions = await getSubOptions(clone.id, true); //!We select only the direct select ctrls children
                 const div = createHTMLElement('div', '', text, USERFORM, '', false);
