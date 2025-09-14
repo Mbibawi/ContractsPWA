@@ -163,8 +163,8 @@ async function searchString(search, matchWildcards, replaceWith, callBack) {
         if (replaceWith) {
             for (const match of searchResults.items)
                 match.insertText(replaceWith, Word.InsertLocation.replace);
-            searchResults = await searchString(replaceWith, false);
             await context.sync();
+            searchResults = await searchString(replaceWith, false);
         }
         if (callBack)
             await callBack(searchResults);
