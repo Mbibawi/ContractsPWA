@@ -104,7 +104,7 @@ function prepareTemplate() {
             USERFORM.insertAdjacentElement('beforebegin', container);
             const select = createHTMLElement('select', '', '', container) as HTMLSelectElement;
             styles.forEach(style => {
-                const option = createHTMLElement('option', '', style.nameLocal, select) as HTMLOptionElement;
+                const option = createHTMLElement('option', '', style.nameLocal.split(StylePrefix)[1], select) as HTMLOptionElement;
                 option.value = style.nameLocal;
             });
             //const btn = createHTMLElement('button', '', 'Set Selected Style to all RT Si', container) as HTMLButtonElement;
