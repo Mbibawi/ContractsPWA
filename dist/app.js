@@ -249,6 +249,7 @@ async function insertDropDownList(range, index = 0) {
     if (!range)
         return;
     range.load(["text"]);
+    range.track();
     await range.context.sync();
     const options = range.text.split("/");
     if (!options.length)

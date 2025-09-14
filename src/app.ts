@@ -284,6 +284,7 @@ async function insertDropDownList(range:Word.Range|void, index: number=0) {
     if(!range) range = await getSelectionRange();
     if (!range) return;
     range.load(["text"]);
+    range.track();
     await range.context.sync();
     const options = range.text.split("/");
     if (!options.length) return showNotification("No options");
