@@ -29,11 +29,10 @@ function mainUI() {
     const main = [[customizeContract, 'Customize Contract'], [prepareTemplate, 'Prepare Template']];
     const btns = showBtns(main);
     const back = [goBack, 'Go Back'];
-    btns.forEach(btn => btn === null || btn === void 0 ? void 0 : btn.addEventListener('click', () => insertBtn(back, false)));
+    btns.forEach(btn => btn?.addEventListener('click', () => insertBtn(back, false)));
     function goBack() {
-        var _a;
         USERFORM.innerHTML = '';
-        (_a = document.getElementById('stylesList')) === null || _a === void 0 ? void 0 : _a.remove();
+        document.getElementById('stylesList')?.remove();
         showBtns(main);
     }
 }
@@ -55,6 +54,7 @@ function prepareTemplate() {
         wrap(RTDuplicateTag, RTDuplicateTag, RichText, null, false, true, 'Insert Single RT Dublicate Block'),
         [insertDropDownList, 'Insert a Dropdown List from selection'],
         wrap(RTObsTag, RTObsTag, RichText, RTObsTag, true, true, 'Insert Single RT Obs'),
+        [insertDroDownListAll, 'Insert DropDown List For All Matches'],
         [insertRTSiAll, 'Insert RT Si For All'],
         [insertRTDescription, 'Insert RT Description For All'],
     ];
@@ -78,11 +78,10 @@ function prepareTemplate() {
                 option.value = style.nameLocal;
             });
             select.onmouseenter = async () => {
-                var _a;
                 const range = await getSelectionRange();
                 if (!range)
                     return;
-                select.value = ((_a = Array.from(select.options).find(o => o.value === (range === null || range === void 0 ? void 0 : range.style))) === null || _a === void 0 ? void 0 : _a.value) || range.style;
+                select.innerText = Array.from(select.options).find(o => o.value === range?.style)?.value || range.style;
                 range.untrack();
             };
             select.onchange = async () => {
@@ -112,15 +111,14 @@ function insertBtn([fun, label], append = true) {
  * @returns A Promise that resolves when the operation is complete.
  */
 async function findTextAndWrapItWithContentControl(styles, title, tag, cannotEdit, cannotDelete) {
-    var _a, _b;
     const separator = '_&_';
-    const search = (_a = (await promptForInput(`Provide the search string. You can provide more than one string to search by separated by ${separator} witohout space`, separator))) === null || _a === void 0 ? void 0 : _a.split(separator);
-    if (!(search === null || search === void 0 ? void 0 : search.length))
+    const search = (await promptForInput(`Provide the search string. You can provide more than one string to search by separated by ${separator} witohout space`, separator))?.split(separator);
+    if (!search?.length)
         return showNotification('The provided search string is not valid');
     const matchWildcards = await promptConfirm('Match Wild Cards');
     if (!styles)
-        styles = ((_b = (await promptForInput(`Provide the styles that that need to be matched separated by ","`))) === null || _b === void 0 ? void 0 : _b.split(',')) || [];
-    if (!(styles === null || styles === void 0 ? void 0 : styles.length))
+        styles = (await promptForInput(`Provide the styles that that need to be matched separated by ","`))?.split(',') || [];
+    if (!styles?.length)
         return showNotification(`The styles[] has 0 length, no styles are included, the function will return`);
     const all = [];
     return await Word.run(async (context) => {
@@ -138,7 +136,7 @@ async function findTextAndWrapItWithContentControl(styles, title, tag, cannotEdi
     });
 }
 async function wrapMatchingStyleRangesWithContentControls(ranges, styles, title, tag, cannotEdit, cannotDelete) {
-    ranges.load(['style', 'text', 'parentContentControlOrNullObject', 'parentContentControlOrNullObject.isNullObject', 'parentContentControlOrNullObject.tag']);
+    ranges.load(['style', 'text', 'parentContentControlOrNullObject', 'parentContentControlOrNullObject.tag']);
     await ranges.context.sync();
     if (!ranges.items.length) {
         showNotification(`No text matching the search string was found in the document.`);
@@ -146,20 +144,25 @@ async function wrapMatchingStyleRangesWithContentControls(ranges, styles, title,
     }
     showNotification(`Found ${ranges.items.length} ranges matching the search string. First range text = ${ranges.items[0].text}`);
     const ctrls = ranges.items.map(async (range, index) => {
-        var _a;
         if (!styles.includes(range.style))
             return;
-        if (((_a = range.parentContentControlOrNullObject) === null || _a === void 0 ? void 0 : _a.tag) === tag)
+        if (range.parentContentControlOrNullObject.tag === tag)
             return;
         return await insertContentControl(range, title, tag, index, RichText, range.style, cannotEdit, cannotDelete);
     });
     return Promise.all(ctrls);
 }
-async function searchString(search, context, matchWildcards) {
+async function searchString(search, context, matchWildcards, replaceWith) {
     const searchResults = context.document.body.search(search, { matchWildcards: matchWildcards });
-    searchResults.load(['style']);
+    searchResults.load(['style', 'text']);
+    searchResults.track();
     await context.sync();
-    return searchResults;
+    if (!replaceWith)
+        return searchResults;
+    for (const range of searchResults.items)
+        range.insertText(replaceWith, Word.InsertLocation.replace);
+    await context.sync();
+    return await searchString(replaceWith, context, false);
 }
 async function addIDtoCtrlTitle(ctrls) {
     ctrls.load(['title', 'id']);
@@ -170,7 +173,6 @@ async function addIDtoCtrlTitle(ctrls) {
     await ctrls.context.sync();
 }
 async function insertRTDescription(selection = false, style = 'Normal') {
-    var _a;
     let ctrls;
     if (selection) {
         const range = await getSelectionRange();
@@ -180,7 +182,7 @@ async function insertRTDescription(selection = false, style = 'Normal') {
     }
     else
         ctrls = await findTextAndWrapItWithContentControl([RTDescriptionStyle], RTDescriptionTag, RTDescriptionTag, true, true);
-    if (!(ctrls === null || ctrls === void 0 ? void 0 : ctrls.length))
+    if (!ctrls?.length)
         return;
     for (const ctrl of ctrls) {
         if (!ctrl)
@@ -190,7 +192,7 @@ async function insertRTDescription(selection = false, style = 'Normal') {
         inserted.style = style;
         inserted.font.bold = true;
     }
-    await ((_a = ctrls[0]) === null || _a === void 0 ? void 0 : _a.context.sync());
+    await ctrls[0]?.context.sync();
 }
 async function insertRTSiAll() {
     await Word.run(async (context) => {
@@ -220,12 +222,31 @@ async function insertRTSiAll() {
         await context.sync();
     });
 }
-async function insertDropDownList() {
+async function insertDroDownListAll() {
     const range = await getSelectionRange();
     if (!range)
         return;
     range.load(["text"]);
-    range.context.trackedObjects.add(range); //!This is important
+    await range.context.sync();
+    const original = range.text.replaceAll('/', '');
+    const matches = await searchString(original, range.context, false, range.text);
+    if (!matches)
+        return showNotification('No matches found for the text "original".');
+    showNotification(`Found ${matches.items.length} matches for the text "original".`);
+    try {
+        for (const match of matches.items)
+            await insertDropDownList(match);
+    }
+    catch (error) {
+        showNotification(`Error from insertDropDownList = ${error}`);
+    }
+}
+async function insertDropDownList(range) {
+    if (!range)
+        range = await getSelectionRange();
+    if (!range)
+        return;
+    range.load(["text"]);
     await range.context.sync();
     const options = range.text.split("/");
     if (!options.length)
@@ -260,7 +281,7 @@ async function insertContentControl(range, title, tag, index, type, style, canno
         ctrl.tag = tag;
         ctrl.appearance = Word.ContentControlAppearance.boundingBox;
         const foundStyle = styles.items.find(s => s.nameLocal === style);
-        if (style && (foundStyle === null || foundStyle === void 0 ? void 0 : foundStyle.type) === Word.StyleType.character)
+        if (style && foundStyle?.type === Word.StyleType.character)
             ctrl.style = style;
         if (style)
             ctrl.getRange().style = style;
@@ -445,15 +466,14 @@ async function customizeContract() {
     }
     function btnOnClick(blocks) {
         return new Promise((resolve, reject) => {
-            var _a;
-            const btn = (_a = blocks.find(container => container === null || container === void 0 ? void 0 : container.btnNext)) === null || _a === void 0 ? void 0 : _a.btnNext;
+            const btn = blocks.find(container => container?.btnNext)?.btnNext;
             !btn ? resolve(selected) : btn.onclick = processBlocks;
             async function processBlocks() {
                 const values = blocks
-                    .filter(block => (block === null || block === void 0 ? void 0 : block.ctrl) && block.checkBox)
+                    .filter(block => block?.ctrl && block.checkBox)
                     //@ts-ignore
                     .map(block => [block.ctrl, block.checkBox.checked]);
-                blocks.forEach(block => block === null || block === void 0 ? void 0 : block.container.remove()); //We start by removing all the containers
+                blocks.forEach(block => block?.container.remove()); //We start by removing all the containers
                 for (const [ctrl, checked] of values) {
                     if (!ctrl)
                         continue;

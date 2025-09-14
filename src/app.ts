@@ -82,6 +82,7 @@ function prepareTemplate() {
         wrap(RTDuplicateTag, RTDuplicateTag, RichText, null, false, true, 'Insert Single RT Dublicate Block'),
         [insertDropDownList, 'Insert a Dropdown List from selection'],
         wrap(RTObsTag, RTObsTag, RichText, RTObsTag, true, true, 'Insert Single RT Obs'),
+        [insertDroDownListAll, 'Insert DropDown List For All Matches'],
         [insertRTSiAll, 'Insert RT Si For All'],
         [insertRTDescription, 'Insert RT Description For All'],
     ] as [Function, string][];
@@ -109,9 +110,8 @@ function prepareTemplate() {
             select.onmouseenter = async () => {
                 const range = await getSelectionRange();
                 if (!range) return;
-                select.value = Array.from(select.options).find(o => o.value === range?.style)?.value || range.style;
+                select.innerText = Array.from(select.options).find(o => o.value === range?.style)?.value || range.style;
                 range.untrack();
-
             }
             
             select.onchange = async ()=>{
@@ -168,7 +168,7 @@ async function findTextAndWrapItWithContentControl(styles: string[], title: stri
 
 async function wrapMatchingStyleRangesWithContentControls(ranges: Word.RangeCollection, styles: string[], title: string, tag: string, cannotEdit: boolean, cannotDelete: boolean) {
 
-    ranges.load(['style', 'text', 'parentContentControlOrNullObject', 'parentContentControlOrNullObject.isNullObject', 'parentContentControlOrNullObject.tag']);
+    ranges.load(['style', 'text', 'parentContentControlOrNullObject', 'parentContentControlOrNullObject.tag']);
 
     await ranges.context.sync();
     if (!ranges.items.length) {
@@ -180,17 +180,22 @@ async function wrapMatchingStyleRangesWithContentControls(ranges: Word.RangeColl
 
     const ctrls = ranges.items.map(async (range, index) => {
         if (!styles.includes(range.style)) return;
-        if (range.parentContentControlOrNullObject?.tag === tag) return;
+        if (range.parentContentControlOrNullObject.tag === tag) return;
         return await insertContentControl(range, title, tag, index, RichText, range.style, cannotEdit, cannotDelete)
     });
     return Promise.all(ctrls);
 }
 
-async function searchString(search: string, context: Word.RequestContext, matchWildcards: boolean) {
+async function searchString(search: string, context: Word.RequestContext, matchWildcards: boolean, replaceWith?:string) {
     const searchResults = context.document.body.search(search, { matchWildcards: matchWildcards });
-    searchResults.load(['style']);
+    searchResults.load(['style', 'text']);
+    searchResults.track();
     await context.sync();
-    return searchResults
+    if (!replaceWith) return searchResults;
+    for (const range of searchResults.items) 
+        range.insertText(replaceWith, Word.InsertLocation.replace);
+    await context.sync();
+    return await searchString(replaceWith, context, false)
 }
 
 async function addIDtoCtrlTitle(ctrls: Word.ContentControlCollection) {
@@ -252,13 +257,28 @@ async function insertRTSiAll() {
 
     })
 }
-async function insertDropDownList() {
+
+async function insertDroDownListAll() {
     const range = await getSelectionRange();
     if (!range) return;
     range.load(["text"]);
-    range.context.trackedObjects.add(range);//!This is important
     await range.context.sync();
-
+    const original = range.text.replaceAll('/', '');
+    const matches = await searchString(original, range.context, false, range.text);
+    if (!matches) return showNotification('No matches found for the text "original".');
+    showNotification(`Found ${matches.items.length} matches for the text "original".`);
+    try {
+        for (const match of matches.items)
+            await insertDropDownList(match);
+    } catch (error) {
+        showNotification(`Error from insertDropDownList = ${error}` )
+    }
+}
+async function insertDropDownList(range:Word.Range|void) {
+    if(!range) range = await getSelectionRange();
+    if (!range) return;
+    range.load(["text"]);
+    await range.context.sync();
     const options = range.text.split("/");
     if (!options.length) return showNotification("No options");
     showNotification(options.join());
