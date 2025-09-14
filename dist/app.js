@@ -165,7 +165,7 @@ async function searchString(search, matchWildcards, replaceWith) {
         for (const range of searchResults.items)
             range.insertText(replaceWith, Word.InsertLocation.replace);
         await context.sync();
-        return searchString(replaceWith, false);
+        return await searchString(replaceWith, false);
     });
 }
 async function addIDtoCtrlTitle(ctrls) {

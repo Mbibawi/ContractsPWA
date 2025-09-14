@@ -197,7 +197,7 @@ async function searchString(search: string, matchWildcards: boolean, replaceWith
         for (const range of searchResults.items) 
             range.insertText(replaceWith, Word.InsertLocation.replace);
         await context.sync();
-        return searchString(replaceWith, false);
+        return await searchString(replaceWith, false);
     })
 }
 
