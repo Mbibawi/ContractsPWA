@@ -154,7 +154,7 @@ async function wrapMatchingStyleRangesWithContentControls(ranges, styles, title,
     });
     return Promise.all(ctrls);
 }
-async function searchString(search, matchWildcards, replaceWith, callBack) {
+async function searchString(search, matchWildcards, replaceWith) {
     return await Word.run(async (context) => {
         let searchResults = context.document.body.search(search, { matchWildcards: matchWildcards });
         searchResults.load(['style', 'text']);
@@ -164,10 +164,7 @@ async function searchString(search, matchWildcards, replaceWith, callBack) {
             for (const match of searchResults.items)
                 match.insertText(replaceWith, Word.InsertLocation.replace);
             await context.sync();
-            searchResults = await searchString(replaceWith, false);
         }
-        if (callBack)
-            await callBack(searchResults);
         return searchResults;
     });
 }
@@ -236,20 +233,14 @@ async function insertDroDownListAll(index) {
     range.load(["text"]);
     await range.context.sync();
     const original = range.text.replaceAll('/', '');
-    //const matches = await searchString(original, false, range.text);
-    //if (!matches) return showNotification('No matches found for the text "original".');
-    //showNotification(`Found ${matches.items.length} matches for the text "original".`);
     try {
-        await searchString(original, false, range.text, insertForMatch);
-        //for (const match of matches.items)
-        //    await insertDropDownList(match, matches.items.indexOf(match) +1);
+        await searchString(original, false, range.text);
+        const matches = await searchString(range.text, false);
+        for (const match of matches.items)
+            await insertDropDownList(match, matches.items.indexOf(match) + 1);
     }
     catch (error) {
         showNotification(`Error from insertDropDownList = ${error}`);
-    }
-    async function insertForMatch(matches) {
-        for (const match of matches.items)
-            await insertDropDownList(match, matches.items.indexOf(match) + 1);
     }
 }
 async function insertDropDownList(range, index = 0) {
