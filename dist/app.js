@@ -273,6 +273,7 @@ async function insertContentControl(range, title, tag, index = 1, type, style, c
     //@ts-expect-error
     const ctrl = range.insertContentControl(type);
     ctrl.load(['id']);
+    ctrl.track();
     await range.context.sync();
     // Set properties for the new content control.
     if (ctrl.id)
@@ -289,7 +290,7 @@ async function insertContentControl(range, title, tag, index = 1, type, style, c
             ctrl.getRange().style = style;
         ctrl.cannotDelete = cannotDelete;
         ctrl.cannotEdit = cannotEdit; //!This must come at the end after the style has been set.
-        await range.context.sync();
+        await ctrl.context.sync();
         showNotification(`Wrapped text in range ${index} with a content control.`);
         return ctrl;
     }

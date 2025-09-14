@@ -302,6 +302,7 @@ async function insertContentControl(range: Word.Range, title: string, tag: strin
         //@ts-expect-error
         const ctrl = range.insertContentControl(type);
         ctrl.load(['id']);
+        ctrl.track();
         await range.context.sync();
         // Set properties for the new content control.
         if (ctrl.id) console.log(`the newly created ContentControl id = ${ctrl.id} `);
@@ -316,7 +317,7 @@ async function insertContentControl(range: Word.Range, title: string, tag: strin
             if (style) ctrl.getRange().style = style;
             ctrl.cannotDelete = cannotDelete;
             ctrl.cannotEdit = cannotEdit;//!This must come at the end after the style has been set.
-            await range.context.sync();
+            await ctrl.context.sync();
             showNotification(`Wrapped text in range ${index} with a content control.`);
             return ctrl;
         } catch (error) {
