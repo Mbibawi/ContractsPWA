@@ -187,17 +187,21 @@ async function wrapMatchingStyleRangesWithContentControls(ranges: Word.RangeColl
     return Promise.all(ctrls);
 }
 
-async function searchString(search: string, matchWildcards: boolean, replaceWith?:string):Promise<Word.RangeCollection> {
+async function searchString(search: string, matchWildcards: boolean, replaceWith?:string, callBack?:Function):Promise<Word.RangeCollection> {
     return await Word.run(async (context)=>{
-        const searchResults = context.document.body.search(search, { matchWildcards: matchWildcards });
+        let searchResults = context.document.body.search(search, { matchWildcards: matchWildcards });
         searchResults.load(['style', 'text']);
         searchResults.track();
         await context.sync();
-        if (!replaceWith) return searchResults;
-        for (const range of searchResults.items) 
-            range.insertText(replaceWith, Word.InsertLocation.replace);
-        await context.sync();
-        return await searchString(replaceWith, false);
+        if (replaceWith) {
+            for (const match of searchResults.items) 
+                match.insertText(replaceWith, Word.InsertLocation.replace);
+            searchResults.load(['text', 'style']);
+            await context.sync();
+        }
+        if (callBack) await callBack(searchResults);
+        
+        return searchResults
     })
 }
 
@@ -267,14 +271,21 @@ async function insertDroDownListAll(index?: number) {
     range.load(["text"]);
     await range.context.sync();
     const original = range.text.replaceAll('/', '');
-    const matches = await searchString(original, false, range.text);
-    if (!matches) return showNotification('No matches found for the text "original".');
-    showNotification(`Found ${matches.items.length} matches for the text "original".`);
+    
+    //const matches = await searchString(original, false, range.text);
+    //if (!matches) return showNotification('No matches found for the text "original".');
+    //showNotification(`Found ${matches.items.length} matches for the text "original".`);
     try {
-        for (const match of matches.items)
-            await insertDropDownList(match, matches.items.indexOf(match) +1);
+        await searchString(original, false, range.text, insertForMatch);
+        //for (const match of matches.items)
+        //    await insertDropDownList(match, matches.items.indexOf(match) +1);
     } catch (error) {
         showNotification(`Error from insertDropDownList = ${error}` )
+    }
+
+    async function insertForMatch(matches: Word.RangeCollection){ 
+        for (const match of matches.items)
+            await insertDropDownList(match, matches.items.indexOf(match) +1);
     }
 }
 async function insertDropDownList(range:Word.Range|void, index: number=0) {
