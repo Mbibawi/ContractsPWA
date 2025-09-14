@@ -297,15 +297,15 @@ async function customizeContract() {
     const props = ['id', 'tag', 'title'];
     const getSelectCtrls = (ctrls) => ctrls.filter(ctrl => TAGS.includes(ctrl.tag));
     const selected = [];
-    await selectCtrls();
-    async function selectCtrls() {
+    await loopSelectCtrls();
+    async function loopSelectCtrls() {
         await Word.run(async (context) => {
             const allRT = context.document.getContentControls();
             allRT.load(props);
             await context.sync();
             const selectCtrls = getSelectCtrls(allRT.items);
             for (const ctrl of selectCtrls)
-                await promptForSelection(ctrl, selected);
+                await promptForSelection(ctrl);
             const keep = selected.filter(title => !title.startsWith('!'));
             showNotification(`keep = ${keep.join(', ')}`);
             try {
@@ -353,7 +353,7 @@ async function customizeContract() {
             }
         });
     }
-    async function promptForSelection(ctrl, selected) {
+    async function promptForSelection(ctrl) {
         try {
             ctrl.select();
             await showSelectPrompt([ctrl]);
@@ -362,7 +362,7 @@ async function customizeContract() {
             showNotification(`Error from promptForSelection() = ${error}`);
         }
     }
-    async function showSelectPrompt(selectCtrls, labelTag = RTSiTag) {
+    async function showSelectPrompt(selectCtrls) {
         const blocks = [];
         try {
             for (const ctrl of selectCtrls) {
@@ -374,7 +374,7 @@ async function customizeContract() {
                 }
                 ;
                 const addBtn = selectCtrls.indexOf(ctrl) + 1 === selectCtrls.length;
-                blocks.push(await insertPromptBlock(ctrl.id, addBtn, labelTag) || undefined);
+                blocks.push(await insertPromptBlock(ctrl.id, addBtn) || undefined);
             }
             await btnOnClick(blocks);
         }
@@ -382,7 +382,7 @@ async function customizeContract() {
             return showNotification(`Error from showSelectPrompt() = ${error}`);
         }
     }
-    async function insertPromptBlock(id, addBtn, labelTag) {
+    async function insertPromptBlock(id, addBtn) {
         try {
             return await wordRun();
         }
@@ -390,21 +390,15 @@ async function customizeContract() {
             return showNotification(`Error from insertPromptBlock() = ${error}`);
         }
         async function wordRun() {
-            await Word.run(async (context) => {
+            return await Word.run(async (context) => {
                 const ctrl = context.document.contentControls.getById(id);
                 ctrl.load(props);
-                const ctrlSi = getFirstByTag(ctrl, labelTag);
-                ctrlSi.load(props);
-                ctrlSi.select();
-                ctrlSi.cannotEdit = false; //!We must unlock the text in order to be able to change the font.hidden property
-                const rangeSi = ctrlSi.getRange();
-                rangeSi.font.hidden = false; //!We must set the hidden proeprty to false before reading the text proprety.
-                rangeSi.load(['text']);
+                const label = labelRange(ctrl, RTSiTag);
+                label.select();
                 await context.sync();
-                const text = rangeSi.text;
+                const text = label.text;
                 showNotification(`CtrlSi.text = ${text}`);
-                rangeSi.font.hidden = true;
-                ctrlSi.cannotEdit = true;
+                label.font.hidden = true;
                 await context.sync();
                 return { ctrl, ...appendHTMLElements(text, ctrl.title, addBtn) }; //The checkBox will have as id the title of the "select" contentcontrol}
             });
@@ -465,14 +459,14 @@ async function customizeContract() {
             children = await getChildren();
         if (!directChildren)
             return getSelectCtrls(children);
-        return getSelectCtrls(children).filter(c => { var _a; return ((_a = c.parentContentControl) === null || _a === void 0 ? void 0 : _a.id) === id; }); //!We need to make sure we get only the direct children of the ctrl and not all the nested ctrls
+        return getSelectCtrls(children).filter(c => c.parentContentControl.id === id); //!We need to make sure we get only the direct children of the ctrl and not all the nested ctrls
         async function getChildren() {
             return Word.run(async (context) => {
                 const ctrl = context.document.getContentControls().getById(id);
-                const children = ctrl === null || ctrl === void 0 ? void 0 : ctrl.getContentControls();
+                const children = ctrl.getContentControls();
                 children.load([...props, 'parentContentControl']);
                 await context.sync();
-                return children.items;
+                return children.items.filter(c => c.id !== id); //!We must exclude the ctrl itself which in some cases may be returned as part of its children due to a bug in Word API
             });
         }
     }
@@ -489,9 +483,7 @@ async function customizeContract() {
             await Word.run(async (context) => {
                 const ctrl = context.document.contentControls.getById(id);
                 ctrl.load(props);
-                const label = getFirstByTag(ctrl, RTSectionTag).getRange('Content');
-                label.font.hidden = false;
-                label.load(['text']);
+                const label = labelRange(ctrl, RTSectionTag);
                 await context.sync();
                 if (!label.text)
                     return showNotification("No lable text");
@@ -503,7 +495,8 @@ async function customizeContract() {
                 const title = getCtrlTitle(ctrl.tag, id);
                 ctrl.title = title; //!We update the title in case it is no matching the id in the template.
                 const ctrlContent = ctrl.getOoxml();
-                await ctrl.context.sync();
+                label.font.hidden = true;
+                await context.sync();
                 for (let i = 1; i < answer; i++)
                     ctrl.getRange().insertOoxml(ctrlContent.value, after);
                 const clones = ctrl.context.document.getContentControls().getByTitle(title);
@@ -524,30 +517,35 @@ async function customizeContract() {
             await Word.run(async (context) => {
                 const clone = context.document.contentControls.getById(id);
                 clone.load(props);
+                const label = labelRange(clone, RTSectionTag);
                 const children = clone.getContentControls();
                 children.load(props);
-                const label = getFirstByTag(clone, RTSectionTag);
-                label.cannotEdit = false;
-                const range = label.getRange('Content');
-                range.font.hidden = false;
-                range.load(['text']);
                 await context.sync();
                 clone.title = `${getCtrlTitle(clone.tag, clone.id)}-${i}`;
-                const text = `${range.text} ${i}`;
-                range.insertText(text, replace);
-                range.font.hidden = true;
-                label.cannotEdit = true;
+                const text = `${label.text} ${i}`;
+                label.insertText(text, replace);
+                label.font.hidden = true;
+                /*
                 children.items
                     .filter(ctrl => ctrl !== clone)
-                    .forEach(ctrl => ctrl.title = getCtrlTitle(ctrl.tag, ctrl.id)); //!We must update the title of the ctrls in order to udpated them with the new id )
+                    .forEach(ctrl=>ctrl.title = getCtrlTitle(ctrl.tag, ctrl.id));//!We must update the title of the ctrls in order to udpated them with the new id )
+                */
                 await context.sync();
-                const subOptions = await getSubOptions(clone.id, true, children.items); //!We select only the direct select ctrls children
+                const subOptions = await getSubOptions(clone.id, true); //!We select only the direct select ctrls children
                 const div = createHTMLElement('div', '', text, USERFORM, '', false);
                 await showSelectPrompt(subOptions);
                 div.remove();
             });
         }
         ;
+    }
+    function labelRange(parent, tag) {
+        const ctrl = getFirstByTag(parent, tag);
+        const range = ctrl.getRange('Content');
+        ctrl.cannotEdit = false;
+        range.font.hidden = false;
+        range.load(['text']);
+        return range;
     }
     function getFileURL() {
         let url;
