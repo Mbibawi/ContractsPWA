@@ -192,12 +192,11 @@ async function searchString(search: string, context:Word.RequestContext, matchWi
         searchResults.load(['style', 'text']);
         searchResults.track();
         await context.sync();
-        if (replaceWith) {
-            for (const match of searchResults.items) 
-                match.insertText(replaceWith, Word.InsertLocation.replace);
-            await context.sync();
-        }
-        return searchResults
+        if (!replaceWith) return searchResults;
+        for (const match of searchResults.items) 
+        match.insertText(replaceWith, Word.InsertLocation.replace);
+        await context.sync();
+        return await searchString(replaceWith, context, false)
 }
 
 async function addIDtoCtrlTitle(ctrls: Word.ContentControlCollection) {
@@ -265,18 +264,18 @@ async function insertDroDownListAll(index?: number) {
     if (!range) return;
     range.load(["text"]);
     await range.context.sync();
-    const original = range.text.replaceAll('/', '');
-    
-    try {
-        await searchString(original, range.context, false, range.text);
-        const matches = await searchString(range.text, range.context, false);
-        for (const match of matches.items)
-            await insertDropDownList(match, matches.items.indexOf(match) +1);
-    } catch (error) {
-        showNotification(`Error from insertDropDownList = ${error}` )
-    }
+    const text = range.text;
+    const find = text.split('/').join('');
 
-
+    await Word.run(async (context) => {
+        try {
+            const matches = await searchString(find, context, false, text);
+            for (const match of matches.items)
+                await insertDropDownList(match, matches.items.indexOf(match) + 1);
+        } catch (error) {
+            showNotification(`Error from insertDropDownList = ${error}`)
+        }
+    });   
 }
 async function insertDropDownList(range:Word.Range|void, index: number=0) {
     if(!range) range = await getSelectionRange();
