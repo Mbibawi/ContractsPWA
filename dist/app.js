@@ -338,7 +338,7 @@ async function promptConfirm(question, fun) {
     }
 }
 ;
-async function customizeContract(showNested) {
+async function customizeContract(showNested = false) {
     USERFORM.innerHTML = '';
     const processed = (id) => selected.find(t => t.includes(id.toString()));
     const TAGS = [...OPTIONS, RTDuplicateTag];
@@ -624,6 +624,7 @@ async function customizeContract(showNested) {
             return showNotification(`Ctrl is not a select control. Its tag is ${ctrl.tag}`);
         const subOptions = await getSubOptions(ctrl.id, true);
         await showSelectPrompt(subOptions);
+        prepareTemplate();
     }
 }
 ;
