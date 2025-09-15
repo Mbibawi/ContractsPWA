@@ -111,7 +111,8 @@ function prepareTemplate() {
             select.onmouseenter = async () => {
                 const range = await getSelectionRange();
                 if (!range) return;
-                select.value = Array.from(select.options).find(o => o.value === range?.style)?.value || range.style;
+                const value = Array.from(select.options).find(o => o.value === range?.style)?.value || range.style;
+                if (value) select.value = value;
                 range.untrack();
             }
             
