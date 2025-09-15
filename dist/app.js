@@ -83,7 +83,7 @@ function prepareTemplate() {
                 const range = await getSelectionRange();
                 if (!range)
                     return;
-                select.innerText = Array.from(select.options).find(o => o.value === range?.style)?.value || range.style;
+                select.value = Array.from(select.options).find(o => o.value === range?.style)?.value || range.style;
                 range.untrack();
             };
             select.onchange = async () => {
@@ -166,15 +166,8 @@ async function searchString(search, context, matchWildcards, replaceWith) {
     await context.sync();
     return await searchString(replaceWith, context, false);
 }
-async function addIDtoCtrlTitle(ctrls) {
-    ctrls.load(['title', 'id']);
-    await ctrls.context.sync();
-    ctrls.items
-        .filter(ctrl => !ctrl.title.endsWith(`-${ctrl.id}`))
-        .forEach(ctrl => ctrl.title = getCtrlTitle(ctrl.tag, ctrl.id));
-    await ctrls.context.sync();
-}
 async function insertRTDescription(selection = false, style = 'Normal') {
+    NOTIFICATION.innerHTML = '';
     let ctrls;
     if (selection) {
         const range = await getSelectionRange();
@@ -197,6 +190,7 @@ async function insertRTDescription(selection = false, style = 'Normal') {
     await ctrls[0]?.context.sync();
 }
 async function insertRTSiAll() {
+    NOTIFICATION.innerHTML = '';
     await Word.run(async (context) => {
         const paragraphs = context.document.body.paragraphs;
         paragraphs.load(['style', 'text', 'range', 'parentContentControlOrNullObject']);
@@ -225,6 +219,7 @@ async function insertRTSiAll() {
     });
 }
 async function insertDroDownListAll(index) {
+    NOTIFICATION.innerHTML = '';
     const range = await getSelectionRange();
     if (!range)
         return;
@@ -726,49 +721,6 @@ async function setCanBeEditedForAllSelectCtrls(edit = true) {
         await context.sync();
     });
 }
-function deleteCtrlById() {
-    Word.run(async (context) => {
-        let title = await promptForInput('Provide the title or the id of the control. If you provide the title, the id will be extracted from it');
-        if (!title)
-            return showNotification(`You did not provide a valid id or title: ${title}`);
-        if (title.includes('&'))
-            title = title.split('&')[1];
-        const id = Number(title);
-        if (isNaN(id))
-            return showNotification(`The id could not be extracted from the title: ${title}`);
-        const ctrl = context.document.contentControls.getById(id);
-        const ctrls = ctrl.getContentControls();
-        ctrls.load(['tag', 'id']);
-        await context.sync();
-        console.log('Ctrls = ', ctrls.items.map(c => c.tag));
-        ctrl.cannotDelete = false;
-        ctrls.items.forEach(ctrl => ctrl.cannotDelete = false);
-        ctrl.delete(false);
-        await context.sync();
-    });
-}
-function updateAllCtrlsTitles() {
-    Word.run(async (context) => {
-        const ctrls = context.document.getContentControls();
-        ctrls.load(['title', 'tag', 'id']);
-        await context.sync();
-        ctrls.items
-            .filter(ctrl => ctrl.tag)
-            .forEach(ctrl => ctrl.title = getCtrlTitle(ctrl.tag, ctrl.id));
-        await context.sync();
-    });
-}
-async function selectAllCtrlsByTag(tag, color) {
-    Word.run(async (context) => {
-        const ctrls = context.document.getContentControls();
-        ctrls.load(['tag']);
-        await context.sync();
-        const sameTag = ctrls.items.filter(c => c.tag === tag);
-        await setCtrlsColor(sameTag, color);
-        await setCtrlsFontColor(sameTag, color);
-        await context.sync();
-    });
-}
 async function setCtrlsColor(ctrls, color) {
     ctrls.forEach(ctrl => ctrl.color = color);
 }
@@ -791,19 +743,10 @@ async function removeRTs(tags) {
             ctrls.items.forEach(ctrl => {
                 ctrl.select();
                 ctrl.cannotDelete = false;
-                ctrl.delete(tag === RTDropDownTag);
+                ctrl.delete(tag === RTDropDownTag); //!We keep the content of the dropdown ctrls
             });
             await context.sync();
         }
-    });
-}
-async function changeAllSameTagCtrlsCannEdit(tag, edit) {
-    Word.run(async (context) => {
-        const ctrls = context.document.getContentControls().getByTag(tag);
-        ctrls.load('tag');
-        await context.sync();
-        ctrls.items.forEach(ctrl => ctrl.cannotEdit = edit);
-        await context.sync();
     });
 }
 //# sourceMappingURL=app.js.map
