@@ -338,13 +338,15 @@ async function promptConfirm(question, fun) {
     }
 }
 ;
-async function customizeContract() {
+async function customizeContract(showNested) {
     USERFORM.innerHTML = '';
     const processed = (id) => selected.find(t => t.includes(id.toString()));
     const TAGS = [...OPTIONS, RTDuplicateTag];
     const props = ['id', 'tag', 'title'];
     const getSelectCtrls = (ctrls) => ctrls.filter(ctrl => TAGS.includes(ctrl.tag));
     const selected = [];
+    if (showNested)
+        return await showNestedOptionsTree();
     await loopSelectCtrls();
     async function loopSelectCtrls() {
         await Word.run(async (context) => {
@@ -606,6 +608,22 @@ async function customizeContract() {
         catch (error) {
             showNotification(`Failed to create new Doc: ${error}`);
         }
+    }
+    async function showNestedOptionsTree() {
+        const selection = await getSelectionRange();
+        if (!selection)
+            return;
+        selection.load(['parentContentControlOrNullObject', 'parentContentControlOrNullObject.id']);
+        await selection.context.sync();
+        if (selection.parentContentControlOrNullObject.isNullObject)
+            return showNotification('The selection is not inside a content control');
+        const ctrl = selection.parentContentControl;
+        ctrl.load(props);
+        await ctrl.context.sync();
+        if (!TAGS.includes(ctrl.tag))
+            return showNotification(`Ctrl is not a select control. Its tag is ${ctrl.tag}`);
+        const subOptions = await getSubOptions(ctrl.id, true);
+        await showSelectPrompt(subOptions);
     }
 }
 ;
