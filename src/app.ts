@@ -642,9 +642,9 @@ async function customizeContract(showNested:boolean) {
     async function showNestedOptionsTree(){
         const selection = await getSelectionRange();
         if (!selection) return;
-        selection.load(['parentContentControl']);
+        selection.load(['parentContentControlOrNullObject']);
         await selection.context.sync();
-        const ctrl = selection.parentContentControl;
+        const ctrl = selection.parentContentControlOrNullObject;
         ctrl.load(props);
         await ctrl.context.sync();
         if(!ctrl.id) return showNotification('The selection is not inside a content control');
