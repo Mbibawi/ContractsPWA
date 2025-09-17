@@ -59,7 +59,7 @@ function prepareTemplate() {
         [insertRTDescription, 'Insert RT Description For All'],
     ];
     showBtns(btns);
-    showBtns([[() => customizeContract(true), 'Show Nested Options Tree']], true, 'dblclick');
+    showBtns([[() => customizeContract(true), 'Show Nested Options Tree']], true);
     showStylesList();
     function showStylesList() {
         const id = 'stylesList';
@@ -613,19 +613,23 @@ async function customizeContract(showNested = false) {
     async function showNestedOptionsTree() {
         const selection = await getSelectionRange();
         if (!selection)
-            return;
+            return prepareTemplate();
         selection.load(['parentContentControlOrNullObject']);
         await selection.context.sync();
         const ctrl = selection.parentContentControlOrNullObject;
         ctrl.load(props);
         await ctrl.context.sync();
         if (!ctrl.id)
-            return showNotification('The selection is not inside a content control');
+            return failed('The selection is not inside a content control');
         if (!TAGS.includes(ctrl.tag))
-            return showNotification(`Ctrl is not a select control. Its tag is ${ctrl.tag}`);
+            return failed(`Ctrl is not a select control. Its tag is ${ctrl.tag}`);
         const subOptions = await getSubOptions(ctrl.id, true);
         await showSelectPrompt(subOptions);
         prepareTemplate();
+        function failed(message) {
+            showNotification(message);
+            prepareTemplate();
+        }
     }
 }
 ;
