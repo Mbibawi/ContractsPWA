@@ -43,8 +43,8 @@ Office.onReady((info) => {
     mainUI();
 });
 
-function showBtns(btns: Btn[], append = true) {
-    return btns.map(btn => insertBtn(btn, append))
+function showBtns(btns: Btn[], append = true, on: string = 'click') {
+    return btns.map(btn => insertBtn(btn, append, on))
 };
 
 function mainUI() {
@@ -88,6 +88,7 @@ function prepareTemplate() {
     ] as [Function, string][];
 
     showBtns(btns);
+    showBtns([[()=>customizeContract(true), 'Show Nested Options Tree']], true, 'dblclick');
     showStylesList();
 
     function showStylesList() {
@@ -128,12 +129,12 @@ function prepareTemplate() {
     }
 }
 
-function insertBtn([fun, label]: Btn, append: boolean = true) {
+function insertBtn([fun, label]: Btn, append: boolean = true, on:string='click') {
     if (!USERFORM) return;
     const htmlBtn = document.createElement('button');
     append ? USERFORM.appendChild(htmlBtn) : USERFORM.prepend(htmlBtn);
     htmlBtn.innerText = label;
-    htmlBtn.addEventListener('click', () => fun());
+    htmlBtn.addEventListener(on, () => fun());
     return htmlBtn
 }
 

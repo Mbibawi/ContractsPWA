@@ -18,8 +18,8 @@ Office.onReady((info) => {
     Hidden = Word.ContentControlAppearance.hidden;
     mainUI();
 });
-function showBtns(btns, append = true) {
-    return btns.map(btn => insertBtn(btn, append));
+function showBtns(btns, append = true, on = 'click') {
+    return btns.map(btn => insertBtn(btn, append, on));
 }
 ;
 function mainUI() {
@@ -59,6 +59,7 @@ function prepareTemplate() {
         [insertRTDescription, 'Insert RT Description For All'],
     ];
     showBtns(btns);
+    showBtns([[() => customizeContract(true), 'Show Nested Options Tree']], true, 'dblclick');
     showStylesList();
     function showStylesList() {
         const id = 'stylesList';
@@ -99,13 +100,13 @@ function prepareTemplate() {
         });
     }
 }
-function insertBtn([fun, label], append = true) {
+function insertBtn([fun, label], append = true, on = 'click') {
     if (!USERFORM)
         return;
     const htmlBtn = document.createElement('button');
     append ? USERFORM.appendChild(htmlBtn) : USERFORM.prepend(htmlBtn);
     htmlBtn.innerText = label;
-    htmlBtn.addEventListener('click', () => fun());
+    htmlBtn.addEventListener(on, () => fun());
     return htmlBtn;
 }
 /**
