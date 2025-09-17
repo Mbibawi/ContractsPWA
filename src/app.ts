@@ -643,11 +643,10 @@ async function customizeContract(showNested:boolean=false) {
     async function showNestedOptionsTree() {
         const selection = await getSelectionRange();
         if (!selection) return prepareTemplate();
-        selection.load(['parentContentControlOrNullObject']);
+        const ctrls = selection.getContentControls();
+        ctrls.load(props);
         await selection.context.sync();
-        const ctrl = selection.parentContentControlOrNullObject;
-        ctrl.load(props);
-        await ctrl.context.sync();
+        const ctrl = ctrls.items[0];
         if (!ctrl.id) return failed('The selection is not inside a content control');
         if (!TAGS.includes(ctrl.tag)) return failed(`Ctrl is not a select control. Its tag is ${ctrl.tag}`);
         const subOptions = await getSubOptions(ctrl.id, true);
