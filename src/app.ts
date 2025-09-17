@@ -478,7 +478,8 @@ async function customizeContract(showNested:boolean=false) {
             return await Word.run(async (context) => {
                 const ctrl = context.document.contentControls.getById(id);
                 ctrl.load(props);
-                const label = labelRange(ctrl, RTSiTag);
+                const label = await labelRange(ctrl, RTSiTag);
+                if(!label) return showSelectPrompt(await getSubOptions(ctrl.id, true));//!If there is no label we show the subOptions directly
                 label.select();
                 await context.sync();
                 const text = label.text;
@@ -567,14 +568,17 @@ async function customizeContract(showNested:boolean=false) {
             await Word.run(async (context) => {
                 const ctrl = context.document.contentControls.getById(id);
                 ctrl.load(props);
-                const label = labelRange(ctrl, RTSectionTag);
+                const label = await labelRange(ctrl, RTSectionTag);
+                if(!label) return ;
                 await context.sync();
                 if (!label.text) return showNotification("No lable text");
                 ctrl.select();
                 const message = `How many ${label.text} parties are there?`;
-                const answer = Number(await promptForInput(message));
-                if (isNaN(answer))
-                    return showNotification(`The provided text cannot be converted into a number: ${answer}`);
+                let answer = Number(await promptForInput(message));
+                if (isNaN(answer)) {
+                    showNotification(`The provided text cannot be converted into a number: ${answer}`);
+                    return await insertClones();
+                }else if(answer<1) return isNotSelected(id, await getSubOptions(id, false));
                 const title = `${getCtrlTitle(ctrl.tag, id)}-Cloned ${answer}`
                 ctrl.title = title;//!We must update the title in case it is no matching the id in the template.
                 const ctrlContent = ctrl.getOoxml();
@@ -600,10 +604,11 @@ async function customizeContract(showNested:boolean=false) {
             await Word.run(async (context) => {
                 const clone = context.document.contentControls.getById(id);
                 clone.load(props);
-                const label = labelRange(clone, RTSectionTag);
+                const label = await labelRange(clone, RTSectionTag);
                 const children = clone.getContentControls();
                 children.load(props);
                 await context.sync();
+                if(!label) return ;
                 clone.title = `${getCtrlTitle(clone.tag, clone.id)}-${i}`;
                 const text = `${label.text} ${i}`;
                 label.insertText(text, replace);
@@ -619,8 +624,11 @@ async function customizeContract(showNested:boolean=false) {
 
     }
 
-    function labelRange(parent: ContentControl, tag: string) {
-        const ctrl = getFirstByTag(parent, tag)
+    async function labelRange(parent: ContentControl, tag: string) {
+        const ctrl = getFirstByTag(parent, tag);
+        ctrl.load(['id', 'parentContentControl']);
+        await parent.context.sync();
+        if(ctrl.parentContentControl.id !== parent.id) return undefined;//!The label ctrl must be a direct child of the parent ctrl
         const range = ctrl.getRange('Content');
         ctrl.cannotEdit = false;
         range.font.hidden = false;
