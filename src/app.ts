@@ -259,6 +259,8 @@ async function insertDroDownListAll(index?: number) {
     const range = await getSelectionRange();
     if (!range) return;
     range.load(["text"]);
+    const bookmark = 'temporaryBookmark';
+    range.insertBookmark(bookmark);
     await range.context.sync();
     const text = range.text;
     const find = text.split('/').join('');
@@ -268,10 +270,13 @@ async function insertDroDownListAll(index?: number) {
             const matches = await searchString(find, context, false, text);
             for (const match of matches.items)
                 await insertDropDownList(match, matches.items.indexOf(match) + 1);
+            context.document.getBookmarkRange(bookmark).select();
+            context.document.deleteBookmark(bookmark);
+            await context.sync();
         } catch (error) {
             showNotification(`Error from insertDropDownList = ${error}`)
         }
-    });   
+    }); 
 }
 async function insertDropDownList(range:Word.Range|void, index: number=0) {
     if(!range) range = await getSelectionRange();
