@@ -1,5 +1,5 @@
 "use strict";
-const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'], StylePrefix = 'Contrat_', RTDropDownTag = 'RTList', RTDropDownColor = '#991c63', RTDuplicateTag = 'RTRepeat', RTSectionTag = 'RTSection', RTSectionStyle = `${StylePrefix}${RTSectionTag}`, RTSelectTag = 'RTSelect', RTOrTag = 'RTOr', RTObsTag = 'RTObs', RTObsStyle = `${StylePrefix}${RTObsTag}`, RTDescriptionTag = 'RTDesc', RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`, RTSiTag = 'RTSi', RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
+const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'], StylePrefix = 'Contrat_', RTFieldTag = 'RTField', RTDropDownTag = 'RTList', RTDropDownColor = '#991c63', RTDuplicateTag = 'RTRepeat', RTSectionTag = 'RTSection', RTSectionStyle = `${StylePrefix}${RTSectionTag}`, RTSelectTag = 'RTSelect', RTOrTag = 'RTOr', RTObsTag = 'RTObs', RTObsStyle = `${StylePrefix}${RTObsTag}`, RTDescriptionTag = 'RTDesc', RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`, RTSiTag = 'RTSi', RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
 let USERFORM, NOTIFICATION;
 let RichText, RichTextInline, RichTextParag, ComboBox, CheckBox, dropDownList, Bounding, Hidden;
 Office.onReady((info) => {
@@ -185,10 +185,15 @@ async function insertRTDescription(selection = false, style = 'Normal') {
     for (const ctrl of ctrls) {
         if (!ctrl)
             continue;
-        const range = ctrl.getRange();
-        const inserted = range.insertText('[*]\u00A0', Word.InsertLocation.before);
-        inserted.style = style;
-        inserted.font.bold = true;
+        const range = ctrl.getRange().insertText('\u00A0', Word.InsertLocation.before);
+        range.style = style;
+        range.font.bold = true;
+        const start = range.getRange(Word.RangeLocation.start);
+        const field = await insertContentControl(start, getCtrlTitle(RTFieldTag, ctrl.id), RTFieldTag, 0, RichTextInline, null, false, false);
+        field?.getRange('Content').insertText('[*]', Word.InsertLocation.replace);
+        //const inserted = range.insertText('[*]\u00A0', Word.InsertLocation.before);
+        //inserted.style = style;
+        //inserted.font.bold = true;
     }
     await ctrls[0]?.context.sync();
 }
