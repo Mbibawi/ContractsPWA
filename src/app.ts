@@ -1,5 +1,5 @@
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
-    StylePrefix= 'Contrat_',
+    StylePrefix = 'Contrat_',
     RTDropDownTag = 'RTList',
     RTDropDownColor = '#991c63',
     RTDuplicateTag = 'RTRepeat',
@@ -88,17 +88,17 @@ function prepareTemplate() {
     ] as [Function, string][];
 
     showBtns(btns);
-    showBtns([[()=>customizeContract(true), 'Show Nested Options Tree']], true);
+    showBtns([[() => customizeContract(true), 'Show Nested Options Tree']], true);
     showStylesList();
 
     function showStylesList() {
         const id = 'stylesList';
-        if( document.getElementById(id)) return;
+        if (document.getElementById(id)) return;
         Word.run(async (context) => {
             const allStyles = context.document.getStyles();
             allStyles.load(['nameLocal']);
             await context.sync();
-            const styles = allStyles.items.filter(style =>style.nameLocal.startsWith(StylePrefix));
+            const styles = allStyles.items.filter(style => style.nameLocal.startsWith(StylePrefix));
             if (!styles.length) return;
             document.createElement('select')
             const container = createHTMLElement('div', '', '', undefined, id) as HTMLDivElement;
@@ -116,10 +116,10 @@ function prepareTemplate() {
                 if (value) select.value = value;
                 range.untrack();
             }
-            
-            select.onchange = async ()=>{
+
+            select.onchange = async () => {
                 const range = await getSelectionRange();
-                if(!range) return;
+                if (!range) return;
                 range.style = select.value;
                 range.untrack();
                 await range.context.sync();
@@ -129,7 +129,7 @@ function prepareTemplate() {
     }
 }
 
-function insertBtn([fun, label]: Btn, append: boolean = true, on:string='click') {
+function insertBtn([fun, label]: Btn, append: boolean = true, on: string = 'click') {
     if (!USERFORM) return;
     const htmlBtn = document.createElement('button');
     append ? USERFORM.appendChild(htmlBtn) : USERFORM.prepend(htmlBtn);
@@ -189,16 +189,16 @@ async function wrapMatchingStyleRangesWithContentControls(ranges: Word.RangeColl
     return Promise.all(ctrls);
 }
 
-async function searchString(search: string, context:Word.RequestContext, matchWildcards: boolean, replaceWith?:string):Promise<Word.RangeCollection> {
-        const searchResults = context.document.body.search(search, { matchWildcards: matchWildcards });
-        searchResults.load(['style', 'text']);
-        searchResults.track();
-        await context.sync();
-        if (!replaceWith) return searchResults;
-        for (const match of searchResults.items) 
+async function searchString(search: string, context: Word.RequestContext, matchWildcards: boolean, replaceWith?: string): Promise<Word.RangeCollection> {
+    const searchResults = context.document.body.search(search, { matchWildcards: matchWildcards });
+    searchResults.load(['style', 'text']);
+    searchResults.track();
+    await context.sync();
+    if (!replaceWith) return searchResults;
+    for (const match of searchResults.items)
         match.insertText(replaceWith, Word.InsertLocation.replace);
-        await context.sync();
-        return await searchString(replaceWith, context, false)
+    await context.sync();
+    return await searchString(replaceWith, context, false)
 }
 
 async function insertRTDescription(selection: boolean = false, style: string = 'Normal') {
@@ -254,13 +254,13 @@ async function insertRTSiAll() {
     })
 }
 
-async function insertDroDownListAll(index?: number) {
+async function insertDroDownListAll() {
     NOTIFICATION.innerHTML = '';
     const range = await getSelectionRange();
     if (!range) return;
     range.load(["text"]);
     const bookmark = 'temporaryBookmark';
-    range.insertBookmark(bookmark);
+    range.getRange('Start').insertBookmark(bookmark);//!We must select the begining of the range otherwise insertContentControl() will fail. This is due to the shitty Word js api as usual
     await range.context.sync();
     const text = range.text;
     const find = text.split('/').join('');
@@ -276,10 +276,10 @@ async function insertDroDownListAll(index?: number) {
         } catch (error) {
             showNotification(`Error from insertDropDownList = ${error}`)
         }
-    }); 
+    });
 }
-async function insertDropDownList(range:Word.Range|void, index: number=0) {
-    if(!range) range = await getSelectionRange();
+async function insertDropDownList(range: Word.Range | void, index: number = 0) {
+    if (!range) range = await getSelectionRange();
     if (!range) return;
     range.load(["text"]);
     range.track();
@@ -296,37 +296,37 @@ async function insertDropDownList(range:Word.Range|void, index: number=0) {
     setCtrlsColor([ctrl], RTDropDownColor);
     await ctrl.context.sync();
 }
-async function insertContentControl(range: Word.Range, title: string, tag: string, index: number =1, type: Word.ContentControlType, style: string | null, cannotEdit: boolean = true, cannotDelete: boolean = true):Promise<Word.ContentControl|undefined> { 
-        range.select();
-        const styles = range.context.document.getStyles();
-        styles.load(['nameLocal', 'type']);
-        // Insert a rich text content control around the found range.
-        //@ts-expect-error
-        const ctrl = range.insertContentControl(type);
-        ctrl.load(['id']);
-        ctrl.track();
-        await range.context.sync();
-        // Set properties for the new content control.
-        if (ctrl.id) console.log(`the newly created ContentControl id = ${ctrl.id} `);
-        try {
-            ctrl.select();
-            ctrl.title = getCtrlTitle(title, ctrl.id);
-            ctrl.tag = tag;
-            ctrl.appearance = Word.ContentControlAppearance.boundingBox;
-            const foundStyle = styles.items.find(s => s.nameLocal === style);
-            if (style && foundStyle?.type === Word.StyleType.character)
-                ctrl.style = style;
-            if (style) ctrl.getRange().style = style;
-            ctrl.cannotDelete = cannotDelete;
-            ctrl.cannotEdit = cannotEdit;//!This must come at the end after the style has been set.
-            await ctrl.context.sync();
-            showNotification(`Wrapped text in range ${index} with a content control.`);
-            return ctrl;
-        } catch (error) {
-            showNotification(`There was an error while setting the properties of the newly crated contentcontrol by insertContentControl(): ${error}.`);
-            return undefined
-        }
-    
+async function insertContentControl(range: Word.Range, title: string, tag: string, index: number = 1, type: Word.ContentControlType, style: string | null, cannotEdit: boolean = true, cannotDelete: boolean = true): Promise<Word.ContentControl | undefined> {
+    range.select();
+    const styles = range.context.document.getStyles();
+    styles.load(['nameLocal', 'type']);
+    // Insert a rich text content control around the found range.
+    //@ts-expect-error
+    const ctrl = range.insertContentControl(type);
+    ctrl.load(['id']);
+    ctrl.track();
+    await range.context.sync();
+    // Set properties for the new content control.
+    if (ctrl.id) console.log(`the newly created ContentControl id = ${ctrl.id} `);
+    try {
+        ctrl.select();
+        ctrl.title = getCtrlTitle(title, ctrl.id);
+        ctrl.tag = tag;
+        ctrl.appearance = Word.ContentControlAppearance.boundingBox;
+        const foundStyle = styles.items.find(s => s.nameLocal === style);
+        if (style && foundStyle?.type === Word.StyleType.character)
+            ctrl.style = style;
+        if (style) ctrl.getRange().style = style;
+        ctrl.cannotDelete = cannotDelete;
+        ctrl.cannotEdit = cannotEdit;//!This must come at the end after the style has been set.
+        await ctrl.context.sync();
+        showNotification(`Wrapped text in range ${index} with a content control.`);
+        return ctrl;
+    } catch (error) {
+        showNotification(`There was an error while setting the properties of the newly crated contentcontrol by insertContentControl(): ${error}.`);
+        return undefined
+    }
+
 }
 
 async function getSelectionRange() {
@@ -372,7 +372,7 @@ async function promptConfirm(question: string, fun?: Function): Promise<boolean>
 };
 
 
-async function customizeContract(showNested:boolean=false) {
+async function customizeContract(showNested: boolean = false) {
     USERFORM.innerHTML = '';
     const selected: string[] = [];
     const not: string = 'RTDelete';
@@ -452,7 +452,7 @@ async function customizeContract(showNested:boolean=false) {
 
     async function showSelectPrompt(selectCtrls: ContentControl[]) {
         const blocks: selectBlock[] = [];
-        const subOptions =async  (id:number, direct:boolean) =>await showSelectPrompt(await getSubOptions(id, direct));
+        const subOptions = async (id: number, direct: boolean) => await showSelectPrompt(await getSubOptions(id, direct));
         try {
             for (const ctrl of selectCtrls) {
                 if (processed(ctrl.id)) continue;//!We must escape the ctrls that have already been processed
@@ -464,7 +464,7 @@ async function customizeContract(showNested:boolean=false) {
                 const block = await insertPromptBlock(ctrl.id, addBtn);
                 if (!block) continue;
                 blocks.push(block);
-                if (!block.container) await subOptions(ctrl.id,true);
+                if (!block.container) await subOptions(ctrl.id, true);
                 else if (!block.checkBox && block.btnNext) {
                     //!This is the case where selectCtrl has no "ctrlSi" contentControl as a direct child. We will await the user to click the button in order to process all the already displayed elements of selectCtrls[] until this point. Then, we will process the selectCtrl separetly before moving to the next selectCtrl in selectCtrls[]
                     await btnOnClick(blocks, block.btnNext);//We must await the user to click the button in order to process all the already displayed elements/options of selectCtrls[].
@@ -491,9 +491,9 @@ async function customizeContract(showNested:boolean=false) {
                 const label = await labelRange(ctrl, RTSiTag);
                 await context.sync();
                 if (!label)
-                  return  !addBtn? appendHTMLElements('') : { container:undefined};//!If this is not the last element in selectCtrls (addBtn = false) We will return a container with only a button to be clicked, otherwise, we will return a slectBlock with undefined container
+                    return !addBtn ? appendHTMLElements('') : { container: undefined };//!If this is not the last element in selectCtrls (addBtn = false) We will return a container with only a button to be clicked, otherwise, we will return a slectBlock with undefined container
                 label.select();
-                const text = label.text || `The ctrl label was found but no text could be retrieved ! ctrl title = ${ctrl.title}` ;
+                const text = label.text || `The ctrl label was found but no text could be retrieved ! ctrl title = ${ctrl.title}`;
                 label.font.hidden = true;
                 await context.sync();
                 return appendHTMLElements(text, id.toString(), addBtn) as selectBlock;//The checkBox will have as id the title of the "select" contentcontrol}
@@ -503,16 +503,16 @@ async function customizeContract(showNested:boolean=false) {
 
     function appendHTMLElements(text: string, id?: string, addBtn: boolean = false): selectBlock {
         const container = createHTMLElement('div', 'promptContainer', '', USERFORM) as HTMLDivElement;
-        if(!id) return {container, btnNext:btn()}//!We return a container with a button with no checkBox
+        if (!id) return { container, btnNext: btn() }//!We return a container with a button with no checkBox
         const option = createHTMLElement('div', 'select', '', container);
         const checkBox = createHTMLElement('input', 'checkBox', '', option, id) as HTMLInputElement;//!We must give the checkBox the id of the selectCtrl because the id will be later used to retrieve the selectCtrl and process its children
         checkBox.type = 'checkbox';
-        if(selected.includes(id)) checkBox.checked = true;//!Normaly this should never happen
+        if (selected.includes(id)) checkBox.checked = true;//!Normaly this should never happen
         createHTMLElement('label', 'label', text, option) as HTMLParagraphElement;
         if (!addBtn) return { container, checkBox };
-        return { container, checkBox, btnNext:btn() };
+        return { container, checkBox, btnNext: btn() };
 
-        function btn(){
+        function btn() {
             const btns = createHTMLElement('div', 'btns', '', container);
             return createHTMLElement('button', 'btnOK', 'Next', btns) as HTMLButtonElement;
         }
@@ -520,7 +520,7 @@ async function customizeContract(showNested:boolean=false) {
 
     function btnOnClick(blocks: selectBlock[], btn: HTMLButtonElement): Promise<string[]> {
         return new Promise((resolve, reject) => {
-            !btn? resolve(selected): btn.onclick = processBlocks;
+            !btn ? resolve(selected) : btn.onclick = processBlocks;
             async function processBlocks() {
                 const checkBoxes: [string, boolean][] =
                     blocks
@@ -540,13 +540,13 @@ async function customizeContract(showNested:boolean=false) {
         });
     }
 
-    async function isSelected(id: string, subOptions: ContentControl[] | undefined){
+    async function isSelected(id: string, subOptions: ContentControl[] | undefined) {
         selected.push(id);
         if (subOptions) await showSelectPrompt(subOptions);
     };
 
-    function isNotSelected(id: string|number, subOptions: ContentControl[]) {
-        const exclude = (id: string|number) => `!${id}`;
+    function isNotSelected(id: string | number, subOptions: ContentControl[]) {
+        const exclude = (id: string | number) => `!${id}`;
         selected.push(exclude(id));
         subOptions
             .forEach(ctrl => selected.push(exclude(ctrl.id)));
@@ -578,12 +578,12 @@ async function customizeContract(showNested:boolean=false) {
             showNotification(`${error}`)
         }
 
-        async function insertClones(id:number) {
+        async function insertClones(id: number) {
             await Word.run(async (context) => {
                 const ctrl = context.document.contentControls.getById(id);
                 ctrl.load(props);
                 const label = await labelRange(ctrl, RTSectionTag);
-                if(!label) return ;
+                if (!label) return;
                 await context.sync();
                 if (!label.text) return showNotification("No lable text");
                 ctrl.select();
@@ -592,7 +592,7 @@ async function customizeContract(showNested:boolean=false) {
                 if (isNaN(answer)) {
                     showNotification(`The provided text cannot be converted into a number: ${answer}`);
                     return await insertClones(id);
-                }else if(answer<1) return isNotSelected(id, await getSubOptions(id, false));
+                } else if (answer < 1) return isNotSelected(id, await getSubOptions(id, false));
                 const title = `${getCtrlTitle(ctrl.tag, id)}-Cloned ${answer}`
                 ctrl.title = title;//!We must update the title in case it is no matching the id in the template.
                 const ctrlContent = ctrl.getOoxml();
@@ -619,7 +619,7 @@ async function customizeContract(showNested:boolean=false) {
                 clone.load(props);
                 const label = await labelRange(clone, RTSectionTag);
                 await context.sync();
-                if(!label) return ;
+                if (!label) return;
                 clone.title = `${getCtrlTitle(clone.tag, clone.id)}-${i}`;
                 const text = `${label.text} ${i}`;
                 label.insertText(text, replace);
@@ -638,7 +638,7 @@ async function customizeContract(showNested:boolean=false) {
         const ctrl = getFirstByTag(parent, tag);
         ctrl.load(['id', 'parentContentControl']);
         await parent.context.sync();
-        if(ctrl.parentContentControl.id !== parent.id) return undefined;//!The label ctrl must be a direct child of the parent ctrl
+        if (ctrl.parentContentControl.id !== parent.id) return undefined;//!The label ctrl must be a direct child of the parent ctrl
         const range = ctrl.getRange('Content');
         ctrl.cannotEdit = false;
         range.font.hidden = false;
@@ -675,7 +675,7 @@ async function customizeContract(showNested:boolean=false) {
         const subOptions = await getSubOptions(ctrl.id, true);
         await showSelectPrompt(subOptions);
         prepareTemplate();
-        function failed(message:string) {
+        function failed(message: string) {
             showNotification(message);
             prepareTemplate();
         }

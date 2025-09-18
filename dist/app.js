@@ -221,14 +221,14 @@ async function insertRTSiAll() {
         await context.sync();
     });
 }
-async function insertDroDownListAll(index) {
+async function insertDroDownListAll() {
     NOTIFICATION.innerHTML = '';
     const range = await getSelectionRange();
     if (!range)
         return;
     range.load(["text"]);
     const bookmark = 'temporaryBookmark';
-    range.insertBookmark(bookmark);
+    range.getRange('Start').insertBookmark(bookmark); //!We must select the begining of the range otherwise insertContentControl() will fail. This is due to the shitty Word js api as usual
     await range.context.sync();
     const text = range.text;
     const find = text.split('/').join('');
