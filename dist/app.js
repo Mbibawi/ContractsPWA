@@ -190,8 +190,15 @@ async function insertRTDescription(selection = false, style = `${StylePrefix}Nor
 }
 async function insertFieldCtrl(ctrls, style) {
     await Word.run(async (context) => {
-        for (const ctrl of ctrls)
-            await insert(ctrl);
+        for (const ctrl of ctrls) {
+            try {
+                await insert(ctrl);
+            }
+            catch (error) {
+                showNotification(`Error inserting field: ctrl.id = ${ctrl?.id}, error: ${error}`);
+                continue;
+            }
+        }
         await context.sync();
     });
     async function insert(ctrl) {

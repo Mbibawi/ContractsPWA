@@ -225,8 +225,14 @@ async function insertRTDescription(selection: boolean = false, style: string = `
 }
 async function insertFieldCtrl(ctrls:(ContentControl|undefined)[], style: string) {
     await Word.run(async (context) => {
-        for (const ctrl of ctrls)
-            await insert(ctrl);
+        for (const ctrl of ctrls) {
+            try {
+                await insert(ctrl);
+            } catch (error) {
+                showNotification(`Error inserting field: ctrl.id = ${ctrl?.id}, error: ${error}`);
+                continue
+            }
+        }
         await context.sync();
     });
 
