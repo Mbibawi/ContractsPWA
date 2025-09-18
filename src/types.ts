@@ -3,4 +3,4 @@ type ContentControlType = Word.ContentControlType.richText | Word.ContentControl
 
 type Btn = [Function, string];
 
-type selectBlock = {container: HTMLDivElement, checkBox?: HTMLInputElement, btnNext?: HTMLButtonElement};
+type selectBlock = {container: HTMLDivElement|undefined, checkBox?: HTMLInputElement, btnNext?: HTMLButtonElement};

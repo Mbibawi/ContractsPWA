@@ -452,6 +452,7 @@ async function customizeContract(showNested:boolean=false) {
 
     async function showSelectPrompt(selectCtrls: ContentControl[]) {
         const blocks: selectBlock[] = [];
+        const subOptions =async  (id:number, direct:boolean) =>await showSelectPrompt(await getSubOptions(id, direct));
         try {
             for (const ctrl of selectCtrls) {
                 if (processed(ctrl.id)) continue;//!We must escape the ctrls that have already been processed
@@ -463,10 +464,11 @@ async function customizeContract(showNested:boolean=false) {
                 const block = await insertPromptBlock(ctrl.id, addBtn);
                 if (!block) continue;
                 blocks.push(block);
-                if (!block.checkBox && block.btnNext) {
+                if (!block.container) await subOptions(ctrl.id,true);
+                else if (!block.checkBox && block.btnNext) {
                     //!This is the case where selectCtrl has no "ctrlSi" contentControl as a direct child. We will await the user to click the button in order to process all the already displayed elements of selectCtrls[] until this point. Then, we will process the selectCtrl separetly before moving to the next selectCtrl in selectCtrls[]
                     await btnOnClick(blocks, block.btnNext);//We must await the user to click the button in order to process all the already displayed elements/options of selectCtrls[].
-                    await showSelectPrompt(await getSubOptions(ctrl.id, true) as ContentControl[]);//!We select only the direct select ctrls children
+                    await subOptions(ctrl.id, true);//!We select only the direct select ctrls children
                 }
                 else if (block.btnNext) await btnOnClick(blocks, block.btnNext);//This is the case where btnNext was added because we reached the end of selectCtrls[] (addBtn = true). We then need to await the user to click the button in order to process all the already displayed elements/options of selectCtrls[].
             }
@@ -488,7 +490,8 @@ async function customizeContract(showNested:boolean=false) {
                 ctrl.load(props);
                 const label = await labelRange(ctrl, RTSiTag);
                 await context.sync();
-                if(!label) return appendHTMLElements('')//!We will return a container with only a button to be clicked
+                if (!label)
+                  return  !addBtn? appendHTMLElements('') : { container:undefined};//!If this is not the last element in selectCtrls (addBtn = false) We will return a container with only a button to be clicked, otherwise, we will return a slectBlock with undefined container
                 label.select();
                 const text = label.text || `The ctrl label was found but no text could be retrieved ! ctrl title = ${ctrl.title}` ;
                 label.font.hidden = true;
