@@ -169,7 +169,7 @@ async function searchString(search, context, matchWildcards, replaceWith) {
     await context.sync();
     return await searchString(replaceWith, context, false);
 }
-async function insertRTDescription(selection = false, style = 'Normal') {
+async function insertRTDescription(selection = false, style = `${StylePrefix}Normal`) {
     NOTIFICATION.innerHTML = '';
     let ctrls;
     if (selection) {

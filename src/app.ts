@@ -202,7 +202,7 @@ async function searchString(search: string, context: Word.RequestContext, matchW
     return await searchString(replaceWith, context, false)
 }
 
-async function insertRTDescription(selection: boolean = false, style: string = 'Normal') {
+async function insertRTDescription(selection: boolean = false, style: string = `${StylePrefix}Normal`) {
     NOTIFICATION.innerHTML = '';
     let ctrls: (ContentControl | undefined)[] | void;
     if (selection) {
