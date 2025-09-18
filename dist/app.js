@@ -431,9 +431,18 @@ async function customizeContract(showNested = false) {
                 }
                 ;
                 const addBtn = selectCtrls.indexOf(ctrl) + 1 === selectCtrls.length;
-                blocks.push(await insertPromptBlock(ctrl.id, addBtn) || undefined);
+                const block = await insertPromptBlock(ctrl.id, addBtn);
+                if (!block)
+                    continue;
+                blocks.push(block);
+                if (!block.checkBox) {
+                    //!This is the case where selectCtrl has no "ctrlSi" contentControl as a direct child. We will await the user to click the button in order to process all the already displayed elements of selectCtrls[] until this point. Then, we will process the selectCtrl separetly before moving to the next selectCtrl in selectCtrls[]
+                    await btnOnClick(blocks);
+                    await showSelectPrompt([ctrl]);
+                }
+                else if (block.btnNext)
+                    await btnOnClick(blocks); //This is the case where btnNext was added because we reached the end of selectCtrls[] (addBtn = true). We then need to await the user to click the button in order to process all the already displayed elements/options of selectCtrls[].
             }
-            await btnOnClick(blocks);
         }
         catch (error) {
             return showNotification(`Error from showSelectPrompt() = ${error}`);
@@ -453,47 +462,49 @@ async function customizeContract(showNested = false) {
                 const label = await labelRange(ctrl, RTSiTag);
                 await context.sync();
                 if (!label)
-                    return isSelected(id, await getSubOptions(id, true)); //!If there is no label we show the subOptions directly
+                    return appendHTMLElements(''); //!We will return a container with only a button to be clicked
                 label.select();
-                const text = label.text;
+                const text = label.text || `The ctrl label was found but no text could be retrieved ! ctrl title = ${ctrl.title}`;
                 label.font.hidden = true;
                 await context.sync();
-                return { ctrl, ...appendHTMLElements(text, id.toString(), addBtn) }; //The checkBox will have as id the title of the "select" contentcontrol}
+                return appendHTMLElements(text, id.toString(), addBtn); //The checkBox will have as id the title of the "select" contentcontrol}
             });
         }
     }
     function appendHTMLElements(text, id, addBtn = false) {
         const container = createHTMLElement('div', 'promptContainer', '', USERFORM);
+        if (!id)
+            return { container, btnNext: btn() }; //!We return a container with a button with no checkBox
         const option = createHTMLElement('div', 'select', '', container);
-        const checkBox = createHTMLElement('input', 'checkBox', '', option, id);
+        const checkBox = createHTMLElement('input', 'checkBox', '', option, id); //!We must give the checkBox the id of the selectCtrl because the id will be later used to retrieve the selectCtrl and process its children
         checkBox.type = 'checkbox';
         if (selected.includes(id))
-            checkBox.checked = true;
+            checkBox.checked = true; //!Normaly this should never happen
         createHTMLElement('label', 'label', text, option);
         if (!addBtn)
             return { container, checkBox };
-        const btns = createHTMLElement('div', 'btns', '', container);
-        const btnNext = createHTMLElement('button', 'btnOK', 'Next', btns);
-        return { container, checkBox, btnNext };
+        return { container, checkBox, btnNext: btn() };
+        function btn() {
+            const btns = createHTMLElement('div', 'btns', '', container);
+            return createHTMLElement('button', 'btnOK', 'Next', btns);
+        }
     }
     function btnOnClick(blocks) {
         return new Promise((resolve, reject) => {
             const btn = blocks.find(container => container?.btnNext)?.btnNext;
             !btn ? resolve(selected) : btn.onclick = processBlocks;
             async function processBlocks() {
-                const values = blocks
-                    .filter(block => block?.ctrl && block.checkBox)
+                const checkBoxes = blocks
+                    .filter(block => block.checkBox)
                     //@ts-ignore
-                    .map(block => [block.ctrl, block.checkBox.checked]);
-                blocks.forEach(block => block?.container.remove()); //We start by removing all the containers
-                for (const [ctrl, checked] of values) {
-                    if (!ctrl)
-                        continue;
-                    const subOptions = await getSubOptions(ctrl.id, checked);
+                    .map(block => [block.checkBox.id, block.checkBox.checked]);
+                blocks.forEach(block => block.container?.remove()); //We start by removing all the containers
+                for (const [id, checked] of checkBoxes) {
+                    const subOptions = await getSubOptions(Number(id), checked);
                     if (checked)
-                        await isSelected(ctrl.id, subOptions);
+                        await isSelected(id, subOptions);
                     else
-                        isNotSelected(ctrl.id, subOptions);
+                        isNotSelected(id, subOptions);
                 }
                 resolve(selected);
             }
@@ -501,7 +512,7 @@ async function customizeContract(showNested = false) {
         });
     }
     async function isSelected(id, subOptions) {
-        selected.push(`${id}`);
+        selected.push(id);
         if (subOptions)
             await showSelectPrompt(subOptions);
     }
