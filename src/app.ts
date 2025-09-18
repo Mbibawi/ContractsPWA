@@ -214,20 +214,31 @@ async function insertRTDescription(selection: boolean = false, style: string = '
 
     if (!ctrls?.length) return;
 
-    for (const ctrl of ctrls) {
-        if (!ctrl) continue;
+    await insertFieldCtrl(ctrls, style)
+  
+    //const inserted = range.insertText('[*]\u00A0', Word.InsertLocation.before);
+        //inserted.style = style;
+    //inserted.font.bold = true;
+    
+    //await ctrls[0]?.context.sync();
+
+}
+async function insertFieldCtrl(ctrls:(ContentControl|undefined)[], style: string) {
+    await Word.run(async (context) => {
+        for (const ctrl of ctrls)
+            await insert(ctrl);
+        await context.sync();
+    });
+
+    async function insert(ctrl:ContentControl|undefined) {
+        if (!ctrl) return;
         const range = ctrl.getRange().insertText('\u00A0', Word.InsertLocation.before);
         range.style = style;
         range.font.bold = true;
         const start = range.getRange(Word.RangeLocation.start);
-        const field = await insertContentControl(start, getCtrlTitle(RTFieldTag, ctrl.id), RTFieldTag, 0, RichTextInline, null, false, false);
+        const field = await insertContentControl(start, RTFieldTag, RTFieldTag, 0, RichText, style, false, false);
         field?.getRange('Content').insertText('[*]', Word.InsertLocation.replace);
-        //const inserted = range.insertText('[*]\u00A0', Word.InsertLocation.before);
-        //inserted.style = style;
-        //inserted.font.bold = true;
     }
-    await ctrls[0]?.context.sync();
-
 }
 
 async function insertRTSiAll() {
@@ -833,14 +844,17 @@ async function finalizeContract() {
 }
 
 async function removeRTs(tags: string[]) {
+    const deleteField = (all: ContentControl[], id: number) => all.find(c => c.title === getCtrlTitle(RTFieldTag, id))?.delete(false);
+    
     Word.run(async (context) => {
         for (const tag of tags) {
-            const ctrls = context.document.getContentControls().getByTag(tag);
-            ctrls.load('tag');
+            const allCtrls = context.document.getContentControls();
+            allCtrls.load(['tag', 'title']);
             await context.sync();
-            ctrls.items.forEach(ctrl => {
+            const ctrls = allCtrls.items.filter(c=>c.tag === tag);
+            ctrls.forEach(ctrl => {
                 ctrl.select();
-                ctrl.cannotDelete = false;
+                ctrl.cannotDelete = false;  
                 ctrl.delete(tag === RTDropDownTag)//!We keep the content of the dropdown ctrls
             });
             await context.sync();
