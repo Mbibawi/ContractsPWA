@@ -517,7 +517,7 @@ async function customizeContract(showNested:boolean=false) {
 
     function btnOnClick(blocks: selectBlock[]): Promise<string[]> {
         return new Promise((resolve, reject) => {
-            const btn = blocks.find(container => container?.btnNext)?.btnNext;
+            const btn = blocks.find(block => block?.btnNext)?.btnNext;
             !btn ? resolve(selected) : btn.onclick = processBlocks;
             async function processBlocks() {
                 const checkBoxes: [string, boolean][] =
@@ -525,7 +525,10 @@ async function customizeContract(showNested:boolean=false) {
                         .filter(block => block.checkBox)
                         //@ts-ignore
                         .map(block => [block.checkBox.id, block.checkBox.checked]);
-                blocks.forEach(block => block.container?.remove());//We start by removing all the containers
+                blocks.forEach(block => {
+                    block.container?.remove();//We remove all the containers from the DOM;
+                    if (block.btnNext) delete block.btnNext;//!This important in order to avoid keeping the reference to the button after it was clicked (if kept, it will be assigned the onclick function instead of the button in the last block of blocks[])
+                });
                 for (const [id, checked] of checkBoxes) {
                     const subOptions = await getSubOptions(Number(id), checked);
                     if (checked)
