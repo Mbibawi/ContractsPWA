@@ -236,10 +236,7 @@ async function insertFieldCtrl(ctrls:(ContentControl|undefined)[], style: string
         range.style = style;
         range.font.bold = true;
         const start = range.getRange(Word.RangeLocation.start);
-        const field = await insertContentControl(start, RTFieldTag, RTFieldTag, 0, RichText, style, false, false);
-        if (!field) return;
-        field.placeholderText = '[*]'
-        
+        await insertContentControl(start, RTFieldTag, RTFieldTag, 0, RichText, style, false, false, '[*]');
     }
 }
 
@@ -315,7 +312,7 @@ async function insertDropDownList(range: Word.Range | void, index: number = 0) {
     setCtrlsColor([ctrl], RTDropDownColor);
     await ctrl.context.sync();
 }
-async function insertContentControl(range: Word.Range, title: string, tag: string, index: number = 1, type: Word.ContentControlType, style: string | null, cannotEdit: boolean = true, cannotDelete: boolean = true): Promise<Word.ContentControl | undefined> {
+async function insertContentControl(range: Word.Range, title: string, tag: string, index: number = 1, type: Word.ContentControlType, style: string | null, cannotEdit: boolean = true, cannotDelete: boolean = true, placeHolder?:string): Promise<Word.ContentControl | undefined> {
     range.select();
     const styles = range.context.document.getStyles();
     styles.load(['nameLocal', 'type']);
@@ -332,6 +329,7 @@ async function insertContentControl(range: Word.Range, title: string, tag: strin
         ctrl.title = getCtrlTitle(title, ctrl.id);
         ctrl.tag = tag;
         ctrl.appearance = Word.ContentControlAppearance.boundingBox;
+        if (placeHolder) ctrl.placeholderText = placeHolder;
         const foundStyle = styles.items.find(s => s.nameLocal === style);
         if (style && foundStyle?.type === Word.StyleType.character)
             ctrl.style = style;
