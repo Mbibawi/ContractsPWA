@@ -237,7 +237,9 @@ async function insertFieldCtrl(ctrls:(ContentControl|undefined)[], style: string
         range.font.bold = true;
         const start = range.getRange(Word.RangeLocation.start);
         const field = await insertContentControl(start, RTFieldTag, RTFieldTag, 0, RichText, style, false, false);
-        field?.getRange('Content').insertText('[*]', Word.InsertLocation.replace);
+        if (!field) return;
+        field.placeholderText = '[*]'
+        
     }
 }
 
