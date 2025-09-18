@@ -438,7 +438,7 @@ async function customizeContract(showNested = false) {
                 if (!block.checkBox) {
                     //!This is the case where selectCtrl has no "ctrlSi" contentControl as a direct child. We will await the user to click the button in order to process all the already displayed elements of selectCtrls[] until this point. Then, we will process the selectCtrl separetly before moving to the next selectCtrl in selectCtrls[]
                     await btnOnClick(blocks);
-                    await showSelectPrompt([ctrl]);
+                    await showSelectPrompt(await getSubOptions(ctrl.id, true)); //!We select only the direct select ctrls children
                 }
                 else if (block.btnNext)
                     await btnOnClick(blocks); //This is the case where btnNext was added because we reached the end of selectCtrls[] (addBtn = true). We then need to await the user to click the button in order to process all the already displayed elements/options of selectCtrls[].
