@@ -374,11 +374,12 @@ async function promptConfirm(question: string, fun?: Function): Promise<boolean>
 
 async function customizeContract(showNested:boolean=false) {
     USERFORM.innerHTML = '';
+    const selected: string[] = [];
+    const not: string = 'RTDelete';
     const processed = (id: number) => selected.find(t => t.includes(id.toString()));
+    const getSelectCtrls = (ctrls: ContentControl[]) => ctrls.filter(ctrl => TAGS.includes(ctrl.tag));
     const TAGS = [...OPTIONS, RTDuplicateTag];
     const props = ['id', 'tag', 'title'];
-    const getSelectCtrls = (ctrls: ContentControl[]) => ctrls.filter(ctrl => TAGS.includes(ctrl.tag));
-    const selected: string[] = [];
     if (showNested) return await showNestedOptionsTree();
 
     await loopSelectCtrls();
@@ -479,14 +480,13 @@ async function customizeContract(showNested:boolean=false) {
                 const ctrl = context.document.contentControls.getById(id);
                 ctrl.load(props);
                 const label = await labelRange(ctrl, RTSiTag);
-                if(!label) return showSelectPrompt(await getSubOptions(ctrl.id, true));//!If there is no label we show the subOptions directly
-                label.select();
                 await context.sync();
+                if(!label) return isSelected(id, await getSubOptions(id, true));//!If there is no label we show the subOptions directly
+                label.select();
                 const text = label.text;
-                // showNotification(`CtrlSi.text = ${text}`);
                 label.font.hidden = true;
                 await context.sync();
-                return { ctrl, ...appendHTMLElements(text, ctrl.title, addBtn) } as selectBlock;//The checkBox will have as id the title of the "select" contentcontrol}
+                return { ctrl, ...appendHTMLElements(text, id.toString(), addBtn) } as selectBlock;//The checkBox will have as id the title of the "select" contentcontrol}
             });
         }
     }
@@ -496,6 +496,7 @@ async function customizeContract(showNested:boolean=false) {
         const option = createHTMLElement('div', 'select', '', container);
         const checkBox = createHTMLElement('input', 'checkBox', '', option, id) as HTMLInputElement;
         checkBox.type = 'checkbox';
+        if(selected.includes(id)) checkBox.checked = true;
         createHTMLElement('label', 'label', text, option) as HTMLParagraphElement;
         if (!addBtn) return { container, checkBox };
         const btns = createHTMLElement('div', 'btns', '', container);
@@ -526,7 +527,7 @@ async function customizeContract(showNested:boolean=false) {
         });
     }
 
-    async function isSelected(id: number, subOptions: ContentControl[] | undefined) {
+    async function isSelected(id: number, subOptions: ContentControl[] | undefined){
         selected.push(`${id}`);
         if (subOptions) await showSelectPrompt(subOptions);
     };
@@ -559,12 +560,12 @@ async function customizeContract(showNested:boolean=false) {
         const replace = Word.InsertLocation.replace;
         const after = Word.InsertLocation.after;
         try {
-            await insertClones();
+            await insertClones(id);
         } catch (error) {
             showNotification(`${error}`)
         }
 
-        async function insertClones() {
+        async function insertClones(id:number) {
             await Word.run(async (context) => {
                 const ctrl = context.document.contentControls.getById(id);
                 ctrl.load(props);
@@ -573,16 +574,15 @@ async function customizeContract(showNested:boolean=false) {
                 await context.sync();
                 if (!label.text) return showNotification("No lable text");
                 ctrl.select();
-                const message = `How many ${label.text} parties are there?`;
-                let answer = Number(await promptForInput(message));
+                const message = `Combien de ${label.text} y'a-t-il ?`;
+                let answer = Number(await promptForInput(message, '1'));
                 if (isNaN(answer)) {
                     showNotification(`The provided text cannot be converted into a number: ${answer}`);
-                    return await insertClones();
+                    return await insertClones(id);
                 }else if(answer<1) return isNotSelected(id, await getSubOptions(id, false));
                 const title = `${getCtrlTitle(ctrl.tag, id)}-Cloned ${answer}`
                 ctrl.title = title;//!We must update the title in case it is no matching the id in the template.
                 const ctrlContent = ctrl.getOoxml();
-                label.font.hidden = true;
                 await context.sync();
                 for (let i = 1; i < answer; i++)
                     ctrl.getRange().insertOoxml(ctrlContent.value, after);
@@ -605,8 +605,6 @@ async function customizeContract(showNested:boolean=false) {
                 const clone = context.document.contentControls.getById(id);
                 clone.load(props);
                 const label = await labelRange(clone, RTSectionTag);
-                const children = clone.getContentControls();
-                children.load(props);
                 await context.sync();
                 if(!label) return ;
                 clone.title = `${getCtrlTitle(clone.tag, clone.id)}-${i}`;
@@ -614,9 +612,8 @@ async function customizeContract(showNested:boolean=false) {
                 label.insertText(text, replace);
                 label.font.hidden = true;
                 await context.sync();
-                const subOptions = await getSubOptions(clone.id, true);//!We select only the direct select ctrls children
                 const div = createHTMLElement('div', '', text, USERFORM, '', false);
-                await showSelectPrompt(subOptions);
+                await showSelectPrompt(await getSubOptions(clone.id, true));//!We select only the direct select ctrls children
                 div.remove();
             });
 
