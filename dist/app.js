@@ -190,15 +190,16 @@ async function insertRTDescription(selection = false, style = `${StylePrefix}Nor
         ctrls = await findTextAndWrapItWithContentControl([RTDescriptionStyle], RTDescriptionTag, RTDescriptionTag, true, true);
     if (!ctrls?.length)
         return;
-    await insertFieldCtrl(ctrls, style);
-    //const inserted = range.insertText('[*]\u00A0', Word.InsertLocation.before);
-    //inserted.style = style;
-    //inserted.font.bold = true;
-    //await ctrls[0]?.context.sync();
+    const ids = ctrls.map(c => c?.id || 0);
+    await insertFieldCtrl(ids, style);
 }
-async function insertFieldCtrl(ctrls, style) {
+async function insertFieldCtrl(ids, style) {
     await Word.run(async (context) => {
-        for (const ctrl of ctrls) {
+        for (const id of ids) {
+            if (!id)
+                continue;
+            const ctrl = context.document.getContentControls().getById(id);
+            await context.sync();
             try {
                 await insert(ctrl);
             }
@@ -210,8 +211,6 @@ async function insertFieldCtrl(ctrls, style) {
         await context.sync();
     });
     async function insert(ctrl) {
-        if (!ctrl)
-            return;
         const range = ctrl.getRange().insertText('\u00A0', Word.InsertLocation.before);
         range.style = style;
         range.font.bold = true;
