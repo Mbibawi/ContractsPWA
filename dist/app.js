@@ -56,6 +56,7 @@ function prepareTemplate() {
         wrap(RTObsTag, RTObsTag, RichText, RTObsTag, true, true, 'Insert Single RT Obs'),
         [insertDroDownListAll, 'Insert DropDown List For All Matches'],
         [insertRTSiAll, 'Insert RT Si For All'],
+        [insertRTSectionAll, 'Insert RT Section For All'],
         [insertRTDescription, 'Insert RT Description For All'],
     ];
     showBtns(btns);
@@ -116,46 +117,53 @@ function insertBtn([fun, label], append = true, on = 'click') {
  * @returns A Promise that resolves when the operation is complete.
  */
 async function findTextAndWrapItWithContentControl(styles, title, tag, cannotEdit, cannotDelete) {
-    const separator = '_&_';
-    const search = (await promptForInput(`Provide the search string. You can provide more than one string to search by separated by ${separator} witohout space`, separator))?.split(separator);
-    if (!search?.length)
-        return showNotification('The provided search string is not valid');
-    const matchWildcards = await promptConfirm('Match Wild Cards');
-    if (!styles)
-        styles = (await promptForInput(`Provide the styles that that need to be matched separated by ","`))?.split(',') || [];
-    if (!styles?.length)
-        return showNotification(`The styles[] has 0 length, no styles are included, the function will return`);
-    const all = [];
     return await Word.run(async (context) => {
-        for (const el of search) {
-            const ranges = await searchString(el, context, matchWildcards);
-            if (!ranges)
+        const ctrls = [];
+        const { search, matchWildcards } = await searchs();
+        if (!search?.length)
+            return showNotification('The provided search string is not valid');
+        if (!styles?.length)
+            return showNotification(`The styles[] has 0 length, no styles are included, the function will return`);
+        for (const find of search) {
+            const matches = await searchString(find, context, matchWildcards);
+            if (!matches?.items.length)
                 continue;
-            const ctrls = await wrapMatchingStyleRangesWithContentControls(ranges, styles, title, tag, cannotEdit, cannotDelete);
-            if (!ctrls)
-                continue;
-            all.push(ctrls);
+            matches.load(['style', 'text', 'parentContentControlOrNullObject']);
+            await context.sync();
+            const ranges = matches.items.filter(range => styles.includes(range.style));
+            showNotification(`Found ${ranges.length} ranges matching the search string. First range text = ${ranges[0].text}`);
+            ctrls.push(...await insertCtrls(ranges));
         }
         ;
-        return all.flat();
+        return ctrls;
+        async function insertCtrls(ranges) {
+            const ctrls = [];
+            for (const range of ranges) {
+                const parent = range.parentContentControlOrNullObject;
+                parent.load('tag');
+                await context.sync();
+                if (parent.tag === tag)
+                    continue;
+                try {
+                    const ctrl = await insertContentControl(range, title, tag, ranges.indexOf(range), RichText, range.style, cannotEdit, cannotDelete);
+                    if (ctrl)
+                        ctrls.push(ctrl);
+                }
+                catch (error) {
+                    showNotification(`Error from insertCtrls() while inserting the contentControl() in the matching range. Error = ${error}`);
+                }
+            }
+            return ctrls;
+        }
     });
-}
-async function wrapMatchingStyleRangesWithContentControls(ranges, styles, title, tag, cannotEdit, cannotDelete) {
-    ranges.load(['style', 'text', 'parentContentControlOrNullObject', 'parentContentControlOrNullObject.tag']);
-    await ranges.context.sync();
-    if (!ranges.items.length) {
-        showNotification(`No text matching the search string was found in the document.`);
-        return;
+    async function searchs() {
+        const separator = '_&_';
+        const search = (await promptForInput(`Provide the search string. You can provide more than one string to search by separated by ${separator} witohout space`, separator))?.split(separator);
+        const matchWildcards = await promptConfirm('Match Wild Cards');
+        if (!styles)
+            styles = (await promptForInput(`Provide the styles that that need to be matched separated by ","`))?.split(',') || [];
+        return { search, matchWildcards };
     }
-    showNotification(`Found ${ranges.items.length} ranges matching the search string. First range text = ${ranges.items[0].text}`);
-    const ctrls = ranges.items.map(async (range, index) => {
-        if (!styles.includes(range.style))
-            return;
-        if (range.parentContentControlOrNullObject.tag === tag)
-            return;
-        return await insertContentControl(range, title, tag, index, RichText, range.style, cannotEdit, cannotDelete);
-    });
-    return Promise.all(ctrls);
 }
 async function searchString(search, context, matchWildcards, replaceWith) {
     const searchResults = context.document.body.search(search, { matchWildcards: matchWildcards });
@@ -211,29 +219,34 @@ async function insertFieldCtrl(ctrls, style) {
         await insertContentControl(start, RTFieldTag, RTFieldTag, 0, RichText, style, false, false, '[*]');
     }
 }
-async function insertRTSiAll() {
+function insertRTSiAll() {
+    insertForAllParags(RTSiStyles, RTSiTag);
+}
+function insertRTSectionAll() {
+    insertForAllParags([RTSectionStyle], RTSectionTag);
+}
+async function insertForAllParags(Styles, tag) {
     NOTIFICATION.innerHTML = '';
     await Word.run(async (context) => {
         const paragraphs = context.document.body.paragraphs;
-        paragraphs.load(['style', 'text', 'range', 'parentContentControlOrNullObject']);
+        paragraphs.load(['style', 'text', 'parentContentControlOrNullObject']);
         await context.sync();
         const parags = paragraphs.items
-            .filter(p => RTSiStyles.includes(p.style));
-        console.log(parags);
+            .filter(p => Styles.includes(p.style));
         for (const parag of parags) {
             parag.select();
-            const style = RTSiStyles.includes(parag.style) ? parag.style : RTSiStyles[0];
+            const style = parag.style;
             try {
                 const parent = parag.parentContentControlOrNullObject;
                 parent.load(['tag']);
-                await parag.context.sync();
-                if (parent.tag === RTSiTag)
-                    continue;
-                showNotification(`range style: ${parag.style} & text = ${parag.text}`);
-                await insertContentControl(parag.getRange('Content'), RTSiTag, RTSiTag, parags.indexOf(parag), RichText, style);
+                await context.sync();
+                if (parent.tag === tag)
+                    continue; //We escape paragraphs already wraped in a contentcontrol with the same tag
+                console.log(`range style: ${parag.style} & text = ${parag.text}`);
+                await insertContentControl(parag.getRange('Content'), tag, tag, parags.indexOf(parag), RichText, style);
             }
             catch (error) {
-                showNotification(`error: ${error}`);
+                console.log(`Error from insertForAllParags() when trying to wrap the paragraph : ${parag.text}. Error :\n${error}`);
                 continue;
             }
         }
