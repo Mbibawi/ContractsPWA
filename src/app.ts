@@ -463,12 +463,12 @@ async function customizeContract(showNested:boolean=false) {
                 const block = await insertPromptBlock(ctrl.id, addBtn);
                 if (!block) continue;
                 blocks.push(block);
-                if (!block.checkBox) {
+                if (!block.checkBox && block.btnNext) {
                     //!This is the case where selectCtrl has no "ctrlSi" contentControl as a direct child. We will await the user to click the button in order to process all the already displayed elements of selectCtrls[] until this point. Then, we will process the selectCtrl separetly before moving to the next selectCtrl in selectCtrls[]
-                    await btnOnClick(blocks);
+                    await btnOnClick(blocks, block.btnNext);//We must await the user to click the button in order to process all the already displayed elements/options of selectCtrls[].
                     await showSelectPrompt(await getSubOptions(ctrl.id, true) as ContentControl[]);//!We select only the direct select ctrls children
                 }
-                else if (block.btnNext) await btnOnClick(blocks);//This is the case where btnNext was added because we reached the end of selectCtrls[] (addBtn = true). We then need to await the user to click the button in order to process all the already displayed elements/options of selectCtrls[].
+                else if (block.btnNext) await btnOnClick(blocks, block.btnNext);//This is the case where btnNext was added because we reached the end of selectCtrls[] (addBtn = true). We then need to await the user to click the button in order to process all the already displayed elements/options of selectCtrls[].
             }
         } catch (error) {
             return showNotification(`Error from showSelectPrompt() = ${error}`)
@@ -515,20 +515,17 @@ async function customizeContract(showNested:boolean=false) {
         }
     }
 
-    function btnOnClick(blocks: selectBlock[]): Promise<string[]> {
+    function btnOnClick(blocks: selectBlock[], btn: HTMLButtonElement): Promise<string[]> {
         return new Promise((resolve, reject) => {
-            const btn = blocks.find(block => block?.btnNext)?.btnNext;
-            !btn ? resolve(selected) : btn.onclick = processBlocks;
+            !btn? resolve(selected): btn.onclick = processBlocks;
             async function processBlocks() {
                 const checkBoxes: [string, boolean][] =
                     blocks
                         .filter(block => block.checkBox)
                         //@ts-ignore
                         .map(block => [block.checkBox.id, block.checkBox.checked]);
-                blocks.forEach(block => {
-                    block.container?.remove();//We remove all the containers from the DOM;
-                    if (block.btnNext) delete block.btnNext;//!This important in order to avoid keeping the reference to the button after it was clicked (if kept, it will be assigned the onclick function instead of the button in the last block of blocks[])
-                });
+                blocks.forEach(block => block.container?.remove());//We remove all the containers from the DOM
+
                 for (const [id, checked] of checkBoxes) {
                     const subOptions = await getSubOptions(Number(id), checked);
                     if (checked)
