@@ -14,7 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v9.5";
+const version = "v9.6";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -735,10 +735,12 @@ async function customizeContract(showNested: boolean = false) {
 
 async function deleteCtrls(ids:Set<number>) {
     await Word.run(async (context) => {
+        const toDelete: ContentControl[] = [];
         for (const id of ids) {
             const ctrl = context.document.getContentControls().getById(id);
             if (!ctrl) continue;
             ctrl.load('tag');
+            ctrl.track();
             const nested = ctrl.getContentControls();
             nested.load('tag');
             await context.sync();
@@ -747,9 +749,13 @@ async function deleteCtrls(ids:Set<number>) {
                 c.cannotEdit = false;
                 c.cannotDelete = false;
             }
-            if(ctrl.tag !==RTDuplicateTag) ctrl.delete(false)
             await context.sync();
+            //if(ctrl.tag !==RTDuplicateTag) ctrl.delete(false)
+            if(ctrl.tag !==RTDuplicateTag) toDelete.push(ctrl)
         }
+        for (const ctrl of toDelete)
+            ctrl.delete(false);
+        await context.sync();
     })
 }
 async function promptForInput(question: string, deflt?: string, fun?: Function, cancel:boolean = true): Promise<string | void> {

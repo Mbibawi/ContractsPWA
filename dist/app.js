@@ -1,6 +1,6 @@
 "use strict";
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'], StylePrefix = 'Contrat_', RTFieldTag = 'RTField', RTDropDownTag = 'RTList', RTDropDownColor = '#991c63', RTDuplicateTag = 'RTRepeat', RTSectionTag = 'RTSection', RTSectionStyle = `${StylePrefix}${RTSectionTag}`, RTSelectTag = 'RTSelect', RTOrTag = 'RTOr', RTObsTag = 'RTObs', RTObsStyle = `${StylePrefix}${RTObsTag}`, RTDescriptionTag = 'RTDesc', RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`, RTSiTag = 'RTSi', RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v9.5";
+const version = "v9.6";
 let USERFORM, NOTIFICATION;
 let RichText, RichTextInline, RichTextParag, ComboBox, CheckBox, dropDownList, Bounding, Hidden;
 Office.onReady((info) => {
@@ -720,11 +720,13 @@ async function customizeContract(showNested = false) {
 ;
 async function deleteCtrls(ids) {
     await Word.run(async (context) => {
+        const toDelete = [];
         for (const id of ids) {
             const ctrl = context.document.getContentControls().getById(id);
             if (!ctrl)
                 continue;
             ctrl.load('tag');
+            ctrl.track();
             const nested = ctrl.getContentControls();
             nested.load('tag');
             await context.sync();
@@ -733,10 +735,14 @@ async function deleteCtrls(ids) {
                 c.cannotEdit = false;
                 c.cannotDelete = false;
             }
-            if (ctrl.tag !== RTDuplicateTag)
-                ctrl.delete(false);
             await context.sync();
+            //if(ctrl.tag !==RTDuplicateTag) ctrl.delete(false)
+            if (ctrl.tag !== RTDuplicateTag)
+                toDelete.push(ctrl);
         }
+        for (const ctrl of toDelete)
+            ctrl.delete(false);
+        await context.sync();
     });
 }
 async function promptForInput(question, deflt, fun, cancel = true) {
