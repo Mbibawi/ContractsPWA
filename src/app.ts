@@ -417,7 +417,7 @@ async function customizeContract(showNested: boolean = false) {
             const allRT = context.document.getContentControls();
             allRT.load(props);
             await context.sync();
-            const selectCtrls = allRT.items.filter(c=>c.tag === RTSelectTag);//!We exclude the RTDuplicateTag
+            const selectCtrls = getSelectCtrls(allRT.items);
             for (const ctrl of selectCtrls)
                 await promptForSelection(ctrl);
 
@@ -434,7 +434,7 @@ async function customizeContract(showNested: boolean = false) {
                 const allRT = context.document.getContentControls();
                 allRT.load(props);
                 await context.sync();
-                const selectCtrls = getSelectCtrls(allRT.items);//!We need to retrieve all the selected items again because we may have added new ctrls by cloning the 'Duplicate' ctrls
+                const selectCtrls = allRT.items.filter(c => c.tag === RTSelectTag);//!We exclude the RTDuplicateTag
                 for (const ctrl of selectCtrls) {
                     if (keep.includes(`${ctrl.id}`)) continue;
                     const nested = ctrl.getContentControls();
