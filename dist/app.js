@@ -1,6 +1,6 @@
 "use strict";
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'], StylePrefix = 'Contrat_', RTFieldTag = 'RTField', RTDropDownTag = 'RTList', RTDropDownColor = '#991c63', RTDuplicateTag = 'RTRepeat', RTSectionTag = 'RTSection', RTSectionStyle = `${StylePrefix}${RTSectionTag}`, RTSelectTag = 'RTSelect', RTOrTag = 'RTOr', RTObsTag = 'RTObs', RTObsStyle = `${StylePrefix}${RTObsTag}`, RTDescriptionTag = 'RTDesc', RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`, RTSiTag = 'RTSi', RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v9.3";
+const version = "v9.4";
 let USERFORM, NOTIFICATION;
 let RichText, RichTextInline, RichTextParag, ComboBox, CheckBox, dropDownList, Bounding, Hidden;
 Office.onReady((info) => {
@@ -415,6 +415,7 @@ async function customizeContract(showNested = false) {
                 allRT.load(props);
                 await context.sync();
                 const selectCtrls = getSelectCtrls(allRT.items);
+                return await deleteCtrls(new Set(selectCtrls.map(c => c.id)));
                 let toDelete = new Set();
                 for (const ctrl of selectCtrls) {
                     if (keep.includes(`${ctrl.id}`))
@@ -717,6 +718,26 @@ async function customizeContract(showNested = false) {
     }
 }
 ;
+async function deleteCtrls(ids) {
+    await Word.run(async (context) => {
+        for (const id of ids) {
+            const ctrl = context.document.getContentControls().getById(id);
+            if (!ctrl)
+                continue;
+            const nested = ctrl.getContentControls();
+            nested.load('tag');
+            await context.sync();
+            const ctrls = [...nested.items, ctrl];
+            for (const c of ctrls) {
+                c.cannotEdit = false;
+                c.cannotDelete = false;
+            }
+            if (ctrl.tag !== RTDuplicateTag)
+                ctrl.delete(false);
+            await context.sync();
+        }
+    });
+}
 async function promptForInput(question, deflt, fun, cancel = true) {
     if (!question)
         return '';
