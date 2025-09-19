@@ -14,6 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
+const version = `v8.4`;
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -50,9 +51,12 @@ function showBtns(btns: Btn[], append = true, on: string = 'click') {
 
 function mainUI() {
     if (!USERFORM) return;
+    const p = document.createElement('p');
+    p.innerText = version;
+    USERFORM.insertAdjacentElement('beforebegin', p);
     USERFORM.innerHTML = '';
     const main: Btn[] =
-        [[customizeContract, 'Customize Contract'], [prepareTemplate, 'Prepare Template']];
+        [[customizeContract, 'Customize Contract'], [prepareTemplate, 'Prepare Template'], [finalizeContract, 'Finalize Contract']];
     const btns = showBtns(main);
     const back = [goBack, 'Go Back'] as Btn;
     btns.forEach(btn => btn?.addEventListener('click', () => insertBtn(back, false)));
@@ -405,8 +409,8 @@ async function customizeContract(showNested: boolean = false) {
     const selected: string[] = [];
     const not: string = 'RTDelete';
     const processed = (id: number) => selected.find(t => t.includes(id.toString()));
-    const getSelectCtrls = (ctrls: ContentControl[]) => ctrls.filter(ctrl => TAGS.includes(ctrl.tag));
     const TAGS = [...OPTIONS, RTDuplicateTag];
+    const getSelectCtrls = (ctrls: ContentControl[]) => ctrls.filter(ctrl => TAGS.includes(ctrl.tag));
     const props = ['id', 'tag', 'title'];
     if (showNested) return await showNestedOptionsTree();
 
@@ -434,9 +438,10 @@ async function customizeContract(showNested: boolean = false) {
                 const allRT = context.document.getContentControls();
                 allRT.load(props);
                 await context.sync();
-                const selectCtrls = allRT.items.filter(c => c.tag === RTSelectTag);//!We exclude the RTDuplicateTag
+                const selectCtrls = getSelectCtrls(allRT.items);
                 for (const ctrl of selectCtrls) {
                     if (keep.includes(`${ctrl.id}`)) continue;
+                    if (ctrl.tag === RTDuplicateTag) continue;//!We do not delete RTDuplicateTag ctrls;
                     const nested = ctrl.getContentControls();
                     nested.load(props);
                     await context.sync();
@@ -853,25 +858,21 @@ function setRangeStyle(objs: (ContentControl | Word.Paragraph)[], style: string)
 }
 
 async function finalizeContract() {
-    const tags = [RTSiTag, RTDescriptionTag, RTObsTag, RTDropDownTag];
-    await removeRTs(tags);
-}
-
-async function removeRTs(tags: string[]) {
-    const deleteField = (all: ContentControl[], id: number) => all.find(c => c.title === getCtrlTitle(RTFieldTag, id))?.delete(false);
-    
+    const tags = [RTSiTag, RTDescriptionTag, RTObsTag];
     Word.run(async (context) => {
-        for (const tag of tags) {
             const allCtrls = context.document.getContentControls();
             allCtrls.load(['tag', 'title']);
             await context.sync();
-            const ctrls = allCtrls.items.filter(c=>c.tag === tag);
-            ctrls.forEach(ctrl => {
+            allCtrls.items.forEach(ctrl => {
+                if (!tags.includes(ctrl.tag))
+                    return ctrl.appearance = Word.ContentControlAppearance.hidden;
                 ctrl.select();
                 ctrl.cannotDelete = false;  
-                ctrl.delete(tag === RTDropDownTag)//!We keep the content of the dropdown ctrls
+                ctrl.delete(ctrl.tag === RTDropDownTag)//!We keep the content of the dropdown ctrls
             });
             await context.sync();
-        }
     });
+
 }
+
+
