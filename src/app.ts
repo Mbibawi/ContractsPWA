@@ -14,7 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.5";
+const version = "v10.6";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -425,8 +425,10 @@ async function customizeContract(showNested: boolean = false) {
             for (const ctrl of selectCtrls)
                 await promptForSelection(ctrl);
 
-            const keep = selected.filter(title => !title.startsWith('!')).map(title=>Number(title));
-            showNotification(`keep = ${keep.join(', ')}`);
+            const keep = selected
+                .filter(title => !title.startsWith('!'))
+                .map(title => Number(title));
+            console.log(`keep = ${keep.join(',\n')}`);
             try {
                 await currentDoc();
                 //await createNewDoc();
@@ -450,7 +452,11 @@ async function customizeContract(showNested: boolean = false) {
                     const ctrls = [...nested.items];
                     if (!escape.length) ctrls.push(ctrl);// => it means ctrl hasn't any nested ctrl that we don't want to delete, so we can safely delet ctrl and its nested ctrls.
 
-                    ctrls.forEach(c=>c.cannotDelete = keep.includes(c.id));
+                    ctrls.forEach(c => {
+                        const canDelete = !keep.includes(c.id);
+                        c.cannotDelete = canDelete;
+                        if(canDelete) c.cannotEdit = canDelete;//!we must set cannotEdit to true if the ctrl is to be deleted otherwise we will get an error from the shitty Word js api
+                    });
                     
                     if (escape.length || ctrl.tag === RTDuplicateTag) continue;
                     if (keep.includes(ctrl.id)) continue;
