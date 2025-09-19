@@ -1,5 +1,3 @@
-import { todo } from "node:test";
-
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     StylePrefix = 'Contrat_',
     RTFieldTag = 'RTField',
@@ -16,7 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.9.2";
+const version = "v10.9.3";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
