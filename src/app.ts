@@ -14,7 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.9.4";
+const version = "v10.9.5";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -750,6 +750,9 @@ async function deleteCtrls(ids: Set<number>) {
             nested.load('id');
             await context.sync();
             toDelete = toDelete.filter(c => !nested.items.includes(c));//!we remove any nested ctrls from the toDelete array
+        }
+
+        for (const ctrl of toDelete){
             const message = `found and deleted ctrl with id = ${ctrl.id}`
             ctrl.getRange().delete();
             ctrl.delete(false);
