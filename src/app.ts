@@ -14,7 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v8.8";
+const version = "v8.9";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -439,20 +439,26 @@ async function customizeContract(showNested: boolean = false) {
                 allRT.load(props);
                 await context.sync();
                 const selectCtrls = getSelectCtrls(allRT.items);
+                const toDelete = [];
                 for (const ctrl of selectCtrls) {
                     if (keep.includes(`${ctrl.id}`)) continue;
                     if (ctrl.tag === RTDuplicateTag) continue;//!We do not delete RTDuplicateTag ctrls;
+                    toDelete.push(ctrl);
                     const nested = ctrl.getContentControls();
                     nested.load(props);
                     await context.sync();
-                    const ctrls = [...nested.items.filter(c => c.id !== ctrl.id), ctrl];
+                    const ctrls = [...nested.items, ctrl];
+                
                     for (const c of ctrls) {
                         c.cannotDelete = false;
                         c.cannotEdit = false;
-                        c.delete(false)                    
-                    }
-                    await context.sync();
+                        //c.delete(false)                    
+                    }                   
                 }
+
+                for (const ctrl of toDelete)
+                    ctrl.delete(false);
+                await context.sync();
             };
 
             async function createNewDoc() {

@@ -1,6 +1,6 @@
 "use strict";
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'], StylePrefix = 'Contrat_', RTFieldTag = 'RTField', RTDropDownTag = 'RTList', RTDropDownColor = '#991c63', RTDuplicateTag = 'RTRepeat', RTSectionTag = 'RTSection', RTSectionStyle = `${StylePrefix}${RTSectionTag}`, RTSelectTag = 'RTSelect', RTOrTag = 'RTOr', RTObsTag = 'RTObs', RTObsStyle = `${StylePrefix}${RTObsTag}`, RTDescriptionTag = 'RTDesc', RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`, RTSiTag = 'RTSi', RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v8.8";
+const version = "v8.9";
 let USERFORM, NOTIFICATION;
 let RichText, RichTextInline, RichTextParag, ComboBox, CheckBox, dropDownList, Bounding, Hidden;
 Office.onReady((info) => {
@@ -415,22 +415,26 @@ async function customizeContract(showNested = false) {
                 allRT.load(props);
                 await context.sync();
                 const selectCtrls = getSelectCtrls(allRT.items);
+                const toDelete = [];
                 for (const ctrl of selectCtrls) {
                     if (keep.includes(`${ctrl.id}`))
                         continue;
                     if (ctrl.tag === RTDuplicateTag)
                         continue; //!We do not delete RTDuplicateTag ctrls;
+                    toDelete.push(ctrl);
                     const nested = ctrl.getContentControls();
                     nested.load(props);
                     await context.sync();
-                    const ctrls = [...nested.items.filter(c => c.id !== ctrl.id), ctrl];
+                    const ctrls = [...nested.items, ctrl];
                     for (const c of ctrls) {
                         c.cannotDelete = false;
                         c.cannotEdit = false;
-                        c.delete(false);
+                        //c.delete(false)                    
                     }
-                    await context.sync();
                 }
+                for (const ctrl of toDelete)
+                    ctrl.delete(false);
+                await context.sync();
             }
             ;
             async function createNewDoc() {
