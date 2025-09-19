@@ -1,6 +1,6 @@
 "use strict";
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'], StylePrefix = 'Contrat_', RTFieldTag = 'RTField', RTDropDownTag = 'RTList', RTDropDownColor = '#991c63', RTDuplicateTag = 'RTRepeat', RTSectionTag = 'RTSection', RTSectionStyle = `${StylePrefix}${RTSectionTag}`, RTSelectTag = 'RTSelect', RTOrTag = 'RTOr', RTObsTag = 'RTObs', RTObsStyle = `${StylePrefix}${RTObsTag}`, RTDescriptionTag = 'RTDesc', RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`, RTSiTag = 'RTSi', RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v9.9";
+const version = "v10.1";
 let USERFORM, NOTIFICATION;
 let RichText, RichTextInline, RichTextParag, ComboBox, CheckBox, dropDownList, Bounding, Hidden;
 Office.onReady((info) => {
@@ -737,10 +737,11 @@ async function customizeContract(showNested = false) {
 async function deleteCtrls(ids) {
     await Word.run(async (context) => {
         for (const id of ids) {
-            const ctrl = context.document.getContentControls().getById(id);
-            ctrl.load('isNullObject');
+            const ctrls = context.document.getContentControls();
+            ctrls.load('id');
             await context.sync();
-            if (ctrl.isNullObject)
+            const ctrl = ctrls.items.find(ctrl => ctrl.id === id);
+            if (!ctrl)
                 continue;
             showNotification(`found ctrl to be deleted id = ${id}`);
             ctrl.delete(false);

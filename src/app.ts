@@ -14,7 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.0";
+const version = "v10.1";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -754,10 +754,11 @@ async function customizeContract(showNested: boolean = false) {
 async function deleteCtrls(ids: Set<number>) {
     await Word.run(async (context) => {
         for (const id of ids) {
-            const ctrl = context.document.getContentControls().getById(id);
-            ctrl.load('isNullObject');
+            const ctrls = context.document.getContentControls();
+            ctrls.load('id');
             await context.sync();
-            if (ctrl.isNullObject) continue;
+            const ctrl = ctrls.items.find(ctrl => ctrl.id === id);
+            if (!ctrl) continue;
             showNotification(`found ctrl to be deleted id = ${id}`)
             ctrl.delete(false);
         }
