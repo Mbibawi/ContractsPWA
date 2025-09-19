@@ -14,7 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v9.7";
+const version = "v9.8";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -749,12 +749,15 @@ async function deleteCtrls(ids: Set<number>) {
                 c.cannotEdit = false;
                 c.cannotDelete = false;
             }
+            if (ctrl.tag === RTDuplicateTag) ids.delete(id);
             //if(ctrl.tag !==RTDuplicateTag) ctrl.delete(false)
-            if (ctrl.tag !== RTDuplicateTag) toDelete.push(ctrl)
         };
         await context.sync();
-        for (const ctrl of toDelete)
+        for (const id of ids) {
+            const ctrl = context.document.getContentControls().getById(id);
+            if (!ctrl) continue;
             ctrl.delete(false);
+        }
         await context.sync();
     })
 }
