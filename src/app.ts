@@ -14,7 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v8.5";
+const version = "v8.6";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -448,8 +448,12 @@ async function customizeContract(showNested: boolean = false) {
                     [ctrl, ...nested.items].forEach(c => c.cannotDelete = false);
                     await context.sync();
                     ctrl.select();
-                    showNotification(`Deleted Ctrl: ${ctrl.id}`)
-                    ctrl.delete(false);
+                    showNotification(`Deleted Ctrl: ${ctrl.id}`);
+                    try {
+                        ctrl.delete(false);
+                    } catch (error) {
+                        showNotification(`Failed to delete ctrl id = ${ctrl.id}`);
+                    }
                     await context.sync();
                 }
             };
