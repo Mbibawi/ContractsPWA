@@ -1,6 +1,6 @@
 "use strict";
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'], StylePrefix = 'Contrat_', RTFieldTag = 'RTField', RTDropDownTag = 'RTList', RTDropDownColor = '#991c63', RTDuplicateTag = 'RTRepeat', RTSectionTag = 'RTSection', RTSectionStyle = `${StylePrefix}${RTSectionTag}`, RTSelectTag = 'RTSelect', RTOrTag = 'RTOr', RTObsTag = 'RTObs', RTObsStyle = `${StylePrefix}${RTObsTag}`, RTDescriptionTag = 'RTDesc', RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`, RTSiTag = 'RTSi', RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v9.8";
+const version = "v9.9";
 let USERFORM, NOTIFICATION;
 let RichText, RichTextInline, RichTextParag, ComboBox, CheckBox, dropDownList, Bounding, Hidden;
 Office.onReady((info) => {
@@ -415,7 +415,23 @@ async function customizeContract(showNested = false) {
                 allRT.load(props);
                 await context.sync();
                 const selectCtrls = getSelectCtrls(allRT.items);
-                return await deleteCtrls(new Set(selectCtrls.map(c => c.id)));
+                const ids = new Set();
+                for (const ctrl of selectCtrls) {
+                    ctrl.load('tag');
+                    ctrl.track();
+                    const nested = ctrl.getContentControls();
+                    nested.load('tag');
+                    await context.sync();
+                    const ctrls = [...nested.items, ctrl];
+                    for (const c of ctrls) {
+                        c.cannotEdit = false;
+                        c.cannotDelete = false;
+                    }
+                    if (ctrl.tag !== RTDuplicateTag)
+                        ids.add(ctrl.id);
+                }
+                await context.sync();
+                return await deleteCtrls(ids);
                 let toDelete = new Set();
                 for (const ctrl of selectCtrls) {
                     if (keep.includes(`${ctrl.id}`))
@@ -720,31 +736,11 @@ async function customizeContract(showNested = false) {
 ;
 async function deleteCtrls(ids) {
     await Word.run(async (context) => {
-        const toDelete = [];
         for (const id of ids) {
             const ctrl = context.document.getContentControls().getById(id);
             if (!ctrl)
                 continue;
-            ctrl.load('tag');
-            ctrl.track();
-            const nested = ctrl.getContentControls();
-            nested.load('tag');
-            await context.sync();
-            const ctrls = [...nested.items, ctrl];
-            for (const c of ctrls) {
-                c.cannotEdit = false;
-                c.cannotDelete = false;
-            }
-            if (ctrl.tag === RTDuplicateTag)
-                ids.delete(id);
-            //if(ctrl.tag !==RTDuplicateTag) ctrl.delete(false)
-        }
-        ;
-        await context.sync();
-        for (const id of ids) {
-            const ctrl = context.document.getContentControls().getById(id);
-            if (!ctrl)
-                continue;
+            showNotification(`found ctrl to be deleted id = ${id}`);
             ctrl.delete(false);
         }
         await context.sync();
