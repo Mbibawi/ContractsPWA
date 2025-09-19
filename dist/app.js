@@ -738,7 +738,9 @@ async function deleteCtrls(ids) {
     await Word.run(async (context) => {
         for (const id of ids) {
             const ctrl = context.document.getContentControls().getById(id);
-            if (!ctrl)
+            ctrl.load('isNullObject');
+            await context.sync();
+            if (ctrl.isNullObject)
                 continue;
             showNotification(`found ctrl to be deleted id = ${id}`);
             ctrl.delete(false);

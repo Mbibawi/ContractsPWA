@@ -14,7 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v9.9";
+const version = "v10.0";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -755,7 +755,9 @@ async function deleteCtrls(ids: Set<number>) {
     await Word.run(async (context) => {
         for (const id of ids) {
             const ctrl = context.document.getContentControls().getById(id);
-            if (!ctrl) continue;
+            ctrl.load('isNullObject');
+            await context.sync();
+            if (ctrl.isNullObject) continue;
             showNotification(`found ctrl to be deleted id = ${id}`)
             ctrl.delete(false);
         }
