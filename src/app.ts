@@ -436,13 +436,16 @@ async function customizeContract(showNested: boolean = false) {
                 await context.sync();
                 const selectCtrls = getSelectCtrls(allRT.items);//!We need to retrieve all the selected items again because we may have added new ctrls by cloning the 'Duplicate' ctrls
                 for (const ctrl of selectCtrls) {
-                    if (keep.includes(ctrl.title)) continue;
+                    if (keep.includes(`${ctrl.id}`)) continue;
                     ctrl.select();
-                    ctrl.cannotDelete = false;
-                    showNotification(`Deleted Ctrl: ${ctrl.title}`)
+                    const nested = ctrl.getContentControls();
+                    nested.load(props);
+                    await context.sync();
+                    [ctrl, ...nested.items].forEach(c=>c.cannotDelete = false)
+                    showNotification(`Deleted Ctrl: ${ctrl.id}`)
                     ctrl.delete(false);
+                    await context.sync();
                 }
-                await context.sync();
             };
 
             async function createNewDoc() {
