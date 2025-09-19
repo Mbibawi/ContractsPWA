@@ -14,7 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.9.3";
+const version = "v10.9.4";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -444,13 +444,18 @@ async function customizeContract(showNested: boolean = false) {
                 const ids: Set<number> = new Set();
 
                 for (const ctrl of selectCtrls) {
+                    if (ctrl.tag === RTDuplicateTag) {
+                        ctrl.cannotEdit = false;//!This important, otherwise it will not be possible to delete any of the nested ctrls, and we will get an error from the shitty Word api
+                        ctrl.cannotDelete = false;//!In some cases, the Duplicate ctrl is nested in a 'Select' ctrl which needs to be deleted. If the Duplicate.cannotDelete = true, the parent will not be deleted, and we will get an error form the shitty Word api
+                        continue
+                    }
                     const nested = ctrl.getContentControls();
                     nested.load(['id','tag']);
                     await context.sync();
                     const ctrls = [...nested.items, ctrl];
                     const nestedIds = ctrls.map(c => c.id);
                     const escape = keep.filter(id => nestedIds.includes(id)).length //!This means that  either ctrl itself or one or more of its nested contentcontrols is included in keep, => we  need to keep ctrl.
-                    if (escape || ctrl.tag === RTDuplicateTag) {
+                    if (escape) {
                         ctrl.cannotDelete = true;
                         continue;
                     }
@@ -460,7 +465,6 @@ async function customizeContract(showNested: boolean = false) {
                         c.cannotEdit = false;
                     });
                     
-                    nestedIds.forEach(id => ids.delete(id));//!We start by cleaning ids from any nested item. Only the main ctrl should be in ids in order to avoid getting an error when deleteCtrls tries to delete a nested ctrl after its containing ctrl was deleted.
                     ids.add(ctrl.id);//!We keep only the envelopping ctrl
                 }
 
@@ -739,10 +743,13 @@ async function deleteCtrls(ids: Set<number>) {
         const ctrls = context.document.getContentControls();
         ctrls.load(['id', 'cannotDelete']);
         await context.sync();
-        const toDelete = Array.from(ids).map(id => ctrls.items.find(c => c.id === id && !c.cannotDelete));
+        let toDelete = ctrls.items.filter(c => ids.has(c.id));
 
         for (const ctrl of toDelete) {
-            if (!ctrl) continue;
+            const nested = ctrl.getContentControls();
+            nested.load('id');
+            await context.sync();
+            toDelete = toDelete.filter(c => !nested.items.includes(c));//!we remove any nested ctrls from the toDelete array
             const message = `found and deleted ctrl with id = ${ctrl.id}`
             ctrl.getRange().delete();
             ctrl.delete(false);
