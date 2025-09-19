@@ -1,3 +1,5 @@
+import { todo } from "node:test";
+
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     StylePrefix = 'Contrat_',
     RTFieldTag = 'RTField',
@@ -14,7 +16,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.9.1";
+const version = "v10.9.2";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -448,7 +450,7 @@ async function customizeContract(showNested: boolean = false) {
                     nested.load(['id','tag']);
                     await context.sync();
                     const ctrls = [...nested.items, ctrl];
-                    const nestedIds = nested.items.map(c => c.id);
+                    const nestedIds = ctrls.map(c => c.id);
                     const escape = keep.filter(id => nestedIds.includes(id)).length //!This means that  either ctrl itself or one or more of its nested contentcontrols is included in keep, => we  need to keep ctrl.
                     if (escape || ctrl.tag === RTDuplicateTag) {
                         ctrl.cannotDelete = true;
@@ -460,7 +462,8 @@ async function customizeContract(showNested: boolean = false) {
                         c.cannotEdit = false;
                     });
                     
-                    ids.add(ctrl.id);
+                    nestedIds.forEach(id => ids.delete(id));//!We start by cleaning ids from any nested item. Only the main ctrl should be in ids in order to avoid getting an error when deleteCtrls tries to delete a nested ctrl after its containing ctrl was deleted.
+                    ids.add(ctrl.id);//!We keep only the envelopping ctrl
                 }
 
                 await context.sync();
@@ -735,17 +738,19 @@ async function customizeContract(showNested: boolean = false) {
 
 async function deleteCtrls(ids: Set<number>) {
     await Word.run(async (context) => {
-        for (const id of ids) {
-            const ctrls = context.document.getContentControls();
-            ctrls.load(['id', 'cannotDelete']);
-            await context.sync();
-            const ctrl = ctrls.items.find(ctrl => ctrl.id === id);
-            if (!ctrl || ctrl.cannotDelete) continue;
+        const ctrls = context.document.getContentControls();
+        ctrls.load(['id', 'cannotDelete']);
+        await context.sync();
+        const toDelete = Array.from(ids).map(id => ctrls.items.find(c => c.id === id && !c.cannotDelete));
+
+        for (const ctrl of toDelete) {
+            if (!ctrl) continue;
+            const message = `found and deleted ctrl with id = ${ctrl.id}`
             ctrl.getRange().delete();
             ctrl.delete(false);
-            showNotification(`found and deleted ctrl with id = ${id}`)
-            await context.sync();
+            showNotification(message)
         }
+        await context.sync();
     })
 }
 async function promptForInput(question: string, deflt?: string, fun?: Function, cancel: boolean = true): Promise<string | void> {
