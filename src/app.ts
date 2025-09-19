@@ -14,7 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v9.6";
+const version = "v9.7";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -151,7 +151,7 @@ function insertBtn([fun, label]: Btn, append: boolean = true, on: string = 'clic
  * @returns A Promise that resolves when the operation is complete.
  */
 async function findTextAndWrapItWithContentControl(styles: string[], title: string, tag: string, cannotEdit: boolean, cannotDelete: boolean) {
-    
+
     return await Word.run(async (context) => {
         const ctrls: ContentControl[] = [];
         const { search, matchWildcards } = await searchs();
@@ -170,7 +170,7 @@ async function findTextAndWrapItWithContentControl(styles: string[], title: stri
 
         return ctrls;
 
-        async function insertCtrls(ranges:Word.Range[]) {
+        async function insertCtrls(ranges: Word.Range[]) {
             const ctrls: ContentControl[] = [];
             for (const range of ranges) {
                 const parent = range.parentContentControlOrNullObject;
@@ -192,9 +192,9 @@ async function findTextAndWrapItWithContentControl(styles: string[], title: stri
         const separator = '_&_';
         const search = (await promptForInput(`Provide the search string. You can provide more than one string to search by separated by ${separator} witohout space`, separator))?.split(separator) as string[];
         const matchWildcards = await promptConfirm('Match Wild Cards');
-    
+
         if (!styles) styles = (await promptForInput(`Provide the styles that that need to be matched separated by ","`))?.split(',') || [];
-        return {search, matchWildcards}
+        return { search, matchWildcards }
     }
 }
 
@@ -221,7 +221,7 @@ async function insertRTDescription(selection: boolean = false, style: string = `
     else ctrls = await findTextAndWrapItWithContentControl([RTDescriptionStyle], RTDescriptionTag, RTDescriptionTag, true, true);
 
     if (!ctrls?.length) return;
-    const ids = ctrls.map(c => c?.id||0);
+    const ids = ctrls.map(c => c?.id || 0);
 
     await insertFieldCtrl(ids, style);
 
@@ -243,7 +243,7 @@ async function insertFieldCtrl(ids: number[], style: string) {
         await context.sync();
     });
 
-    async function insert(ctrl:ContentControl) {
+    async function insert(ctrl: ContentControl) {
         const start = ctrl.getRange(Word.RangeLocation.before);
         const field = await insertContentControl(start, RTFieldTag, RTFieldTag, 0, RichText, style, false, false, '[*]');
         if (!field) return;
@@ -252,11 +252,11 @@ async function insertFieldCtrl(ids: number[], style: string) {
 }
 function insertRTSiAll() {
     insertForAllParags(RTSiStyles, RTSiTag)
-} 
+}
 function insertRTSectionAll() {
     insertForAllParags([RTSectionStyle], RTSectionTag)
-} 
-async function insertForAllParags(Styles:string[], tag:string) {
+}
+async function insertForAllParags(Styles: string[], tag: string) {
     NOTIFICATION.innerHTML = '';
     await Word.run(async (context) => {
         const paragraphs = context.document.body.paragraphs;
@@ -327,7 +327,7 @@ async function insertDropDownList(range: Word.Range | void, index: number = 0) {
     setCtrlsColor([ctrl], RTDropDownColor);
     await ctrl.context.sync();
 }
-async function insertContentControl(range: Word.Range, title: string, tag: string, index: number = 1, type: Word.ContentControlType, style: string | null, cannotEdit: boolean = true, cannotDelete: boolean = true, placeHolder?:string): Promise<Word.ContentControl | undefined> {
+async function insertContentControl(range: Word.Range, title: string, tag: string, index: number = 1, type: Word.ContentControlType, style: string | null, cannotEdit: boolean = true, cannotDelete: boolean = true, placeHolder?: string): Promise<Word.ContentControl | undefined> {
     range.select();
     const styles = range.context.document.getStyles();
     styles.load(['nameLocal', 'type']);
@@ -440,8 +440,8 @@ async function customizeContract(showNested: boolean = false) {
                 await context.sync();
                 const selectCtrls = getSelectCtrls(allRT.items);
                 return await deleteCtrls(new Set(selectCtrls.map(c => c.id)));
-                
-                let toDelete:Set<ContentControl> = new Set();
+
+                let toDelete: Set<ContentControl> = new Set();
                 for (const ctrl of selectCtrls) {
                     if (keep.includes(`${ctrl.id}`)) continue;
                     ctrl.track();
@@ -453,8 +453,8 @@ async function customizeContract(showNested: boolean = false) {
                         c.cannotDelete = false;
                         c.cannotEdit = false;
                         if (c.tag === RTDuplicateTag) continue;
-                       toDelete.add(c);      
-                    } 
+                        toDelete.add(c);
+                    }
                 }
 
                 for (const ctrl of toDelete) {
@@ -465,7 +465,7 @@ async function customizeContract(showNested: boolean = false) {
                     }
                 }
                 await context.sync();
-            
+
             };
 
             async function createNewDoc() {
@@ -733,7 +733,7 @@ async function customizeContract(showNested: boolean = false) {
     }
 };
 
-async function deleteCtrls(ids:Set<number>) {
+async function deleteCtrls(ids: Set<number>) {
     await Word.run(async (context) => {
         const toDelete: ContentControl[] = [];
         for (const id of ids) {
@@ -749,16 +749,16 @@ async function deleteCtrls(ids:Set<number>) {
                 c.cannotEdit = false;
                 c.cannotDelete = false;
             }
-            await context.sync();
             //if(ctrl.tag !==RTDuplicateTag) ctrl.delete(false)
-            if(ctrl.tag !==RTDuplicateTag) toDelete.push(ctrl)
-        }
+            if (ctrl.tag !== RTDuplicateTag) toDelete.push(ctrl)
+        };
+        await context.sync();
         for (const ctrl of toDelete)
             ctrl.delete(false);
         await context.sync();
     })
 }
-async function promptForInput(question: string, deflt?: string, fun?: Function, cancel:boolean = true): Promise<string | void> {
+async function promptForInput(question: string, deflt?: string, fun?: Function, cancel: boolean = true): Promise<string | void> {
     if (!question) return '';
     const container = createHTMLElement('div', 'promptContainer', '', USERFORM);
     const prompt = createHTMLElement('div', 'prompt', '', container);
@@ -900,17 +900,17 @@ function setRangeStyle(objs: (ContentControl | Word.Paragraph)[], style: string)
 async function finalizeContract() {
     const tags = [RTSiTag, RTDescriptionTag, RTObsTag, RTSectionTag];
     Word.run(async (context) => {
-            const allCtrls = context.document.getContentControls();
-            allCtrls.load(['tag', 'title']);
-            await context.sync();
-            allCtrls.items.forEach(ctrl => {
-                if (!tags.includes(ctrl.tag))
-                    return ctrl.appearance = Word.ContentControlAppearance.hidden;
-                ctrl.select();
-                ctrl.cannotDelete = false;  
-                ctrl.delete(ctrl.tag === RTDropDownTag)//!We keep the content of the dropdown ctrls
-            });
-            await context.sync();
+        const allCtrls = context.document.getContentControls();
+        allCtrls.load(['tag', 'title']);
+        await context.sync();
+        allCtrls.items.forEach(ctrl => {
+            if (!tags.includes(ctrl.tag))
+                return ctrl.appearance = Word.ContentControlAppearance.hidden;
+            ctrl.select();
+            ctrl.cannotDelete = false;
+            ctrl.delete(ctrl.tag === RTDropDownTag)//!We keep the content of the dropdown ctrls
+        });
+        await context.sync();
     });
 
 }
