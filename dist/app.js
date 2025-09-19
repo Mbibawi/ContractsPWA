@@ -393,7 +393,7 @@ async function customizeContract(showNested = false) {
             const allRT = context.document.getContentControls();
             allRT.load(props);
             await context.sync();
-            const selectCtrls = getSelectCtrls(allRT.items);
+            const selectCtrls = allRT.items.filter(c => c.tag === RTSelectTag); //!We exclude the RTDuplicateTag
             for (const ctrl of selectCtrls)
                 await promptForSelection(ctrl);
             const keep = selected.filter(title => !title.startsWith('!'));
@@ -413,11 +413,11 @@ async function customizeContract(showNested = false) {
                 for (const ctrl of selectCtrls) {
                     if (keep.includes(`${ctrl.id}`))
                         continue;
-                    ctrl.select();
                     const nested = ctrl.getContentControls();
                     nested.load(props);
                     await context.sync();
                     [ctrl, ...nested.items].forEach(c => c.cannotDelete = false);
+                    ctrl.select();
                     showNotification(`Deleted Ctrl: ${ctrl.id}`);
                     ctrl.delete(false);
                     await context.sync();
