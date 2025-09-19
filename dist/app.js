@@ -415,27 +415,31 @@ async function customizeContract(showNested = false) {
                 allRT.load(props);
                 await context.sync();
                 const selectCtrls = getSelectCtrls(allRT.items);
-                const toDelete = [];
+                let toDelete = [];
                 for (const ctrl of selectCtrls) {
                     if (keep.includes(`${ctrl.id}`))
                         continue;
-                    if (ctrl.tag === RTDuplicateTag)
-                        continue; //!We do not delete RTDuplicateTag ctrls;
                     ctrl.track();
                     const nested = ctrl.getContentControls();
                     nested.load(props);
                     await context.sync();
-                    const ctrls = [...nested.items, ctrl];
-                    for (const c of ctrls) {
+                    for (const c of nested.items) {
                         c.cannotDelete = false;
                         c.cannotEdit = false;
                         toDelete.push(c);
-                        //c.delete(false)                    
                     }
-                    toDelete.push(ctrl);
+                    if (!toDelete.includes(ctrl))
+                        toDelete.push(ctrl);
                 }
-                for (const ctrl of toDelete)
-                    ctrl.delete(false);
+                toDelete = toDelete.filter(c => c.tag !== RTDuplicateTag);
+                for (const ctrl of toDelete) {
+                    try {
+                        ctrl.delete(false);
+                    }
+                    catch (error) {
+                        showNotification(`Failed to delete ctrl ctrl.id = ${ctrl.id}`);
+                    }
+                }
                 await context.sync();
             }
             ;
@@ -463,7 +467,6 @@ async function customizeContract(showNested = false) {
     }
     async function promptForSelection(ctrl) {
         try {
-            ctrl.select();
             await showSelectPrompt([ctrl]);
         }
         catch (error) {
@@ -477,6 +480,7 @@ async function customizeContract(showNested = false) {
             for (const ctrl of selectCtrls) {
                 if (processed(ctrl.id))
                     continue; //!We must escape the ctrls that have already been processed
+                ctrl.select();
                 if (ctrl.tag === RTDuplicateTag) {
                     await duplicateBlock(ctrl.id);
                     continue;
