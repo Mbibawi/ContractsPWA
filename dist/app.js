@@ -1,6 +1,6 @@
 "use strict";
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'], StylePrefix = 'Contrat_', RTFieldTag = 'RTField', RTDropDownTag = 'RTList', RTDropDownColor = '#991c63', RTDuplicateTag = 'RTRepeat', RTSectionTag = 'RTSection', RTSectionStyle = `${StylePrefix}${RTSectionTag}`, RTSelectTag = 'RTSelect', RTOrTag = 'RTOr', RTObsTag = 'RTObs', RTObsStyle = `${StylePrefix}${RTObsTag}`, RTDescriptionTag = 'RTDesc', RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`, RTSiTag = 'RTSi', RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.3";
+const version = "v10.5";
 let USERFORM, NOTIFICATION;
 let RichText, RichTextInline, RichTextParag, ComboBox, CheckBox, dropDownList, Bounding, Hidden;
 Office.onReady((info) => {
@@ -401,7 +401,7 @@ async function customizeContract(showNested = false) {
             const selectCtrls = getSelectCtrls(allRT.items);
             for (const ctrl of selectCtrls)
                 await promptForSelection(ctrl);
-            const keep = selected.filter(title => !title.startsWith('!'));
+            const keep = selected.filter(title => !title.startsWith('!')).map(title => Number(title));
             showNotification(`keep = ${keep.join(', ')}`);
             try {
                 await currentDoc();
@@ -422,16 +422,13 @@ async function customizeContract(showNested = false) {
                     await context.sync();
                     const nestedIds = nested.items.map(c => c.id);
                     const escape = keep.filter(id => nestedIds.includes(Number(id))); //!This means that ctrl has amongst its nested  contentcontrols one or more contentcontrols that we do not want to delete. We will hence keep the parent
-                    const ctrls = [...nested.items, ctrl];
+                    const ctrls = [...nested.items];
                     if (!escape.length)
-                        ctrls.push(ctrl);
-                    for (const c of ctrls) {
-                        if (keep.includes(`${c.id}`))
-                            continue;
-                        c.cannotEdit = false;
-                        c.cannotDelete = false;
-                    }
+                        ctrls.push(ctrl); // => it means ctrl hasn't any nested ctrl that we don't want to delete, so we can safely delet ctrl and its nested ctrls.
+                    ctrls.forEach(c => c.cannotDelete = keep.includes(c.id));
                     if (escape.length || ctrl.tag === RTDuplicateTag)
+                        continue;
+                    if (keep.includes(ctrl.id))
                         continue;
                     ids.add(ctrl.id);
                 }
@@ -451,7 +448,7 @@ async function customizeContract(showNested = false) {
                 await newDoc.context.sync();
                 showNotification(`All ctrls from newDoc = : ${all.items.map(c => c.title).join(', ')}`);
                 all.items.map(ctrl => {
-                    if (keep.includes(ctrl.title))
+                    if (keep.includes(ctrl.id))
                         return;
                     ctrl.cannotDelete = false;
                     ctrl.delete(false);
