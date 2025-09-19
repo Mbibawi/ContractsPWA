@@ -1,6 +1,6 @@
 "use strict";
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'], StylePrefix = 'Contrat_', RTFieldTag = 'RTField', RTDropDownTag = 'RTList', RTDropDownColor = '#991c63', RTDuplicateTag = 'RTRepeat', RTSectionTag = 'RTSection', RTSectionStyle = `${StylePrefix}${RTSectionTag}`, RTSelectTag = 'RTSelect', RTOrTag = 'RTOr', RTObsTag = 'RTObs', RTObsStyle = `${StylePrefix}${RTObsTag}`, RTDescriptionTag = 'RTDesc', RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`, RTSiTag = 'RTSi', RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v8.6";
+const version = "v8.7";
 let USERFORM, NOTIFICATION;
 let RichText, RichTextInline, RichTextParag, ComboBox, CheckBox, dropDownList, Bounding, Hidden;
 Office.onReady((info) => {
@@ -423,16 +423,11 @@ async function customizeContract(showNested = false) {
                     const nested = ctrl.getContentControls();
                     nested.load(props);
                     await context.sync();
-                    [ctrl, ...nested.items].forEach(c => c.cannotDelete = false);
-                    await context.sync();
-                    ctrl.select();
-                    showNotification(`Deleted Ctrl: ${ctrl.id}`);
-                    try {
-                        ctrl.delete(false);
-                    }
-                    catch (error) {
-                        showNotification(`Failed to delete ctrl id = ${ctrl.id}`);
-                    }
+                    [...nested.items, ctrl].forEach(c => {
+                        c.cannotDelete = false;
+                        c.cannotEdit = false;
+                        c.delete(false);
+                    });
                     await context.sync();
                 }
             }
