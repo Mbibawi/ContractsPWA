@@ -417,21 +417,21 @@ async function customizeContract(showNested = false) {
                 const selectCtrls = getSelectCtrls(allRT.items);
                 const ids = new Set();
                 for (const ctrl of selectCtrls) {
-                    if (keep.includes(`${ctrl.id}`))
-                        continue;
                     const nested = ctrl.getContentControls();
                     nested.load(['id', 'tag']);
                     await context.sync();
                     const nestedIds = nested.items.map(c => c.id);
-                    const doNotDelete = keep.find(id => nestedIds.includes(Number(id))); //!This means that ctrl has amongst its nested  contentcontrols a contentcontrol that we do not want to delete. We will hence keep the parent
-                    const ctrls = [...nested.items];
-                    if (!doNotDelete)
+                    const escape = keep.filter(id => nestedIds.includes(Number(id))); //!This means that ctrl has amongst its nested  contentcontrols one or more contentcontrols that we do not want to delete. We will hence keep the parent
+                    const ctrls = [...nested.items, ctrl];
+                    if (!escape.length)
                         ctrls.push(ctrl);
                     for (const c of ctrls) {
+                        if (keep.includes(`${c.id}`))
+                            continue;
                         c.cannotEdit = false;
                         c.cannotDelete = false;
                     }
-                    if (doNotDelete || ctrl.tag === RTDuplicateTag)
+                    if (escape.length || ctrl.tag === RTDuplicateTag)
                         continue;
                     ids.add(ctrl.id);
                 }

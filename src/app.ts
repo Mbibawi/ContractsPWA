@@ -14,7 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.3";
+const version = "v10.4";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -442,21 +442,21 @@ async function customizeContract(showNested: boolean = false) {
                 const ids: Set<number> = new Set();
 
                 for (const ctrl of selectCtrls) {
-                    if (keep.includes(`${ctrl.id}`)) continue;
                     const nested = ctrl.getContentControls();
                     nested.load(['id','tag']);
                     await context.sync();
                     const nestedIds = nested.items.map(c => c.id);
-                    const doNotDelete = keep.find(id => nestedIds.includes(Number(id))) //!This means that ctrl has amongst its nested  contentcontrols a contentcontrol that we do not want to delete. We will hence keep the parent
-                    const ctrls = [...nested.items];
-                    if (!doNotDelete) ctrls.push(ctrl);
+                    const escape = keep.filter(id => nestedIds.includes(Number(id))) //!This means that ctrl has amongst its nested  contentcontrols one or more contentcontrols that we do not want to delete. We will hence keep the parent
+                    const ctrls = [...nested.items, ctrl];
+                    if (!escape.length) ctrls.push(ctrl);
 
                     for (const c of ctrls) {
+                        if (keep.includes(`${c.id}`)) continue;
                         c.cannotEdit = false;
                         c.cannotDelete = false;
                     }
                     
-                    if (doNotDelete || ctrl.tag === RTDuplicateTag) continue;
+                    if (escape.length || ctrl.tag === RTDuplicateTag) continue;
                     ids.add(ctrl.id);
                 }
 
