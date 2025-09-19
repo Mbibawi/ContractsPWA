@@ -14,7 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.7";
+const version = "v10.8";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -447,19 +447,19 @@ async function customizeContract(showNested: boolean = false) {
                     const nested = ctrl.getContentControls();
                     nested.load(['id','tag']);
                     await context.sync();
+                    const ctrls = [...nested.items, ctrl];
                     const nestedIds = nested.items.map(c => c.id);
-                    const escape = keep.filter(id => nestedIds.includes(Number(id))) //!This means that ctrl has amongst its nested  contentcontrols one or more contentcontrols that we do not want to delete. We will hence keep the parent
-                    const ctrls = [...nested.items];
-                    if (!escape.length) ctrls.push(ctrl);// => it means ctrl hasn't any nested ctrl that we don't want to delete, so we can safely delet ctrl and its nested ctrls.
+                    const escape = keep.filter(id => nestedIds.includes(id)).length //!This means that  either ctrl itself or one or more of its nested contentcontrols is included in keep, => we  need to keep ctrl.
+                    if (escape || ctrl.tag === RTDuplicateTag) {
+                        ctrl.cannotDelete = true;
+                        continue;
+                    }
 
                     ctrls.forEach(c => {
-                        const cannotDelete = keep.includes(c.id);
-                        c.cannotDelete = cannotDelete;
-                        if(!cannotDelete) c.cannotEdit = cannotDelete;//!we must set cannotEdit to false if the ctrl is to be deleted otherwise we will get an error from the shitty Word js api
+                        c.cannotDelete = false;
+                        c.cannotEdit = false;
                     });
                     
-                    if (escape.length || ctrl.tag === RTDuplicateTag) continue;
-                    if (keep.includes(ctrl.id)) continue;
                     ids.add(ctrl.id);
                 }
 
