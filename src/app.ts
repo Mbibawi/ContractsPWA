@@ -14,7 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v9.1";
+const version = "v9.3";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -439,27 +439,28 @@ async function customizeContract(showNested: boolean = false) {
                 allRT.load(props);
                 await context.sync();
                 const selectCtrls = getSelectCtrls(allRT.items);
-                let toDelete = [];
+                let toDelete:Set<ContentControl> = new Set();
                 for (const ctrl of selectCtrls) {
                     if (keep.includes(`${ctrl.id}`)) continue;
                     ctrl.track();
                     const nested = ctrl.getContentControls();
                     nested.load(props);
                     await context.sync();
-                    for (const c of nested.items) {
+                    const ctrls = [...nested.items, ctrl];
+                    for (const c of ctrls) {
                         c.cannotDelete = false;
                         c.cannotEdit = false;
-                        toDelete.push(c);         
+                        if (c.tag === RTDuplicateTag) continue;
+                        toDelete.add(c);         
                     } 
-                    if (!toDelete.includes(ctrl)) toDelete.push(ctrl); 
                 }
 
-                toDelete = toDelete.filter(c => c.tag !== RTDuplicateTag);
+
                 for (const ctrl of toDelete) {
                     try {
                         ctrl.delete(false);
                     } catch (error) {
-                        showNotification(`Failed to delete ctrl ctrl.id = ${ctrl.id}`)
+                        showNotification(`Failed to delete ctrl. Ctrl.id = ${ctrl.id}`)
                     }
                 }
                 await context.sync();
