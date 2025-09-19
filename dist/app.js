@@ -1,6 +1,6 @@
 "use strict";
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'], StylePrefix = 'Contrat_', RTFieldTag = 'RTField', RTDropDownTag = 'RTList', RTDropDownColor = '#991c63', RTDuplicateTag = 'RTRepeat', RTSectionTag = 'RTSection', RTSectionStyle = `${StylePrefix}${RTSectionTag}`, RTSelectTag = 'RTSelect', RTOrTag = 'RTOr', RTObsTag = 'RTObs', RTObsStyle = `${StylePrefix}${RTObsTag}`, RTDescriptionTag = 'RTDesc', RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`, RTSiTag = 'RTSi', RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.6";
+const version = "v10.7";
 let USERFORM, NOTIFICATION;
 let RichText, RichTextInline, RichTextParag, ComboBox, CheckBox, dropDownList, Bounding, Hidden;
 Office.onReady((info) => {
@@ -428,10 +428,10 @@ async function customizeContract(showNested = false) {
                     if (!escape.length)
                         ctrls.push(ctrl); // => it means ctrl hasn't any nested ctrl that we don't want to delete, so we can safely delet ctrl and its nested ctrls.
                     ctrls.forEach(c => {
-                        const canDelete = !keep.includes(c.id);
-                        c.cannotDelete = canDelete;
-                        if (canDelete)
-                            c.cannotEdit = canDelete; //!we must set cannotEdit to true if the ctrl is to be deleted otherwise we will get an error from the shitty Word js api
+                        const cannotDelete = keep.includes(c.id);
+                        c.cannotDelete = cannotDelete;
+                        if (!cannotDelete)
+                            c.cannotEdit = cannotDelete; //!we must set cannotEdit to false if the ctrl is to be deleted otherwise we will get an error from the shitty Word js api
                     });
                     if (escape.length || ctrl.tag === RTDuplicateTag)
                         continue;
