@@ -14,7 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v9.4";
+const version = "v9.5";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -738,6 +738,7 @@ async function deleteCtrls(ids:Set<number>) {
         for (const id of ids) {
             const ctrl = context.document.getContentControls().getById(id);
             if (!ctrl) continue;
+            ctrl.load('tag');
             const nested = ctrl.getContentControls();
             nested.load('tag');
             await context.sync();
