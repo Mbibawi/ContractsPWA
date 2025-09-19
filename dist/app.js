@@ -1,6 +1,6 @@
 "use strict";
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'], StylePrefix = 'Contrat_', RTFieldTag = 'RTField', RTDropDownTag = 'RTList', RTDropDownColor = '#991c63', RTDuplicateTag = 'RTRepeat', RTSectionTag = 'RTSection', RTSectionStyle = `${StylePrefix}${RTSectionTag}`, RTSelectTag = 'RTSelect', RTOrTag = 'RTOr', RTObsTag = 'RTObs', RTObsStyle = `${StylePrefix}${RTObsTag}`, RTDescriptionTag = 'RTDesc', RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`, RTSiTag = 'RTSi', RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v8.7";
+const version = "v8.8";
 let USERFORM, NOTIFICATION;
 let RichText, RichTextInline, RichTextParag, ComboBox, CheckBox, dropDownList, Bounding, Hidden;
 Office.onReady((info) => {
@@ -423,11 +423,12 @@ async function customizeContract(showNested = false) {
                     const nested = ctrl.getContentControls();
                     nested.load(props);
                     await context.sync();
-                    [...nested.items, ctrl].forEach(c => {
+                    const ctrls = [...nested.items.filter(c => c.id !== ctrl.id), ctrl];
+                    for (const c of ctrls) {
                         c.cannotDelete = false;
                         c.cannotEdit = false;
                         c.delete(false);
-                    });
+                    }
                     await context.sync();
                 }
             }
@@ -706,7 +707,7 @@ async function customizeContract(showNested = false) {
     }
 }
 ;
-async function promptForInput(question, deflt, fun) {
+async function promptForInput(question, deflt, fun, cancel = true) {
     if (!question)
         return '';
     const container = createHTMLElement('div', 'promptContainer', '', USERFORM);

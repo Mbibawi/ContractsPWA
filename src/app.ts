@@ -14,7 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v8.7";
+const version = "v8.8";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -445,11 +445,12 @@ async function customizeContract(showNested: boolean = false) {
                     const nested = ctrl.getContentControls();
                     nested.load(props);
                     await context.sync();
-                    [...nested.items, ctrl].forEach(c => {
+                    const ctrls = [...nested.items.filter(c => c.id !== ctrl.id), ctrl];
+                    for (const c of ctrls) {
                         c.cannotDelete = false;
                         c.cannotEdit = false;
-                        c.delete(false)
-                    });
+                        c.delete(false)                    
+                    }
                     await context.sync();
                 }
             };
@@ -719,7 +720,7 @@ async function customizeContract(showNested: boolean = false) {
     }
 };
 
-async function promptForInput(question: string, deflt?: string, fun?: Function): Promise<string | void> {
+async function promptForInput(question: string, deflt?: string, fun?: Function, cancel:boolean = true): Promise<string | void> {
     if (!question) return '';
     const container = createHTMLElement('div', 'promptContainer', '', USERFORM);
     const prompt = createHTMLElement('div', 'prompt', '', container);
