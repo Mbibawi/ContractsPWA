@@ -14,7 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = `v8.4`;
+const version = "v8.5";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -226,7 +226,8 @@ async function insertRTDescription(selection: boolean = false, style: string = `
     await insertFieldCtrl(ids, style);
 
 }
-async function insertFieldCtrl(ids:number[], style: string) {
+async function insertFieldCtrl(ids: number[], style: string) {
+    style = '';
     await Word.run(async (context) => {
         for (const id of ids) {
             if (!id) continue;
@@ -243,11 +244,10 @@ async function insertFieldCtrl(ids:number[], style: string) {
     });
 
     async function insert(ctrl:ContentControl) {
-        const range = ctrl.getRange().insertText('\u00A0', Word.InsertLocation.before);
-        range.style = style;
-        range.font.bold = true;
-        const start = range.getRange(Word.RangeLocation.start);
-        await insertContentControl(start, RTFieldTag, RTFieldTag, 0, RichText, style, false, false, '[*]');
+        const start = ctrl.getRange(Word.RangeLocation.before);
+        const field = await insertContentControl(start, RTFieldTag, RTFieldTag, 0, RichText, style, false, false, '[*]');
+        if (!field) return;
+        field.getRange('Content').font.bold = true
     }
 }
 function insertRTSiAll() {
@@ -445,7 +445,8 @@ async function customizeContract(showNested: boolean = false) {
                     const nested = ctrl.getContentControls();
                     nested.load(props);
                     await context.sync();
-                    [ctrl, ...nested.items].forEach(c=>c.cannotDelete = false)
+                    [ctrl, ...nested.items].forEach(c => c.cannotDelete = false);
+                    await context.sync();
                     ctrl.select();
                     showNotification(`Deleted Ctrl: ${ctrl.id}`)
                     ctrl.delete(false);
@@ -858,7 +859,7 @@ function setRangeStyle(objs: (ContentControl | Word.Paragraph)[], style: string)
 }
 
 async function finalizeContract() {
-    const tags = [RTSiTag, RTDescriptionTag, RTObsTag];
+    const tags = [RTSiTag, RTDescriptionTag, RTObsTag, RTSectionTag];
     Word.run(async (context) => {
             const allCtrls = context.document.getContentControls();
             allCtrls.load(['tag', 'title']);

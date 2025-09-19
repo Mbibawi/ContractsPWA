@@ -1,6 +1,6 @@
 "use strict";
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'], StylePrefix = 'Contrat_', RTFieldTag = 'RTField', RTDropDownTag = 'RTList', RTDropDownColor = '#991c63', RTDuplicateTag = 'RTRepeat', RTSectionTag = 'RTSection', RTSectionStyle = `${StylePrefix}${RTSectionTag}`, RTSelectTag = 'RTSelect', RTOrTag = 'RTOr', RTObsTag = 'RTObs', RTObsStyle = `${StylePrefix}${RTObsTag}`, RTDescriptionTag = 'RTDesc', RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`, RTSiTag = 'RTSi', RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = `v8.4`;
+const version = "v8.5";
 let USERFORM, NOTIFICATION;
 let RichText, RichTextInline, RichTextParag, ComboBox, CheckBox, dropDownList, Bounding, Hidden;
 Office.onReady((info) => {
@@ -198,6 +198,7 @@ async function insertRTDescription(selection = false, style = `${StylePrefix}Nor
     await insertFieldCtrl(ids, style);
 }
 async function insertFieldCtrl(ids, style) {
+    style = '';
     await Word.run(async (context) => {
         for (const id of ids) {
             if (!id)
@@ -215,11 +216,11 @@ async function insertFieldCtrl(ids, style) {
         await context.sync();
     });
     async function insert(ctrl) {
-        const range = ctrl.getRange().insertText('\u00A0', Word.InsertLocation.before);
-        range.style = style;
-        range.font.bold = true;
-        const start = range.getRange(Word.RangeLocation.start);
-        await insertContentControl(start, RTFieldTag, RTFieldTag, 0, RichText, style, false, false, '[*]');
+        const start = ctrl.getRange(Word.RangeLocation.before);
+        const field = await insertContentControl(start, RTFieldTag, RTFieldTag, 0, RichText, style, false, false, '[*]');
+        if (!field)
+            return;
+        field.getRange('Content').font.bold = true;
     }
 }
 function insertRTSiAll() {
@@ -423,6 +424,7 @@ async function customizeContract(showNested = false) {
                     nested.load(props);
                     await context.sync();
                     [ctrl, ...nested.items].forEach(c => c.cannotDelete = false);
+                    await context.sync();
                     ctrl.select();
                     showNotification(`Deleted Ctrl: ${ctrl.id}`);
                     ctrl.delete(false);
@@ -828,7 +830,7 @@ function setRangeStyle(objs, style) {
     objs.forEach(o => o.getRange().style = style);
 }
 async function finalizeContract() {
-    const tags = [RTSiTag, RTDescriptionTag, RTObsTag];
+    const tags = [RTSiTag, RTDescriptionTag, RTObsTag, RTSectionTag];
     Word.run(async (context) => {
         const allCtrls = context.document.getContentControls();
         allCtrls.load(['tag', 'title']);
