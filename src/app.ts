@@ -14,7 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.9";
+const version = "v10.9.1";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -744,8 +744,8 @@ async function deleteCtrls(ids: Set<number>) {
             ctrl.getRange().delete();
             ctrl.delete(false);
             showNotification(`found and deleted ctrl with id = ${id}`)
+            await context.sync();
         }
-        await context.sync();
     })
 }
 async function promptForInput(question: string, deflt?: string, fun?: Function, cancel: boolean = true): Promise<string | void> {
