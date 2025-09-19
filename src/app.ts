@@ -14,7 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.8";
+const version = "v10.9";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -741,6 +741,7 @@ async function deleteCtrls(ids: Set<number>) {
             await context.sync();
             const ctrl = ctrls.items.find(ctrl => ctrl.id === id);
             if (!ctrl || ctrl.cannotDelete) continue;
+            ctrl.getRange().delete();
             ctrl.delete(false);
             showNotification(`found and deleted ctrl with id = ${id}`)
         }
