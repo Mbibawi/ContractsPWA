@@ -1,6 +1,6 @@
 "use strict";
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'], StylePrefix = 'Contrat_', RTFieldTag = 'RTField', RTDropDownTag = 'RTList', RTDropDownColor = '#991c63', RTDuplicateTag = 'RTRepeat', RTSectionTag = 'RTSection', RTSectionStyle = `${StylePrefix}${RTSectionTag}`, RTSelectTag = 'RTSelect', RTOrTag = 'RTOr', RTObsTag = 'RTObs', RTObsStyle = `${StylePrefix}${RTObsTag}`, RTDescriptionTag = 'RTDesc', RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`, RTSiTag = 'RTSi', RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.11";
+const version = "v10.12";
 let USERFORM, NOTIFICATION;
 let RichText, RichTextInline, RichTextParag, ComboBox, CheckBox, dropDownList, Bounding, Hidden;
 Office.onReady((info) => {
@@ -417,6 +417,7 @@ async function customizeContract(showNested = false) {
         try {
             await currentDoc();
             selected.length = 0; //We remove any element in selected
+            mainUI(false);
             //await createNewDoc();
         }
         catch (error) {

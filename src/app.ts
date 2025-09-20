@@ -14,7 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.11";
+const version = "v10.12";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -441,6 +441,7 @@ async function customizeContract(showNested: boolean = false) {
         try {
             await currentDoc();
             selected.length = 0;//We remove any element in selected
+            mainUI(false)
             //await createNewDoc();
         } catch (error) {
             showNotification(`${error}`)
@@ -532,8 +533,6 @@ async function customizeContract(showNested: boolean = false) {
         }
         
     }
-
-
 
     async function promptForSelection(ctrl: ContentControl) {
         try {
