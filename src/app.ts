@@ -14,7 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.9.9";
+const version = "v10.10";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -464,7 +464,6 @@ async function customizeContract(showNested: boolean = false) {
                         c.cannotDelete = false;
                         c.cannotEdit = false;
                     });
-                    
                     ids.add(ctrl.id);//!We keep only the envelopping ctrl
                 }
 
@@ -511,19 +510,21 @@ async function customizeContract(showNested: boolean = false) {
     }
 
     async function filterIds(ids: number[]) {
+        //!I got hard time to get this to work. Be careful before making any change.
+        //! We need to make sure that the array of ids of the ctrls to be deleted does not include the ids of any nested ctrl of any of the ids in the array. For example: if the array contains the id of ctrl x, the id of any ctrl nested within the range of ctrl x must be removed from the array
         return await Word.run(async (context) => {
             const ctrls = context.document.getContentControls();
             ctrls.load(['id']);
             await context.sync();
-            const remove:number[] = [];
             for (const id of ids) {
                 const ctrl = context.document.getContentControls().getById(id);
                 const nested = ctrl.getContentControls();
                 nested.load('id');
                 await context.sync();
-                remove.push(...nested.items.map(c=>c.id).filter(i=>i!==id));
+                const nestedIds = nested.items.filter(c => c.id !== id).map(c => c.id);
+                ids = ids.filter(i => !nestedIds.includes(i));//!we remove any nested ctrls from the toDelete array
             }
-            return ids.filter(id => !remove.includes(id));//!we remove any nested ctrls from the toDelete array
+            return ids
         })
     }
 
@@ -568,8 +569,13 @@ async function customizeContract(showNested: boolean = false) {
                 ctrl.load(props);
                 const label = await labelRange(ctrl, RTSiTag);
                 await context.sync();
-                if (!label)
-                    return !addBtn ? appendHTMLElements('') : { container: undefined };//!If this is not the last element in selectCtrls (addBtn = false) We will return a container with only a button to be clicked, otherwise, we will return a slectBlock with undefined container
+                if (!label) {
+                    //A select ctrl that does not have a direct RTSiTag nested ctrl, is a container for other selectCtrls that need to be displayed. They are meant to offer multiple options for the user to select only one of them. But this is not always the case
+                    if (!addBtn)
+                        return appendHTMLElements('');//!If this is not the last element in selectCtrls (addBtn == false) We will return a container with only a button to be clicked in order to move to the next select ctrl in the array
+                    else return { container: undefined };//!If this is the last element in selectCtrls array (addBtn == true), we will return a slectBlock with undefined container (which means that we will display the options nested within the select ctrl, but since this is the last ctrl in the selectCtrls array, we do not need to show a btnNext because when the nested options (i.e., the nested selectCtrls) will be displayed, a btnNext will be automatically inserted)
+                }
+
                 label.select();
                 const text = label.text || `The ctrl label was found but no text could be retrieved ! ctrl title = ${ctrl.title}`;
                 label.font.hidden = true;
