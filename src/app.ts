@@ -14,7 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.12";
+const version = "v10.13";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -317,9 +317,13 @@ async function insertDroDownListAll() {
 async function insertDropDownList(range: Word.Range | void, index: number = 0) {
     if (!range) range = await getSelectionRange();
     if (!range) return;
-    range.load(["text"]);
-    range.track();
+    range.load(["text", 'parentContentControlOrNullObject']);
     await range.context.sync();
+    const parent = range.parentContentControlOrNullObject;
+    parent.load('tag');
+    await range.context.sync();
+    if (parent.tag === RTDropDownTag) return;
+        
     const options = range.text.split("/");
     if (!options.length) return showNotification("No options");
     showNotification(options.join());
@@ -331,6 +335,7 @@ async function insertDropDownList(range: Word.Range | void, index: number = 0) {
     setCtrlsFontColor([ctrl], RTDropDownColor);
     setCtrlsColor([ctrl], RTDropDownColor);
     await ctrl.context.sync();
+    range.untrack();
 }
 async function insertContentControl(range: Word.Range, title: string, tag: string, index: number = 1, type: Word.ContentControlType, style: string | null, cannotEdit: boolean = true, cannotDelete: boolean = true, placeHolder?: string): Promise<Word.ContentControl | undefined> {
     range.select();

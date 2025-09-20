@@ -1,6 +1,6 @@
 "use strict";
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'], StylePrefix = 'Contrat_', RTFieldTag = 'RTField', RTDropDownTag = 'RTList', RTDropDownColor = '#991c63', RTDuplicateTag = 'RTRepeat', RTSectionTag = 'RTSection', RTSectionStyle = `${StylePrefix}${RTSectionTag}`, RTSelectTag = 'RTSelect', RTOrTag = 'RTOr', RTObsTag = 'RTObs', RTObsStyle = `${StylePrefix}${RTObsTag}`, RTDescriptionTag = 'RTDesc', RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`, RTSiTag = 'RTSi', RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.12";
+const version = "v10.13";
 let USERFORM, NOTIFICATION;
 let RichText, RichTextInline, RichTextParag, ComboBox, CheckBox, dropDownList, Bounding, Hidden;
 Office.onReady((info) => {
@@ -293,9 +293,13 @@ async function insertDropDownList(range, index = 0) {
         range = await getSelectionRange();
     if (!range)
         return;
-    range.load(["text"]);
-    range.track();
+    range.load(["text", 'parentContentControlOrNullObject']);
     await range.context.sync();
+    const parent = range.parentContentControlOrNullObject;
+    parent.load('tag');
+    await range.context.sync();
+    if (parent.tag === RTDropDownTag)
+        return;
     const options = range.text.split("/");
     if (!options.length)
         return showNotification("No options");
@@ -308,6 +312,7 @@ async function insertDropDownList(range, index = 0) {
     setCtrlsFontColor([ctrl], RTDropDownColor);
     setCtrlsColor([ctrl], RTDropDownColor);
     await ctrl.context.sync();
+    range.untrack();
 }
 async function insertContentControl(range, title, tag, index = 1, type, style, cannotEdit = true, cannotDelete = true, placeHolder) {
     range.select();
