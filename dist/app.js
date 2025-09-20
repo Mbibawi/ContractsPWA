@@ -1,6 +1,6 @@
 "use strict";
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'], StylePrefix = 'Contrat_', RTFieldTag = 'RTField', RTDropDownTag = 'RTList', RTDropDownColor = '#991c63', RTDuplicateTag = 'RTRepeat', RTSectionTag = 'RTSection', RTSectionStyle = `${StylePrefix}${RTSectionTag}`, RTSelectTag = 'RTSelect', RTOrTag = 'RTOr', RTObsTag = 'RTObs', RTObsStyle = `${StylePrefix}${RTObsTag}`, RTDescriptionTag = 'RTDesc', RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`, RTSiTag = 'RTSi', RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.10";
+const version = "v10.11";
 let USERFORM, NOTIFICATION;
 let RichText, RichTextInline, RichTextParag, ComboBox, CheckBox, dropDownList, Bounding, Hidden;
 Office.onReady((info) => {
@@ -23,13 +23,12 @@ function showBtns(btns, append = true, on = 'click') {
     return btns.map(btn => insertBtn(btn, append, on));
 }
 ;
-function mainUI() {
+function mainUI(showVersion = true) {
     if (!USERFORM)
         return;
-    const p = document.createElement('p');
-    p.innerText = version;
-    USERFORM.insertAdjacentElement('beforebegin', p);
     USERFORM.innerHTML = '';
+    NOTIFICATION.innerHTML = '';
+    insertVersion();
     const main = [[customizeContract, 'Customize Contract'], [prepareTemplate, 'Prepare Template'], [finalizeContract, 'Finalize Contract']];
     const btns = showBtns(main);
     const back = [goBack, 'Go Back'];
@@ -38,6 +37,13 @@ function mainUI() {
         USERFORM.innerHTML = '';
         document.getElementById('stylesList')?.remove();
         showBtns(main);
+    }
+    function insertVersion() {
+        if (!showVersion)
+            return;
+        const p = document.createElement('p');
+        p.innerText = version;
+        USERFORM.insertAdjacentElement('beforebegin', p);
     }
 }
 function prepareTemplate() {
@@ -385,7 +391,6 @@ async function promptConfirm(question, fun) {
 async function customizeContract(showNested = false) {
     USERFORM.innerHTML = '';
     const selected = [];
-    const not = 'RTDelete';
     const processed = (id) => selected.find(t => t.includes(id.toString()));
     const TAGS = [...OPTIONS, RTDuplicateTag];
     const getSelectCtrls = (ctrls) => ctrls.filter(ctrl => TAGS.includes(ctrl.tag));
@@ -401,18 +406,24 @@ async function customizeContract(showNested = false) {
             const selectCtrls = getSelectCtrls(allRT.items);
             for (const ctrl of selectCtrls)
                 await promptForSelection(ctrl);
-            const keep = selected
-                .filter(title => !title.startsWith('!'))
-                .map(title => Number(title));
-            console.log(`keep = ${keep.join(',\n')}`);
-            try {
-                await currentDoc();
-                //await createNewDoc();
-            }
-            catch (error) {
-                showNotification(`${error}`);
-            }
-            async function currentDoc() {
+            await deleteUnselected();
+        });
+    }
+    async function deleteUnselected() {
+        const keep = selected
+            .filter(title => !title.startsWith('!'))
+            .map(title => Number(title));
+        console.log(`keep = ${keep.join(',\n')}`);
+        try {
+            await currentDoc();
+            selected.length = 0; //We remove any element in selected
+            //await createNewDoc();
+        }
+        catch (error) {
+            showNotification(`${error}`);
+        }
+        async function currentDoc() {
+            await Word.run(async (context) => {
                 const allRT = context.document.getContentControls();
                 allRT.load(props);
                 await context.sync();
@@ -427,7 +438,7 @@ async function customizeContract(showNested = false) {
                     const nested = ctrl.getContentControls();
                     nested.load(['id']);
                     await context.sync();
-                    const ctrls = [...nested.items, ctrl];
+                    const ctrls = [ctrl, ...nested.items.filter(c => c.id !== ctrl.id)]; //!the first element is the parent selectCtrl, and the rest are its nested
                     const nestedIds = ctrls.map(c => c.id);
                     const escape = keep.filter(id => nestedIds.includes(id)).length; //!This means that  either ctrl itself or one or more of its nested contentcontrols is included in keep, => we  need to keep ctrl.
                     if (escape) {
@@ -447,9 +458,29 @@ async function customizeContract(showNested = false) {
                     ctrl.delete(false);
                 }
                 await context.sync();
+            });
+            async function filterIds(ids) {
+                //!I got hard time to get this to work. Be careful before making any change.
+                //! We need to make sure that the array of ids of the ctrls to be deleted does not include the ids of any nested ctrl of any of the ids in the array. For example: if the array contains the id of ctrl x, the id of any ctrl nested within the range of ctrl x must be removed from the array
+                return await Word.run(async (context) => {
+                    const ctrls = context.document.getContentControls();
+                    ctrls.load(['id']);
+                    await context.sync();
+                    for (const id of ids) {
+                        const ctrl = ctrls.getById(id);
+                        const nested = ctrl.getContentControls();
+                        nested.load('id');
+                        await context.sync();
+                        const nestedIds = nested.items.filter(c => c.id !== id).map(c => c.id);
+                        ids = ids.filter(i => !nestedIds.includes(i)); //!we remove any nested ctrls from the toDelete array
+                    }
+                    return ids;
+                });
             }
-            ;
-            async function createNewDoc() {
+        }
+        ;
+        async function createNewDoc() {
+            await Word.run(async (context) => {
                 return; //!Desactivating working with new document created from template until we find a solution to the context issue
                 const template = await getTemplate();
                 console.log(template);
@@ -468,8 +499,8 @@ async function customizeContract(showNested = false) {
                 });
                 await newDoc.context.sync();
                 newDoc.open();
-            }
-        });
+            });
+        }
     }
     async function promptForSelection(ctrl) {
         try {
@@ -478,24 +509,6 @@ async function customizeContract(showNested = false) {
         catch (error) {
             showNotification(`Error from promptForSelection() = ${error}`);
         }
-    }
-    async function filterIds(ids) {
-        //!I got hard time to get this to work. Be careful before making any change.
-        //! We need to make sure that the array of ids of the ctrls to be deleted does not include the ids of any nested ctrl of any of the ids in the array. For example: if the array contains the id of ctrl x, the id of any ctrl nested within the range of ctrl x must be removed from the array
-        return await Word.run(async (context) => {
-            const ctrls = context.document.getContentControls();
-            ctrls.load(['id']);
-            await context.sync();
-            for (const id of ids) {
-                const ctrl = context.document.getContentControls().getById(id);
-                const nested = ctrl.getContentControls();
-                nested.load('id');
-                await context.sync();
-                const nestedIds = nested.items.filter(c => c.id !== id).map(c => c.id);
-                ids = ids.filter(i => !nestedIds.includes(i)); //!we remove any nested ctrls from the toDelete array
-            }
-            return ids;
-        });
     }
     async function showSelectPrompt(selectCtrls) {
         const blocks = [];
@@ -578,8 +591,9 @@ async function customizeContract(showNested = false) {
     }
     function btnOnClick(blocks, btn) {
         return new Promise((resolve, reject) => {
-            !btn ? resolve(selected) : btn.onclick = processBlocks;
-            async function processBlocks() {
+            !btn ? resolve(selected) : btn.onclick = () => processBlocks();
+            btnDelete(btn.parentElement);
+            async function processBlocks(deleteSelected = false) {
                 const checkBoxes = blocks
                     .filter(block => block.checkBox)
                     //@ts-ignore
@@ -592,9 +606,17 @@ async function customizeContract(showNested = false) {
                     else
                         isNotSelected(id, subOptions);
                 }
+                if (deleteSelected)
+                    await deleteUnselected();
                 resolve(selected);
             }
             ;
+            function btnDelete(container) {
+                if (!container)
+                    return;
+                const btn = createHTMLElement('button', '', 'Delete Unselected', container);
+                btn.onclick = () => processBlocks(true);
+            }
         });
     }
     async function isSelected(id, subOptions) {
@@ -876,10 +898,9 @@ async function finalizeContract() {
         allCtrls.load(['tag', 'title']);
         await context.sync();
         allCtrls.items.forEach(ctrl => {
+            ctrl.cannotDelete = false; //!We must remove the cannotDelete from all ctrls because this will prevent deleting the line on which there is a hidden contentcontrol
             if (!tags.includes(ctrl.tag))
                 return ctrl.appearance = Word.ContentControlAppearance.hidden;
-            ctrl.select();
-            ctrl.cannotDelete = false;
             ctrl.delete(ctrl.tag === RTDropDownTag); //!We keep the content of the dropdown ctrls
         });
         await context.sync();
