@@ -1,6 +1,6 @@
 "use strict";
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'], StylePrefix = 'Contrat_', RTFieldTag = 'RTField', RTDropDownTag = 'RTList', RTDropDownColor = '#991c63', RTDuplicateTag = 'RTRepeat', RTSectionTag = 'RTSection', RTSectionStyle = `${StylePrefix}${RTSectionTag}`, RTSelectTag = 'RTSelect', RTOrTag = 'RTOr', RTObsTag = 'RTObs', RTObsStyle = `${StylePrefix}${RTObsTag}`, RTDescriptionTag = 'RTDesc', RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`, RTSiTag = 'RTSi', RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.9.8";
+const version = "v10.9.9";
 let USERFORM, NOTIFICATION;
 let RichText, RichTextInline, RichTextParag, ComboBox, CheckBox, dropDownList, Bounding, Hidden;
 Office.onReady((info) => {
@@ -425,7 +425,7 @@ async function customizeContract(showNested = false) {
                         continue;
                     }
                     const nested = ctrl.getContentControls();
-                    nested.load(['id', 'tag']);
+                    nested.load(['id']);
                     await context.sync();
                     const ctrls = [...nested.items, ctrl];
                     const nestedIds = ctrls.map(c => c.id);
@@ -441,8 +441,7 @@ async function customizeContract(showNested = false) {
                     ids.add(ctrl.id); //!We keep only the envelopping ctrl
                 }
                 await context.sync();
-                const toDelete = await deleteCtrls(ids);
-                console.log(toDelete);
+                const toDelete = await filterIds(Array.from(ids));
                 for (const id of toDelete) {
                     const ctrl = context.document.getContentControls().getById(id);
                     ctrl.delete(false);
@@ -479,6 +478,22 @@ async function customizeContract(showNested = false) {
         catch (error) {
             showNotification(`Error from promptForSelection() = ${error}`);
         }
+    }
+    async function filterIds(ids) {
+        return await Word.run(async (context) => {
+            const ctrls = context.document.getContentControls();
+            ctrls.load(['id']);
+            await context.sync();
+            const remove = [];
+            for (const id of ids) {
+                const ctrl = context.document.getContentControls().getById(id);
+                const nested = ctrl.getContentControls();
+                nested.load('id');
+                await context.sync();
+                remove.push(...nested.items.map(c => c.id).filter(i => i !== id));
+            }
+            return ids.filter(id => !remove.includes(id)); //!we remove any nested ctrls from the toDelete array
+        });
     }
     async function showSelectPrompt(selectCtrls) {
         const blocks = [];
@@ -724,24 +739,6 @@ async function customizeContract(showNested = false) {
     }
 }
 ;
-async function deleteCtrls(ids) {
-    return await Word.run(async (context) => {
-        const ctrls = context.document.getContentControls();
-        ctrls.load(['id', 'cannotDelete']);
-        await context.sync();
-        //let toDelete = ctrls.items.filter(c => ids.has(c.id));
-        let toDelete = Array.from(ids);
-        const remove = [];
-        for (const id of toDelete) {
-            const ctrl = context.document.getContentControls().getById(id);
-            const nested = ctrl.getContentControls();
-            nested.load('id');
-            await context.sync();
-            remove.push(...nested.items.map(c => c.id).filter(i => i !== id));
-        }
-        return toDelete.filter(id => !remove.includes(id)); //!we remove any nested ctrls from the toDelete array
-    });
-}
 async function promptForInput(question, deflt, fun, cancel = true) {
     if (!question)
         return '';

@@ -14,7 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.9.8";
+const version = "v10.9.9";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -450,7 +450,7 @@ async function customizeContract(showNested: boolean = false) {
                         continue
                     }
                     const nested = ctrl.getContentControls();
-                    nested.load(['id','tag']);
+                    nested.load(['id']);
                     await context.sync();
                     const ctrls = [...nested.items, ctrl];
                     const nestedIds = ctrls.map(c => c.id);
@@ -470,8 +470,7 @@ async function customizeContract(showNested: boolean = false) {
 
                 await context.sync();
 
-                const toDelete = await deleteCtrls(ids);
-                console.log(toDelete);
+                const toDelete = await filterIds(Array.from(ids));
                 for (const id of toDelete) {
                     const ctrl = context.document.getContentControls().getById(id);
                     ctrl.delete(false);
@@ -509,6 +508,23 @@ async function customizeContract(showNested: boolean = false) {
         } catch (error) {
             showNotification(`Error from promptForSelection() = ${error}`)
         }
+    }
+
+    async function filterIds(ids: number[]) {
+        return await Word.run(async (context) => {
+            const ctrls = context.document.getContentControls();
+            ctrls.load(['id']);
+            await context.sync();
+            const remove:number[] = [];
+            for (const id of ids) {
+                const ctrl = context.document.getContentControls().getById(id);
+                const nested = ctrl.getContentControls();
+                nested.load('id');
+                await context.sync();
+                remove.push(...nested.items.map(c=>c.id).filter(i=>i!==id));
+            }
+            return ids.filter(id => !remove.includes(id));//!we remove any nested ctrls from the toDelete array
+        })
     }
 
     async function showSelectPrompt(selectCtrls: ContentControl[]) {
@@ -744,24 +760,7 @@ async function customizeContract(showNested: boolean = false) {
     }
 };
 
-async function deleteCtrls(ids: Set<number>) {
-    return await Word.run(async (context) => {
-        const ctrls = context.document.getContentControls();
-        ctrls.load(['id', 'cannotDelete']);
-        await context.sync();
-        //let toDelete = ctrls.items.filter(c => ids.has(c.id));
-        let toDelete = Array.from(ids);
-        const remove:number[] = [];
-        for (const id of toDelete) {
-            const ctrl = context.document.getContentControls().getById(id);
-            const nested = ctrl.getContentControls();
-            nested.load('id');
-            await context.sync();
-            remove.push(...nested.items.map(c=>c.id).filter(i=>i!==id));
-        }
-        return toDelete.filter(id => !remove.includes(id));//!we remove any nested ctrls from the toDelete array
-    })
-}
+
 async function promptForInput(question: string, deflt?: string, fun?: Function, cancel: boolean = true): Promise<string | void> {
     if (!question) return '';
     const container = createHTMLElement('div', 'promptContainer', '', USERFORM);
