@@ -14,7 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.9.7";
+const version = "v10.9.8";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -749,25 +749,17 @@ async function deleteCtrls(ids: Set<number>) {
         const ctrls = context.document.getContentControls();
         ctrls.load(['id', 'cannotDelete']);
         await context.sync();
-        let toDelete = ctrls.items.filter(c => ids.has(c.id));
-        const remove:ContentControl[] = [];
-        for (const ctrl of toDelete) {
+        //let toDelete = ctrls.items.filter(c => ids.has(c.id));
+        let toDelete = Array.from(ids);
+        const remove:number[] = [];
+        for (const id of toDelete) {
+            const ctrl = context.document.getContentControls().getById(id);
             const nested = ctrl.getContentControls();
             nested.load('id');
             await context.sync();
-            remove.push(...nested.items.filter(c=>c.id !== ctrl.id));
+            remove.push(...nested.items.map(c=>c.id).filter(i=>i!==id));
         }
-        
-        const final = toDelete.filter(c => !remove.includes(c));//!we remove any nested ctrls from the toDelete array
-        console.log(final);
-        return final.map(c=>c.id)
-        for (const ctrl of final){
-            const message = `found and deleted ctrl with id = ${ctrl.id}`
-            ctrl.getRange().delete();
-            ctrl.delete(false);
-            showNotification(message)
-        }
-        await context.sync();
+        return toDelete.filter(id => !remove.includes(id));//!we remove any nested ctrls from the toDelete array
     })
 }
 async function promptForInput(question: string, deflt?: string, fun?: Function, cancel: boolean = true): Promise<string | void> {

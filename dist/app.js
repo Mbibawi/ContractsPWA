@@ -1,6 +1,6 @@
 "use strict";
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'], StylePrefix = 'Contrat_', RTFieldTag = 'RTField', RTDropDownTag = 'RTList', RTDropDownColor = '#991c63', RTDuplicateTag = 'RTRepeat', RTSectionTag = 'RTSection', RTSectionStyle = `${StylePrefix}${RTSectionTag}`, RTSelectTag = 'RTSelect', RTOrTag = 'RTOr', RTObsTag = 'RTObs', RTObsStyle = `${StylePrefix}${RTObsTag}`, RTDescriptionTag = 'RTDesc', RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`, RTSiTag = 'RTSi', RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.9.7";
+const version = "v10.9.8";
 let USERFORM, NOTIFICATION;
 let RichText, RichTextInline, RichTextParag, ComboBox, CheckBox, dropDownList, Bounding, Hidden;
 Office.onReady((info) => {
@@ -729,24 +729,17 @@ async function deleteCtrls(ids) {
         const ctrls = context.document.getContentControls();
         ctrls.load(['id', 'cannotDelete']);
         await context.sync();
-        let toDelete = ctrls.items.filter(c => ids.has(c.id));
+        //let toDelete = ctrls.items.filter(c => ids.has(c.id));
+        let toDelete = Array.from(ids);
         const remove = [];
-        for (const ctrl of toDelete) {
+        for (const id of toDelete) {
+            const ctrl = context.document.getContentControls().getById(id);
             const nested = ctrl.getContentControls();
             nested.load('id');
             await context.sync();
-            remove.push(...nested.items.filter(c => c.id !== ctrl.id));
+            remove.push(...nested.items.map(c => c.id).filter(i => i !== id));
         }
-        const final = toDelete.filter(c => !remove.includes(c)); //!we remove any nested ctrls from the toDelete array
-        console.log(final);
-        return final.map(c => c.id);
-        for (const ctrl of final) {
-            const message = `found and deleted ctrl with id = ${ctrl.id}`;
-            ctrl.getRange().delete();
-            ctrl.delete(false);
-            showNotification(message);
-        }
-        await context.sync();
+        return toDelete.filter(id => !remove.includes(id)); //!we remove any nested ctrls from the toDelete array
     });
 }
 async function promptForInput(question, deflt, fun, cancel = true) {
