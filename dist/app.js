@@ -1,6 +1,6 @@
 "use strict";
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'], StylePrefix = 'Contrat_', RTFieldTag = 'RTField', RTDropDownTag = 'RTList', RTDropDownColor = '#991c63', RTDuplicateTag = 'RTRepeat', RTSectionTag = 'RTSection', RTSectionStyle = `${StylePrefix}${RTSectionTag}`, RTSelectTag = 'RTSelect', RTOrTag = 'RTOr', RTObsTag = 'RTObs', RTObsStyle = `${StylePrefix}${RTObsTag}`, RTDescriptionTag = 'RTDesc', RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`, RTSiTag = 'RTSi', RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.9.6";
+const version = "v10.9.7";
 let USERFORM, NOTIFICATION;
 let RichText, RichTextInline, RichTextParag, ComboBox, CheckBox, dropDownList, Bounding, Hidden;
 Office.onReady((info) => {
@@ -441,7 +441,13 @@ async function customizeContract(showNested = false) {
                     ids.add(ctrl.id); //!We keep only the envelopping ctrl
                 }
                 await context.sync();
-                await deleteCtrls(ids);
+                const toDelete = await deleteCtrls(ids);
+                console.log(toDelete);
+                for (const id of toDelete) {
+                    const ctrl = context.document.getContentControls().getById(id);
+                    ctrl.delete(false);
+                }
+                await context.sync();
             }
             ;
             async function createNewDoc() {
@@ -719,7 +725,7 @@ async function customizeContract(showNested = false) {
 }
 ;
 async function deleteCtrls(ids) {
-    await Word.run(async (context) => {
+    return await Word.run(async (context) => {
         const ctrls = context.document.getContentControls();
         ctrls.load(['id', 'cannotDelete']);
         await context.sync();
@@ -733,6 +739,7 @@ async function deleteCtrls(ids) {
         }
         const final = toDelete.filter(c => !remove.includes(c)); //!we remove any nested ctrls from the toDelete array
         console.log(final);
+        return final.map(c => c.id);
         for (const ctrl of final) {
             const message = `found and deleted ctrl with id = ${ctrl.id}`;
             ctrl.getRange().delete();

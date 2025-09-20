@@ -14,7 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.9.6";
+const version = "v10.9.7";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -470,7 +470,13 @@ async function customizeContract(showNested: boolean = false) {
 
                 await context.sync();
 
-                await deleteCtrls(ids);
+                const toDelete = await deleteCtrls(ids);
+                console.log(toDelete);
+                for (const id of toDelete) {
+                    const ctrl = context.document.getContentControls().getById(id);
+                    ctrl.delete(false);
+                }
+                await context.sync()
             };
 
             async function createNewDoc() {
@@ -739,7 +745,7 @@ async function customizeContract(showNested: boolean = false) {
 };
 
 async function deleteCtrls(ids: Set<number>) {
-    await Word.run(async (context) => {
+    return await Word.run(async (context) => {
         const ctrls = context.document.getContentControls();
         ctrls.load(['id', 'cannotDelete']);
         await context.sync();
@@ -754,6 +760,7 @@ async function deleteCtrls(ids: Set<number>) {
         
         const final = toDelete.filter(c => !remove.includes(c));//!we remove any nested ctrls from the toDelete array
         console.log(final);
+        return final.map(c=>c.id)
         for (const ctrl of final){
             const message = `found and deleted ctrl with id = ${ctrl.id}`
             ctrl.getRange().delete();
