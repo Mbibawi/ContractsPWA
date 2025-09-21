@@ -14,7 +14,7 @@ const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'],
     RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`,
     RTSiTag = 'RTSi',
     RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.13";
+const version = "v10.14";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 let RichText: ContentControlType,
@@ -55,7 +55,7 @@ function mainUI(showVersion:boolean = true) {
     NOTIFICATION.innerHTML = ''
     insertVersion();
     const main: Btn[] =
-        [[customizeContract, 'Customize Contract'], [prepareTemplate, 'Prepare Template'], [finalizeContract, 'Finalize Contract']];
+        [[customizeContract, 'Customize Contract'], [prepareTemplate, 'Prepare Template'], [finalizeContract, 'Finalize Contract'], [lockUnlockAll, 'Remove Cannot Delete For All']];
     const btns = showBtns(main);
     const back = [goBack, 'Go Back'] as Btn;
     btns.forEach(btn => btn?.addEventListener('click', () => insertBtn(back, false)));
@@ -953,4 +953,16 @@ async function finalizeContract() {
 
 }
 
+async function lockUnlockAll(unlock:boolean = false, tags:string[]=[]){
+    await Word.run(async (context)=>{
+        const all = context.document.getContentControls();
+        all.load(['tag', 'id']);
+        await context.sync();
+        let ctrls = all.items;
+        if (tags.length) ctrls = ctrls.filter(c => tags.includes(c.tag));
+        for (const ctrl of ctrls) 
+            ctrl.cannotDelete = unlock
+        await context.sync();
+    })
+}
 

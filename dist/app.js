@@ -1,6 +1,6 @@
 "use strict";
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'], StylePrefix = 'Contrat_', RTFieldTag = 'RTField', RTDropDownTag = 'RTList', RTDropDownColor = '#991c63', RTDuplicateTag = 'RTRepeat', RTSectionTag = 'RTSection', RTSectionStyle = `${StylePrefix}${RTSectionTag}`, RTSelectTag = 'RTSelect', RTOrTag = 'RTOr', RTObsTag = 'RTObs', RTObsStyle = `${StylePrefix}${RTObsTag}`, RTDescriptionTag = 'RTDesc', RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`, RTSiTag = 'RTSi', RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.13";
+const version = "v10.14";
 let USERFORM, NOTIFICATION;
 let RichText, RichTextInline, RichTextParag, ComboBox, CheckBox, dropDownList, Bounding, Hidden;
 Office.onReady((info) => {
@@ -29,7 +29,7 @@ function mainUI(showVersion = true) {
     USERFORM.innerHTML = '';
     NOTIFICATION.innerHTML = '';
     insertVersion();
-    const main = [[customizeContract, 'Customize Contract'], [prepareTemplate, 'Prepare Template'], [finalizeContract, 'Finalize Contract']];
+    const main = [[customizeContract, 'Customize Contract'], [prepareTemplate, 'Prepare Template'], [finalizeContract, 'Finalize Contract'], [lockUnlockAll, 'Remove Cannot Delete For All']];
     const btns = showBtns(main);
     const back = [goBack, 'Go Back'];
     btns.forEach(btn => btn?.addEventListener('click', () => insertBtn(back, false)));
@@ -909,6 +909,19 @@ async function finalizeContract() {
                 return ctrl.appearance = Word.ContentControlAppearance.hidden;
             ctrl.delete(ctrl.tag === RTDropDownTag); //!We keep the content of the dropdown ctrls
         });
+        await context.sync();
+    });
+}
+async function lockUnlockAll(unlock = false, tags = []) {
+    await Word.run(async (context) => {
+        const all = context.document.getContentControls();
+        all.load(['tag', 'id']);
+        await context.sync();
+        let ctrls = all.items;
+        if (tags.length)
+            ctrls = ctrls.filter(c => tags.includes(c.tag));
+        for (const ctrl of ctrls)
+            ctrl.cannotDelete = unlock;
         await context.sync();
     });
 }
