@@ -1,6 +1,6 @@
 "use strict";
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'], StylePrefix = 'Contrat_', RTFieldTag = 'RTField', RTDropDownTag = 'RTList', RTDropDownColor = '#991c63', RTDuplicateTag = 'RTRepeat', RTSectionTag = 'RTSection', RTSectionStyle = `${StylePrefix}${RTSectionTag}`, RTSelectTag = 'RTSelect', RTOrTag = 'RTOr', RTObsTag = 'RTObs', RTObsStyle = `${StylePrefix}${RTObsTag}`, RTDescriptionTag = 'RTDesc', RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`, RTSiTag = 'RTSi', RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.15";
+const version = "v10.16";
 let USERFORM, NOTIFICATION;
 let RichText, RichTextInline, RichTextParag, ComboBox, CheckBox, dropDownList, Bounding, Hidden;
 Office.onReady((info) => {
@@ -68,6 +68,7 @@ function prepareTemplate() {
         [insertRTSiAll, 'Insert RT Si For All'],
         [insertRTSectionAll, 'Insert RT Section For All'],
         [insertRTDescription, 'Insert RT Description For All'],
+        [insertSingleFiled, 'Insert Field']
     ];
     showBtns(btns);
     showBtns([[() => customizeContract(true), 'Show Nested Options Tree']], true);
@@ -201,10 +202,9 @@ async function insertRTDescription(selection = false, style = `${StylePrefix}Nor
     if (!ctrls?.length)
         return;
     const ids = ctrls.map(c => c?.id || 0);
-    await insertFieldCtrl(ids, style);
+    await insertFields(ids, style);
 }
-async function insertFieldCtrl(ids, style) {
-    style = '';
+async function insertFields(ids, style) {
     await Word.run(async (context) => {
         for (const id of ids) {
             if (!id)
@@ -212,7 +212,8 @@ async function insertFieldCtrl(ids, style) {
             const ctrl = context.document.getContentControls().getById(id);
             await context.sync();
             try {
-                await insert(ctrl);
+                const start = ctrl.getRange(Word.RangeLocation.before);
+                await insertSingleFiled(start, ids.indexOf(id));
             }
             catch (error) {
                 showNotification(`Error inserting field: ctrl.id = ${ctrl?.id}, error: ${error}`);
@@ -221,13 +222,42 @@ async function insertFieldCtrl(ids, style) {
         }
         await context.sync();
     });
-    async function insert(ctrl) {
-        const start = ctrl.getRange(Word.RangeLocation.before);
-        const field = await insertContentControl(start, RTFieldTag, RTFieldTag, 0, RichText, style, false, false, '[*]');
-        if (!field)
-            return;
-        field.getRange('Content').font.bold = true;
+}
+async function insertSingleFiled(range, i = 0, style = '') {
+    if (!range) {
+        range = (await getSelectionRange())?.getRange(Word.RangeLocation.start);
+        if (!range)
+            return console.log('could not retrieve the range to insert the field contentcontrol');
     }
+    ;
+    const field = await insertContentControl(range, RTFieldTag, RTFieldTag, i, RichText, style, false, false, '[*]');
+    if (!field)
+        return;
+    field.onExited.add(() => updateAllFields(field));
+    field.font.bold = true;
+}
+async function updateAllFields(field) {
+    await Word.run(async (context) => {
+        let range;
+        if (field) {
+            field.load(['tag', 'title']);
+            range = field.getRange('Content');
+            range.load(['text']);
+        }
+        const ctrls = context.document.getContentControls();
+        ctrls.load(['tag', 'title', 'id']);
+        await context.sync();
+        const tag = field?.tag || RTFieldTag;
+        const fields = ctrls.items.filter(c => c.tag === tag);
+        if (!field)
+            return fields.filter(f => f.title !== getCtrlTitle(tag, f.id)).map(f => f.title);
+        if (!range?.text)
+            return console.log('could not retrieve the range from the filed');
+        const sameTitle = fields.filter(f => f.title === field.title);
+        for (const f of sameTitle)
+            f.getRange().insertText(range.text, Word.InsertLocation.replace);
+        await context.sync();
+    });
 }
 function insertRTSiAll() {
     insertForAllParags(RTSiStyles, RTSiTag);
@@ -898,20 +928,35 @@ function setRangeStyle(objs, style) {
     objs.forEach(o => o.getRange().style = style);
 }
 async function finalizeContract() {
-    const tags = [RTSiTag, RTDescriptionTag, RTObsTag, RTSectionTag];
+    const remove = [RTSiTag, RTDescriptionTag, RTObsTag, RTSectionTag]; //The contentcontrol and its content will be deleted.
+    const content = [RTSelectTag, RTDuplicateTag]; //We will delete the contentControl but keep its content
     const styles = [...RTSiStyles, RTSectionStyle, RTObsStyle, RTDescriptionStyle];
     Word.run(async (context) => {
         const allCtrls = context.document.getContentControls();
-        const body = context.document.body.getRange();
         allCtrls.load(['tag', 'title']);
         await context.sync();
-        allCtrls.items.forEach(ctrl => {
+        const ids = allCtrls.items.map(c => c.id);
+        for (const id of ids) {
+            const ctrls = context.document.getContentControls();
+            ctrls.load('id');
+            await context.sync();
+            const ctrl = ctrls.items.find(c => c.id === id);
+            if (!ctrl)
+                return;
+            ctrl.load(['tag', 'title']);
+            await context.sync();
             ctrl.cannotDelete = false; //!We must remove the cannotDelete from all ctrls because this will prevent deleting the line on which there is a hidden contentcontrol
-            if (!tags.includes(ctrl.tag))
-                return ctrl.appearance = Word.ContentControlAppearance.hidden;
-            ctrl.delete(ctrl.tag === RTDropDownTag); //!We keep the content of the dropdown ctrls
-        });
+            if (!ctrl?.tag)
+                return;
+            if (remove.includes(ctrl.tag))
+                ctrl.delete(false);
+            else if (content.includes(ctrl.tag))
+                ctrl.delete(true);
+            else
+                ctrl.appearance = Word.ContentControlAppearance.hidden;
+        }
         await context.sync();
+        const body = context.document.body.getRange();
         body.load('paragraphs');
         await context.sync();
         const parags = body.paragraphs;
@@ -920,6 +965,25 @@ async function finalizeContract() {
         parags.items
             .filter(p => styles.includes(p.style))
             .forEach(p => p.style = `${StylePrefix}Normal`);
+        await context.sync();
+    });
+}
+async function setFieldTitle(title, field) {
+    await Word.run(async (context) => {
+        let range;
+        if (!field) {
+            range = await getSelectionRange();
+            if (!range)
+                return;
+            range.load('parentContentControlOrNullObject');
+            await context.sync();
+            field = range.parentContentControlOrNullObject;
+        }
+        field.load(['title', 'tag']);
+        await context.sync();
+        if (field?.tag !== RTFieldTag)
+            return console.log('field tag !== RTFieldTag');
+        field.title = `${RTFieldTag}&${title}`;
         await context.sync();
     });
 }
