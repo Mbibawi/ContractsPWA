@@ -1,6 +1,6 @@
 "use strict";
 const OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'], StylePrefix = 'Contrat_', RTFieldTag = 'RTField', RTDropDownTag = 'RTList', RTDropDownColor = '#991c63', RTDuplicateTag = 'RTRepeat', RTSectionTag = 'RTSection', RTSectionStyle = `${StylePrefix}${RTSectionTag}`, RTSelectTag = 'RTSelect', RTOrTag = 'RTOr', RTObsTag = 'RTObs', RTObsStyle = `${StylePrefix}${RTObsTag}`, RTDescriptionTag = 'RTDesc', RTDescriptionStyle = `${StylePrefix}${RTDescriptionTag}`, RTSiTag = 'RTSi', RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${StylePrefix}${RTSiTag}${n}cm`);
-const version = "v10.14";
+const version = "v10.15";
 let USERFORM, NOTIFICATION;
 let RichText, RichTextInline, RichTextParag, ComboBox, CheckBox, dropDownList, Bounding, Hidden;
 Office.onReady((info) => {
@@ -899,8 +899,10 @@ function setRangeStyle(objs, style) {
 }
 async function finalizeContract() {
     const tags = [RTSiTag, RTDescriptionTag, RTObsTag, RTSectionTag];
+    const styles = [...RTSiStyles, RTSectionStyle, RTObsStyle, RTDescriptionStyle];
     Word.run(async (context) => {
         const allCtrls = context.document.getContentControls();
+        const body = context.document.body.getRange();
         allCtrls.load(['tag', 'title']);
         await context.sync();
         allCtrls.items.forEach(ctrl => {
@@ -909,6 +911,15 @@ async function finalizeContract() {
                 return ctrl.appearance = Word.ContentControlAppearance.hidden;
             ctrl.delete(ctrl.tag === RTDropDownTag); //!We keep the content of the dropdown ctrls
         });
+        await context.sync();
+        body.load('paragraphs');
+        await context.sync();
+        const parags = body.paragraphs;
+        parags.load('style');
+        await context.sync();
+        parags.items
+            .filter(p => styles.includes(p.style))
+            .forEach(p => p.style = `${StylePrefix}Normal`);
         await context.sync();
     });
 }
