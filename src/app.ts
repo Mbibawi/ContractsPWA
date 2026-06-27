@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.1";
+const version = "v11.2";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 
@@ -1155,13 +1155,15 @@ class WordFileds  {
         USERFORM.innerHTML = '';
         await Word.run(async (context) => {
             const fields = context.document.body.fields;
-            fields.load(["code"]);
+            fields.load(["code", "result"]);
             await context.sync();
-            if (!fields.items.length) return console.log("no fields were found");
+            const fillIn = fields.items.filter(field => field.code.includes('FILLIN'));
+            if (!fillIn.length) return console.log("no FILLIN fields were found");
+            fillIn.forEach(field => field.result.load('text'));
+            await context.sync();
 
-            const inputs: [HTMLInputElement, number][] = fields.items.map((field, index) => {
+            const inputs: [HTMLInputElement, number][] = fillIn.map((field, index) => {
                 const code = field.code;
-                if (!code.includes("FILLIN")) return undefined;
                 console.log("field code = " + code);
                 const match = code.match(/(?:FILLIN|ASK)\s+"([^"]+)"/i);
                 if (!match || !match.length) return undefined;
@@ -1173,9 +1175,10 @@ class WordFileds  {
                 const l = document.createElement('label');
                 const input = document.createElement('input');
                 input.id = `FILLIN_${index.toString()}`;
+                input.value = field.result.text;
                 const div = document.createElement('div');
-                USERFORM.appendChild(div);
                 div.append(l, input);
+                USERFORM.appendChild(div);
         
                 l.textContent = lable;
                 //input.onchange = () => this.editField(index, input);
