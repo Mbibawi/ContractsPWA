@@ -4,7 +4,7 @@
   xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
   xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="TaskPaneApp">
   <Id>F1F85CB3-1365-4457-8B22-0446F89BE4B0</Id>
-  <Version>1.0.0.4</Version>
+  <Version>1.0.1.2</Version>
   <ProviderName>Mina BIBAWI</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Contracts PWA"/>
@@ -19,7 +19,7 @@
     <Host Name="Document"/>
   </Hosts>
   <DefaultSettings>
-    <SourceLocation DefaultValue="https://mbibawi.github.io/ContractsPWA/taskpane.html"/>
+    <SourceLocation DefaultValue="https://mbibawi.github.io/ContractsPWA/taskpane.html?v=1.0.1.2"/>
   </DefaultSettings>
   <Permissions>ReadWriteDocument</Permissions>
   <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
@@ -73,14 +73,14 @@
         <bt:Url id="Taskpane.Url" DefaultValue="https://mbibawi.github.io/ContractsPWA/taskpane.html"/>
       </bt:Urls>
       <bt:ShortStrings>
-        <bt:String id="GetStarted.Title" DefaultValue="Get started with the Hello world add-in!"/>
-        <bt:String id="CommandsGroup.Label" DefaultValue="Contoso Add-in"/>
-        <bt:String id="TaskpaneButton.Label" DefaultValue="Hello world"/>
-        <bt:String id="TaskpaneButton.SupertipTitle" DefaultValue="Hello world"/>
+        <bt:String id="GetStarted.Title" DefaultValue="Get started with the Contracts PWA add-in!"/>
+        <bt:String id="CommandsGroup.Label" DefaultValue="Contracts PWA Add-in"/>
+        <bt:String id="TaskpaneButton.Label" DefaultValue="Contracts PWA"/>
+        <bt:String id="TaskpaneButton.SupertipTitle" DefaultValue="Contracts PWA"/>
       </bt:ShortStrings>
       <bt:LongStrings>
-        <bt:String id="GetStarted.Description" DefaultValue="Your sample add-in loaded successfully. Go to the HOME tab and click the 'Hello world' button to get started."/>
-        <bt:String id="TaskpaneButton.SupertipText" DefaultValue="Open the Hello world add-in"/>
+        <bt:String id="GetStarted.Description" DefaultValue="Your sample add-in loaded successfully. Go to the HOME tab and click the 'Contracts PWA' button to get started."/>
+        <bt:String id="TaskpaneButton.SupertipText" DefaultValue="Open the Contracts PWA add-in"/>
       </bt:LongStrings>
     </Resources>
   </VersionOverrides>
