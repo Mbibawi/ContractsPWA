@@ -1,6 +1,6 @@
 "use strict";
 /// <reference types="./types.d.ts" />
-const version = "v11.0";
+const version = "v11.1";
 let USERFORM, NOTIFICATION;
 Office.onReady((info) => {
     // Check that we loaded into Word
@@ -1144,22 +1144,20 @@ class WordFileds {
         });
     }
     async editAllFields(inputs) {
-        for (const [input, index] of inputs) {
-            await this.editField(index, input);
-        }
-    }
-    async editField(index, input) {
         await Word.run(async (context) => {
             const fields = context.document.body.fields;
             fields.load(['code', 'result']);
             await context.sync();
-            const field = fields.items[index];
-            if (!field)
-                return console.log('field not found');
-            debugger;
-            field.result.insertText(input.value, Word.InsertLocation.replace);
-            await context.sync();
-            console.log('Modified code = ' + field.code);
+            for (const [input, index] of inputs) {
+                if (!input.value)
+                    continue;
+                const field = fields.items[index];
+                if (!field)
+                    return console.log('field not found');
+                field.result.insertText(input.value, Word.InsertLocation.replace);
+                await context.sync();
+                console.log('Modified field = ' + field.code);
+            }
         });
     }
 }
