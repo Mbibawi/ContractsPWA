@@ -1151,7 +1151,6 @@ export class WordFileds {
 
     private async showInputs() {
         USERFORM.innerHTML = '';
-        insertBtn(goHome, true);//We insert the goHome navigation button on top of all the inputs
 
         await Word.run(async (context) => {
             const fields = context.document.body.fields;
@@ -1187,6 +1186,8 @@ export class WordFileds {
 
             insertBtn([() => this.editAllFields(inputs), 'Update All Fileds From Inputs'], true);
         });
+
+        insertBtn(goHome, false);//We insert the goHome navigation button on top of all the inputs
     }
     
     async editAllFields(inputs: [HTMLInputElement, number][]) {
