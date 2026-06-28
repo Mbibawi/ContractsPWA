@@ -7,44 +7,46 @@
   <Version>1.0.1.2</Version>
   <ProviderName>Mina BIBAWI</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
-  <DisplayName DefaultValue="Contracts PWA"/>
-  <Description DefaultValue="A simple test Office Add-in."/>
-  <IconUrl DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/-32x32.svg" />
-  <HighResolutionIconUrl DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/Icon-64x64.svg" />
-  <SupportUrl DefaultValue="https://learn.microsoft.com/office/dev/add-ins/overview/office-add-in-code-samples"/>
+  <DisplayName DefaultValue="Contracts PWA" />
+  <Description DefaultValue="A simple test Office Add-in." />
+  <IconUrl DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/Icon-32x32.png" />
+  <HighResolutionIconUrl DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/Icon-64x64.png" />
+  <SupportUrl
+    DefaultValue="https://learn.microsoft.com/office/dev/add-ins/overview/office-add-in-code-samples" />
   <AppDomains>
     <AppDomain>https://mbibawi.github.io/ContractsPWA</AppDomain>
   </AppDomains>
   <Hosts>
-    <Host Name="Document"/>
+    <Host Name="Document" />
   </Hosts>
   <DefaultSettings>
     <SourceLocation DefaultValue="https://mbibawi.github.io/ContractsPWA/index.html?v=1.0.1.2" />
   </DefaultSettings>
   <Permissions>ReadWriteDocument</Permissions>
-  <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
+    xsi:type="VersionOverridesV1_0">
     <Hosts>
       <Host xsi:type="Document">
         <DesktopFormFactor>
           <GetStarted>
-            <Title resid="GetStarted.Title"/>
-            <Description resid="GetStarted.Description"/>
-            <LearnMoreUrl resid="GetStarted.LearnMoreUrl"/>
+            <Title resid="GetStarted.Title" />
+            <Description resid="GetStarted.Description" />
+            <LearnMoreUrl resid="GetStarted.LearnMoreUrl" />
           </GetStarted>
           <ExtensionPoint xsi:type="PrimaryCommandSurface">
             <OfficeTab id="TabHome">
               <Group id="CommandsGroup">
-                <Label resid="CommandsGroup.Label"/>
+                <Label resid="CommandsGroup.Label" />
                 <Icon>
                   <bt:Image size="16" resid="Icon-16x16" />
                   <bt:Image size="32" resid="Icon-32x32" />
                   <bt:Image size="80" resid="Icon-80x80" />
                 </Icon>
                 <Control xsi:type="Button" id="TaskpaneButton">
-                  <Label resid="TaskpaneButton.Label"/>
+                  <Label resid="TaskpaneButton.Label" />
                   <Supertip>
-                    <Title resid="TaskpaneButton.SupertipTitle"/>
-                    <Description resid="TaskpaneButton.SupertipText"/>
+                    <Title resid="TaskpaneButton.SupertipTitle" />
+                    <Description resid="TaskpaneButton.SupertipText" />
                   </Supertip>
                   <Icon>
                     <bt:Image size="16" resid="Icon-16x16" />
@@ -53,7 +55,7 @@
                   </Icon>
                   <Action xsi:type="ShowTaskpane">
                     <TaskpaneId>ButtonId1</TaskpaneId>
-                    <SourceLocation resid="Taskpane.Url"/>
+                    <SourceLocation resid="Taskpane.Url" />
                   </Action>
                 </Control>
               </Group>
@@ -64,26 +66,28 @@
     </Hosts>
     <Resources>
       <bt:Images>
-        <bt:Image id="Icon.16x16"
-          DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/Icon-16x16.svg" />
-        <bt:Image id="Icon.32x32"
-          DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/  Icon-32x32.svg" />
-        <bt:Image id="Icon.80x80"
-          DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/Icon-80x80.svg" />
+        <bt:Image id="Icon-16x16"
+          DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/Icon-16x16.png" />
+        <bt:Image id="Icon-32x32"
+          DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/Icon-32x32.png" />
+        <bt:Image id="Icon-80x80"
+          DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/Icon-80x80.png" />
       </bt:Images>
       <bt:Urls>
-        <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="http://go.microsoft.com/fwlink/?LinkId=276812"/>
+        <bt:Url id="GetStarted.LearnMoreUrl"
+          DefaultValue="http://go.microsoft.com/fwlink/?LinkId=276812" />
         <bt:Url id="Taskpane.Url" DefaultValue="https://mbibawi.github.io/ContractsPWA/index.html" />
       </bt:Urls>
       <bt:ShortStrings>
-        <bt:String id="GetStarted.Title" DefaultValue="Get started with the Contracts PWA add-in!"/>
-        <bt:String id="CommandsGroup.Label" DefaultValue="Contracts PWA Add-in"/>
-        <bt:String id="TaskpaneButton.Label" DefaultValue="Contracts PWA"/>
-        <bt:String id="TaskpaneButton.SupertipTitle" DefaultValue="Contracts PWA"/>
+        <bt:String id="GetStarted.Title" DefaultValue="Get started with the Contracts PWA add-in!" />
+        <bt:String id="CommandsGroup.Label" DefaultValue="Contracts PWA Add-in" />
+        <bt:String id="TaskpaneButton.Label" DefaultValue="Contracts PWA" />
+        <bt:String id="TaskpaneButton.SupertipTitle" DefaultValue="Contracts PWA" />
       </bt:ShortStrings>
       <bt:LongStrings>
-        <bt:String id="GetStarted.Description" DefaultValue="Your sample add-in loaded successfully. Go to the HOME tab and click the 'Contracts PWA' button to get started."/>
-        <bt:String id="TaskpaneButton.SupertipText" DefaultValue="Open the Contracts PWA add-in"/>
+        <bt:String id="GetStarted.Description"
+          DefaultValue="Your sample add-in loaded successfully. Go to the HOME tab and click the 'Contracts PWA' button to get started." />
+        <bt:String id="TaskpaneButton.SupertipText" DefaultValue="Open the Contracts PWA add-in" />
       </bt:LongStrings>
     </Resources>
   </VersionOverrides>
