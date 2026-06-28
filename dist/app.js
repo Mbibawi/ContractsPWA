@@ -1,7 +1,7 @@
-"use strict";
 /// <reference types="./types.d.ts" />
-const version = "v11.2";
+const version = "v11.3";
 let USERFORM, NOTIFICATION;
+const goHome = [() => mainUI(), 'Home'];
 Office.onReady((info) => {
     // Check that we loaded into Word
     if (info.host !== Office.HostType.Word)
@@ -53,32 +53,35 @@ function insertBtn([fun, label], append = true, on = 'click') {
     htmlBtn.addEventListener(on, () => fun());
     return htmlBtn;
 }
-class ContentCtrls {
+class WordContentCtrls {
     constructor() {
         this.OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'];
+        //ContentControl tags
         this.StylePrefix = 'Contrat_';
         this.RTFieldTag = 'RTField';
         this.RTDropDownTag = 'RTList';
         this.RTDropDownColor = '#991c63';
         this.RTDuplicateTag = 'RTRepeat';
         this.RTSectionTag = 'RTSection';
-        this.RTSectionStyle = `${this.StylePrefix}${this.RTSectionTag}`;
         this.RTSelectTag = 'RTSelect';
         this.RTOrTag = 'RTOr';
         this.RTObsTag = 'RTObs';
-        this.RTObsStyle = `${this.StylePrefix}${this.RTObsTag}`;
         this.RTDescriptionTag = 'RTDesc';
-        this.RTDescriptionStyle = `${this.StylePrefix}${this.RTDescriptionTag}`;
         this.RTSiTag = 'RTSi';
+        //Stylesreadonly 
+        this.RTSectionStyle = `${this.StylePrefix}${this.RTSectionTag}`;
+        this.RTObsStyle = `${this.StylePrefix}${this.RTObsTag}`;
         this.RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${this.StylePrefix}${this.RTSiTag}${n}cm`);
-        this.RichText = Word.ContentControlType.richText;
-        this.RichTextInline = Word.ContentControlType.richTextInline;
-        this.RichTextParag = Word.ContentControlType.richTextParagraphs;
-        this.ComboBox = Word.ContentControlType.comboBox;
-        this.CheckBox = Word.ContentControlType.checkBox;
+        this.RTDescriptionStyle = `${this.StylePrefix}${this.RTDescriptionTag}`;
+        //Types
+        this.richText = Word.ContentControlType.richText;
+        this.richTextInline = Word.ContentControlType.richTextInline;
+        this.richTextParag = Word.ContentControlType.richTextParagraphs;
+        this.comboBox = Word.ContentControlType.comboBox;
+        this.checkBox = Word.ContentControlType.checkBox;
         this.dropDownList = Word.ContentControlType.dropDownList;
-        this.Bounding = Word.ContentControlAppearance.boundingBox;
-        this.Hidden = Word.ContentControlAppearance.hidden;
+        this.bounding = Word.ContentControlAppearance.boundingBox;
+        this.hidden = Word.ContentControlAppearance.hidden;
     }
     async insertFields(ids, style) {
         await Word.run(async (context) => {
@@ -106,7 +109,7 @@ class ContentCtrls {
                 return console.log('could not retrieve the range to insert the field contentcontrol');
         }
         ;
-        const field = await this.insertContentControl(range, this.RTFieldTag, this.RTFieldTag, i, this.RichText, style, false, false, '[*]');
+        const field = await this.insertContentControl(range, this.RTFieldTag, this.RTFieldTag, i, this.richText, style, false, false, '[*]');
         if (!field)
             return;
         // field.onExited.add(() => updateAllFields(field));
@@ -224,15 +227,21 @@ class ContentCtrls {
         });
     }
 }
-class EditContract extends ContentCtrls {
+export class EditContract extends WordContentCtrls {
     constructor() {
         super(...arguments);
         this.main = [
             [this.customizeContract, 'Customize Contract'],
             [this.prepareTemplate, 'Prepare Template'],
             [this.finalizeContract, 'Finalize Contract'],
-            [this.lockUnlockAll, 'Remove Cannot Delete For All']
+            [this.lockUnlockAll, 'Remove Cannot Delete For All'],
+            goHome,
         ];
+        this.goBack = [() => {
+                USERFORM.innerHTML = '';
+                document.getElementById('stylesList')?.remove();
+                this.showBtns(this.main);
+            }, 'Go Back'];
     }
     showMainBtn() {
         insertBtn([() => this.showBtns(this.main), 'Edit Contracts'], false);
@@ -241,19 +250,9 @@ class EditContract extends ContentCtrls {
         USERFORM.innerHTML = '';
         const htmlBtns = btns.map(([fun, label]) => insertBtn([fun.bind(this), label], append, on));
         if (btns === this.main) {
-            const goBack = [() => {
-                    USERFORM.innerHTML = '';
-                    document.getElementById('stylesList')?.remove();
-                    this.showBtns(btns);
-                }, 'Go Back'];
-            const goHome = [() => {
-                    USERFORM.innerHTML = '';
-                    mainUI();
-                }, 'Go Home'];
-            htmlBtns.forEach(btn => btn?.addEventListener('click', () => {
-                insertBtn(goBack, false);
-                insertBtn(goHome, true);
-            }));
+            htmlBtns
+                .slice(0, -1) //We exclude the goHome htmBtn
+                .forEach(btn => btn?.addEventListener('click', () => [this.goBack, goHome].forEach(btn => insertBtn(btn, false))));
         }
         return htmlBtns;
     }
@@ -269,15 +268,15 @@ class EditContract extends ContentCtrls {
         }
         ;
         const btns = [
-            wrap(this.RTSiTag, this.RTSiTag, this.RichText, this.RTSiStyles[0], true, true, 'Insert Single RT Si'),
+            wrap(this.RTSiTag, this.RTSiTag, this.richText, this.RTSiStyles[0], true, true, 'Insert Single RT Si'),
             [() => this.insertRTDescription(true), 'Insert Single RT Description'],
-            wrap(this.RTSelectTag, this.RTSelectTag, this.RichText, null, false, true, 'Insert Single RT Select'),
-            wrap(this.RTSectionTag, this.RTSectionTag, this.RichText, this.RTSectionTag, true, true, 'Insert Single RT Section'),
-            wrap(this.RTOrTag, this.RTOrTag, this.RichText, null, false, true, 'Insert Single RT OR'),
-            wrap(this.RTDuplicateTag, this.RTDuplicateTag, this.RichText, null, false, true, 'Insert Single RT Dublicate Block'),
+            wrap(this.RTSelectTag, this.RTSelectTag, this.richText, null, false, true, 'Insert Single RT Select'),
+            wrap(this.RTSectionTag, this.RTSectionTag, this.richText, this.RTSectionTag, true, true, 'Insert Single RT Section'),
+            wrap(this.RTOrTag, this.RTOrTag, this.richText, null, false, true, 'Insert Single RT OR'),
+            wrap(this.RTDuplicateTag, this.RTDuplicateTag, this.richText, null, false, true, 'Insert Single RT Dublicate Block'),
             [this.insertDropDownList, 'Insert a Dropdown List from selection'],
-            wrap(this.RTObsTag, this.RTObsTag, this.RichText, this.RTObsTag, true, true, 'Insert Single RT Obs'),
-            [this.insertDroDownListAll, 'Insert DropDown List For All Matches'],
+            wrap(this.RTObsTag, this.RTObsTag, this.richText, this.RTObsTag, true, true, 'Insert Single RT Obs'),
+            [this.insertDropDownListAll, 'Insert DropDown List For All Matches'],
             [this.insertRTSiAll, 'Insert RT Si For All'],
             [this.insertRTSectionAll, 'Insert RT Section For All'],
             [this.insertRTDescription, 'Insert RT Description For All'],
@@ -332,7 +331,7 @@ class EditContract extends ContentCtrls {
      * @returns A Promise that resolves when the operation is complete.
      */
     async findTextAndWrapItWithContentControl(styles, title, tag, cannotEdit, cannotDelete) {
-        const insertContentControl = this.insertContentControl.bind(this), promptForInput = this.promptForInput, promptConfirm = this.promptConfirm, RichText = this.RichText;
+        const insertContentControl = this.insertContentControl.bind(this), promptForInput = this.promptForInput, promptConfirm = this.promptConfirm, RichText = this.richText;
         const { search, matchWildcards } = await searchs();
         if (!styles?.length)
             return showNotification(`The styles[] has 0 length, no styles are included, the function will return`);
@@ -400,7 +399,7 @@ class EditContract extends ContentCtrls {
             const range = await this.getSelectionRange();
             if (!range)
                 return showNotification('No Text Was selected !');
-            ctrls = [await this.insertContentControl(range, this.RTDescriptionTag, this.RTDescriptionTag, 0, this.RichText, this.RTDescriptionStyle, true, true)];
+            ctrls = [await this.insertContentControl(range, this.RTDescriptionTag, this.RTDescriptionTag, 0, this.richText, this.RTDescriptionStyle, true, true)];
         }
         else
             ctrls = await this.findTextAndWrapItWithContentControl([this.RTDescriptionStyle], this.RTDescriptionTag, this.RTDescriptionTag, true, true);
@@ -489,7 +488,7 @@ class EditContract extends ContentCtrls {
                     if (parent.tag === tag)
                         continue; //We escape paragraphs already wraped in a contentcontrol with the same tag
                     console.log(`range style: ${parag.style} & text = ${parag.text}`);
-                    await this.insertContentControl(parag.getRange('Content'), tag, tag, parags.indexOf(parag), this.RichText, style);
+                    await this.insertContentControl(parag.getRange('Content'), tag, tag, parags.indexOf(parag), this.richText, style);
                 }
                 catch (error) {
                     console.log(`Error from insertForAllParags() when trying to wrap the paragraph : ${parag.text}. Error :\n${error}`);
@@ -499,7 +498,7 @@ class EditContract extends ContentCtrls {
             await context.sync();
         });
     }
-    async insertDroDownListAll() {
+    async insertDropDownListAll() {
         NOTIFICATION.innerHTML = '';
         const range = await this.getSelectionRange();
         if (!range)
@@ -1102,14 +1101,13 @@ class EditContract extends ContentCtrls {
     }
 }
 ;
-class WordFileds {
+export class WordFileds {
     showMainBtn() {
-        insertBtn([() => this.showInputs(), 'Edit Fields'], false);
+        insertBtn([() => this.showInputs(), 'Edit Fields'], true);
     }
     async showInputs() {
-        if (!USERFORM)
-            return console.log('form not found');
         USERFORM.innerHTML = '';
+        insertBtn(goHome, true); //We insert the goHome navigation button on top of all the inputs
         await Word.run(async (context) => {
             const fields = context.document.body.fields;
             fields.load(["code", "result"]);

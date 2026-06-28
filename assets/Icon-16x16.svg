@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <defs>
+    <linearGradient id="bgGrad16" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#111827"/>
+      <stop offset="100%" stop-color="#1F2937"/>
+    </linearGradient>
+    <linearGradient id="blueLogicGrad16" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06B6D4"/>
+      <stop offset="100%" stop-color="#1D4ED8"/>
+    </linearGradient>
+  </defs>
+  <rect x="0.5" y="0.5" width="15" height="15" rx="2" fill="url(#bgGrad16)" stroke="#374151" stroke-width="0.3"/>
+  <text x="2" y="6" font-family="system-ui, -apple-system, sans-serif" font-size="1.8" font-weight="800" fill="#FFFFFF" letter-spacing="0.1">CONTRACTS</text>
+  <text x="2" y="10" font-family="system-ui, -apple-system, sans-serif" font-size="2.6" font-weight="900" fill="#06B6D4" letter-spacing="0.1">ADD IN</text>
+  <rect x="2" y="11.5" width="6" height="0.6" rx="0.3" fill="#F59E0B"/>
+  <path d="M11 5l2.4 3-2.4 3" fill="none" stroke="url(#blueLogicGrad16)" stroke-width="0.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="9.5" y1="8" x2="13.5" y2="8" stroke="#4B5563" stroke-width="0.4" stroke-dasharray="0.6 0.4" stroke-linecap="round"/>
+  <circle cx="11" cy="5" r="0.8" fill="#0B1329" stroke="#06B6D4" stroke-width="0.4"/>
+  <circle cx="13.4" cy="8" r="1" fill="#F59E0B" stroke="#FFFFFF" stroke-width="0.3"/>
+  <circle cx="11" cy="11" r="0.8" fill="#0B1329" stroke="#1D4ED8" stroke-width="0.4"/>
+</svg>

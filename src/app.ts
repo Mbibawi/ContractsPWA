@@ -1,8 +1,9 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.2";
+const version = "v11.3";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
+const goHome = [() => mainUI(), 'Home'] as Btn;
 
 
 Office.onReady((info) => {
@@ -56,32 +57,35 @@ function insertBtn([fun, label]: Btn, append: boolean = true, on: string = 'clic
     return htmlBtn
 }
 
-class ContentCtrls {
-    protected OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'];
-    protected StylePrefix = 'Contrat_';
-    protected RTFieldTag = 'RTField';
-    protected RTDropDownTag = 'RTList';
-    protected RTDropDownColor = '#991c63';
-    protected RTDuplicateTag = 'RTRepeat';
-    protected RTSectionTag = 'RTSection';
-    protected RTSectionStyle = `${this.StylePrefix}${this.RTSectionTag}`;
-    protected RTSelectTag = 'RTSelect';
-    protected RTOrTag = 'RTOr';
-    protected RTObsTag = 'RTObs';
-    protected RTObsStyle = `${this.StylePrefix}${this.RTObsTag}`;
-    protected RTDescriptionTag = 'RTDesc';
-    protected RTDescriptionStyle = `${this.StylePrefix}${this.RTDescriptionTag}`;
-    protected RTSiTag = 'RTSi';
-    protected RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${this.StylePrefix}${this.RTSiTag}${n}cm`);
 
-    protected RichText = Word.ContentControlType.richText;
-    protected RichTextInline = Word.ContentControlType.richTextInline;
-    protected RichTextParag = Word.ContentControlType.richTextParagraphs;
-    protected ComboBox = Word.ContentControlType.comboBox;
-    protected CheckBox = Word.ContentControlType.checkBox;
-    protected dropDownList = Word.ContentControlType.dropDownList;
-    protected Bounding = Word.ContentControlAppearance.boundingBox;
-    protected Hidden = Word.ContentControlAppearance.hidden;
+class WordContentCtrls {
+    protected readonly OPTIONS = ['RTSelect', 'RTShow', 'RTEdit'];
+    //ContentControl tags
+    protected readonly StylePrefix = 'Contrat_';
+    protected readonly RTFieldTag = 'RTField';
+    protected readonly RTDropDownTag = 'RTList';
+    protected readonly RTDropDownColor = '#991c63';
+    protected readonly RTDuplicateTag = 'RTRepeat';
+    protected readonly RTSectionTag = 'RTSection';
+    protected readonly RTSelectTag = 'RTSelect';
+    protected readonly RTOrTag = 'RTOr';
+    protected readonly RTObsTag = 'RTObs';
+    protected readonly RTDescriptionTag = 'RTDesc';
+    protected readonly RTSiTag = 'RTSi';
+    //Stylesreadonly 
+    protected readonly RTSectionStyle = `${this.StylePrefix}${this.RTSectionTag}`;
+    protected readonly RTObsStyle = `${this.StylePrefix}${this.RTObsTag}`;
+    protected readonly RTSiStyles = ['0', '1', '2', '3', '4'].map(n => `${this.StylePrefix}${this.RTSiTag}${n}cm`);
+    protected readonly RTDescriptionStyle = `${this.StylePrefix}${this.RTDescriptionTag}`;
+    //Types
+    protected readonly richText = Word.ContentControlType.richText;
+    protected readonly richTextInline = Word.ContentControlType.richTextInline;
+    protected readonly richTextParag = Word.ContentControlType.richTextParagraphs;
+    protected readonly comboBox = Word.ContentControlType.comboBox;
+    protected readonly checkBox = Word.ContentControlType.checkBox;
+    protected readonly dropDownList = Word.ContentControlType.dropDownList;
+    protected readonly bounding = Word.ContentControlAppearance.boundingBox;
+    protected readonly hidden = Word.ContentControlAppearance.hidden;
 
     protected async insertFields(ids: number[], style: string) {
         await Word.run(async (context) => {
@@ -106,7 +110,7 @@ class ContentCtrls {
             range = (await this.getSelectionRange())?.getRange(Word.RangeLocation.start);
             if (!range) return console.log('could not retrieve the range to insert the field contentcontrol');
         };
-        const field = await this.insertContentControl(range, this.RTFieldTag, this.RTFieldTag, i, this.RichText, style, false, false, '[*]');
+        const field = await this.insertContentControl(range, this.RTFieldTag, this.RTFieldTag, i, this.richText, style, false, false, '[*]');
         if (!field) return;
         // field.onExited.add(() => updateAllFields(field));
         field.font.bold = true;
@@ -226,14 +230,20 @@ protected setCtrlsFontColor(ctrls: ContentControl[], color: string) {
     }
 }
 
-class EditContract extends ContentCtrls{
-    private main: Btn[] =
+export class EditContract extends WordContentCtrls {
+    private readonly main: Btn[] =
         [
             [this.customizeContract, 'Customize Contract'],
             [this.prepareTemplate, 'Prepare Template'],
             [this.finalizeContract, 'Finalize Contract'],
-            [this.lockUnlockAll, 'Remove Cannot Delete For All']
+            [this.lockUnlockAll, 'Remove Cannot Delete For All'],
+            goHome,
         ]; 
+    private readonly goBack = [() => {
+        USERFORM.innerHTML = '';
+        document.getElementById('stylesList')?.remove();
+        this.showBtns(this.main)
+    }, 'Go Back'] as Btn;
     
     showMainBtn() {
         insertBtn([() => this.showBtns(this.main), 'Edit Contracts'], false);
@@ -244,21 +254,10 @@ class EditContract extends ContentCtrls{
         const htmlBtns = btns.map(([fun, label]) => insertBtn([fun.bind(this), label], append, on));
         
         if (btns === this.main) {
-            const goBack = [() => {
-                USERFORM.innerHTML = '';
-                document.getElementById('stylesList')?.remove();
-                this.showBtns(btns)
-            }, 'Go Back'] as Btn;
-            const goHome = [() => {
-                USERFORM.innerHTML = '';
-                mainUI();
-            }, 'Go Home'] as Btn;
-            
-            htmlBtns.forEach(btn => btn?.addEventListener('click', () => {
-                insertBtn(goBack, false);
-                insertBtn(goHome, true);
-            }));
-                
+            htmlBtns
+                .slice(0, -1)//We exclude the goHome htmBtn
+                .forEach(btn => btn?.addEventListener('click', () =>
+                    [this.goBack, goHome].forEach(btn => insertBtn(btn, false))));
         }
         return htmlBtns
     };
@@ -276,15 +275,15 @@ class EditContract extends ContentCtrls{
     
     
         const btns = [
-            wrap(this.RTSiTag, this.RTSiTag, this.RichText, this.RTSiStyles[0], true, true, 'Insert Single RT Si'),
+            wrap(this.RTSiTag, this.RTSiTag, this.richText, this.RTSiStyles[0], true, true, 'Insert Single RT Si'),
             [() => this.insertRTDescription(true), 'Insert Single RT Description'],
-            wrap(this.RTSelectTag, this.RTSelectTag, this.RichText, null, false, true, 'Insert Single RT Select'),
-            wrap(this.RTSectionTag, this.RTSectionTag, this.RichText, this.RTSectionTag, true, true, 'Insert Single RT Section'),
-            wrap(this.RTOrTag, this.RTOrTag, this.RichText, null, false, true, 'Insert Single RT OR'),
-            wrap(this.RTDuplicateTag, this.RTDuplicateTag, this.RichText, null, false, true, 'Insert Single RT Dublicate Block'),
+            wrap(this.RTSelectTag, this.RTSelectTag, this.richText, null, false, true, 'Insert Single RT Select'),
+            wrap(this.RTSectionTag, this.RTSectionTag, this.richText, this.RTSectionTag, true, true, 'Insert Single RT Section'),
+            wrap(this.RTOrTag, this.RTOrTag, this.richText, null, false, true, 'Insert Single RT OR'),
+            wrap(this.RTDuplicateTag, this.RTDuplicateTag, this.richText, null, false, true, 'Insert Single RT Dublicate Block'),
             [this.insertDropDownList, 'Insert a Dropdown List from selection'],
-            wrap(this.RTObsTag, this.RTObsTag, this.RichText, this.RTObsTag, true, true, 'Insert Single RT Obs'),
-            [this.insertDroDownListAll, 'Insert DropDown List For All Matches'],
+            wrap(this.RTObsTag, this.RTObsTag, this.richText, this.RTObsTag, true, true, 'Insert Single RT Obs'),
+            [this.insertDropDownListAll, 'Insert DropDown List For All Matches'],
             [this.insertRTSiAll, 'Insert RT Si For All'],
             [this.insertRTSectionAll, 'Insert RT Section For All'],
             [this.insertRTDescription, 'Insert RT Description For All'],
@@ -340,7 +339,7 @@ class EditContract extends ContentCtrls{
      * @returns A Promise that resolves when the operation is complete.
      */
     private async findTextAndWrapItWithContentControl(styles: string[], title: string, tag: string, cannotEdit: boolean, cannotDelete: boolean) {
-        const insertContentControl = this.insertContentControl.bind(this), promptForInput = this.promptForInput, promptConfirm = this.promptConfirm, RichText = this.RichText;
+        const insertContentControl = this.insertContentControl.bind(this), promptForInput = this.promptForInput, promptConfirm = this.promptConfirm, RichText = this.richText;
         const { search, matchWildcards } = await searchs();
         if (!styles?.length) return showNotification(`The styles[] has 0 length, no styles are included, the function will return`);
         if (!search?.length) return showNotification('The provided search string is not valid');
@@ -406,7 +405,7 @@ class EditContract extends ContentCtrls{
         if (selection) {
             const range = await this.getSelectionRange();
             if (!range) return showNotification('No Text Was selected !');
-            ctrls = [await this.insertContentControl(range, this.RTDescriptionTag, this.RTDescriptionTag, 0, this.RichText, this.RTDescriptionStyle, true, true)];
+            ctrls = [await this.insertContentControl(range, this.RTDescriptionTag, this.RTDescriptionTag, 0, this.richText, this.RTDescriptionStyle, true, true)];
         }
         else ctrls = await this.findTextAndWrapItWithContentControl([this.RTDescriptionStyle], this.RTDescriptionTag, this.RTDescriptionTag, true, true);
     
@@ -507,7 +506,7 @@ class EditContract extends ContentCtrls{
                     if (parent.tag === tag) continue;//We escape paragraphs already wraped in a contentcontrol with the same tag
                     console.log(`range style: ${parag.style} & text = ${parag.text}`);
                     await this.insertContentControl(parag.getRange('Content'),
-                        tag, tag, parags.indexOf(parag), this.RichText, style);
+                        tag, tag, parags.indexOf(parag), this.richText, style);
                 } catch (error) {
                     console.log(`Error from insertForAllParags() when trying to wrap the paragraph : ${parag.text}. Error :\n${error}`);
                     continue
@@ -518,7 +517,7 @@ class EditContract extends ContentCtrls{
         })
     }
 
-    private async  insertDroDownListAll() {
+    private async insertDropDownListAll() {
         NOTIFICATION.innerHTML = '';
         const range = await this.getSelectionRange();
         if (!range) return;
@@ -1145,14 +1144,15 @@ private async lockUnlockAll(unlock:boolean = false, tags:string[]=[]){
 
 };
 
-class WordFileds  {
+export class WordFileds {
     showMainBtn() {
-        insertBtn([() => this.showInputs(), 'Edit Fields'], false);
+        insertBtn([() => this.showInputs(), 'Edit Fields'], true);
     }
 
     private async showInputs() {
-        if (!USERFORM) return console.log('form not found');
         USERFORM.innerHTML = '';
+        insertBtn(goHome, true);//We insert the goHome navigation button on top of all the inputs
+
         await Word.run(async (context) => {
             const fields = context.document.body.fields;
             fields.load(["code", "result"]);
@@ -1179,15 +1179,14 @@ class WordFileds  {
                 const div = document.createElement('div');
                 div.append(l, input);
                 USERFORM.appendChild(div);
-        
+
                 l.textContent = lable;
                 //input.onchange = () => this.editField(index, input);
                 return [input, index] as [HTMLInputElement, number];
-            }).filter(item=>item!==undefined);
-            
+            }).filter(item => item !== undefined);
+
             insertBtn([() => this.editAllFields(inputs), 'Update All Fileds From Inputs'], true);
         });
-
     }
     
     async editAllFields(inputs: [HTMLInputElement, number][]) {

@@ -9,8 +9,8 @@
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Contracts PWA"/>
   <Description DefaultValue="A simple test Office Add-in."/>
-  <IconUrl DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/icon-32.png"/>
-  <HighResolutionIconUrl DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/icon-64.png"/>
+  <IconUrl DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/Icon-32x32.svg" />
+  <HighResolutionIconUrl DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/Icon-64x64.svg" />
   <SupportUrl DefaultValue="https://learn.microsoft.com/office/dev/add-ins/overview/office-add-in-code-samples"/>
   <AppDomains>
     <AppDomain>https://mbibawi.github.io/ContractsPWA</AppDomain>
@@ -36,9 +36,9 @@
               <Group id="CommandsGroup">
                 <Label resid="CommandsGroup.Label"/>
                 <Icon>
-                  <bt:Image size="16" resid="Icon.16x16"/>
-                  <bt:Image size="32" resid="Icon.32x32"/>
-                  <bt:Image size="80" resid="Icon.80x80"/>
+                  <bt:Image size="16" resid="icon.16x16" />
+                  <bt:Image size="32" resid="icon.32x32" />
+                  <bt:Image size="80" resid="icon.80x80" />
                 </Icon>
                 <Control xsi:type="Button" id="TaskpaneButton">
                   <Label resid="TaskpaneButton.Label"/>
@@ -47,9 +47,9 @@
                     <Description resid="TaskpaneButton.SupertipText"/>
                   </Supertip>
                   <Icon>
-                    <bt:Image size="16" resid="Icon.16x16"/>
-                    <bt:Image size="32" resid="Icon.32x32"/>
-                    <bt:Image size="80" resid="Icon.80x80"/>
+                    <bt:Image size="16" resid="Icon.16x16" />
+                    <bt:Image size="32" resid="Icon.32x32" />
+                    <bt:Image size="80" resid="Icon.80x80" />
                   </Icon>
                   <Action xsi:type="ShowTaskpane">
                     <TaskpaneId>ButtonId1</TaskpaneId>
@@ -64,9 +64,12 @@
     </Hosts>
     <Resources>
       <bt:Images>
-        <bt:Image id="Icon.16x16" DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/icon-16.png"/>
-        <bt:Image id="Icon.32x32" DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/icon-32.png"/>
-        <bt:Image id="Icon.80x80" DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/icon-80.png"/>
+        <bt:Image id="Icon.16x16"
+          DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/Icon-16x16.svg" />
+        <bt:Image id="Icon.32x32"
+          DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/  Icon-32x32.svg" />
+        <bt:Image id="Icon.80x80"
+          DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/Icon-80x80.svg" />
       </bt:Images>
       <bt:Urls>
         <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="http://go.microsoft.com/fwlink/?LinkId=276812"/>
