@@ -1,7 +1,7 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.3";
+const version = "v11.4";
 let USERFORM, NOTIFICATION;
-const goHome = [() => mainUI(), 'Home'];
+const goHome = [() => mainUI(false), 'Home'];
 Office.onReady((info) => {
     // Check that we loaded into Word
     if (info.host !== Office.HostType.Word)
@@ -600,7 +600,7 @@ export class EditContract extends WordContentCtrls {
             try {
                 await currentDoc();
                 selected.length = 0; //We remove any element in selected
-                mainUI(false);
+                (false);
                 //await createNewDoc();
             }
             catch (error) {

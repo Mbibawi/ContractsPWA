@@ -1,9 +1,9 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.3";
+const version = "v11.4";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
-const goHome = [() => mainUI(), 'Home'] as Btn;
+const goHome = [() => mainUI(false), 'Home'] as Btn;
 
 
 Office.onReady((info) => {
@@ -620,7 +620,7 @@ private async customizeContract(showNested: boolean = false) {
         try {
             await currentDoc();
             selected.length = 0;//We remove any element in selected
-            mainUI(false)
+            (false)
             //await createNewDoc();
         } catch (error) {
             showNotification(`${error}`)
