@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.6";
+const version = "v11.7";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home'];
 Office.onReady((info) => {
