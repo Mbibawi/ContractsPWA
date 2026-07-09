@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.7";
+const version = "v11.8";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = [() => mainUI(false), 'Home'] as Btn;
@@ -17,14 +17,14 @@ Office.onReady((info) => {
 });
 
 
-function mainUI(showVersion:boolean = true) {
+function mainUI(showVersion: boolean = true) {
     if (!USERFORM) return;
     USERFORM.innerHTML = '';
     NOTIFICATION.innerHTML = ''
     insertVersion();
     new EditContract().showMainBtn();
     new WordFileds().showMainBtn();
-    
+
     function insertVersion() {
         if (!showVersion) return;
         const p = document.createElement('p');
@@ -53,7 +53,7 @@ function insertBtn([fun, label]: Btn, append: boolean = true, on: string = 'clic
     const htmlBtn = document.createElement('button');
     append ? USERFORM.appendChild(htmlBtn) : USERFORM.prepend(htmlBtn);
     htmlBtn.innerText = label;
-    htmlBtn.addEventListener(on, ()=>fun());
+    htmlBtn.addEventListener(on, () => fun());
     return htmlBtn
 }
 
@@ -179,12 +179,12 @@ class WordContentCtrls {
     }
 
     protected async setCtrlsColor(ctrls: ContentControl[], color: string) {
-    ctrls.forEach(ctrl => ctrl.color = color);
-}
-protected setCtrlsFontColor(ctrls: ContentControl[], color: string) {
-    ctrls.forEach(c => c.getRange().font.color = color);
+        ctrls.forEach(ctrl => ctrl.color = color);
     }
-    
+    protected setCtrlsFontColor(ctrls: ContentControl[], color: string) {
+        ctrls.forEach(c => c.getRange().font.color = color);
+    }
+
     protected async setFieldTitle(title: string, field?: Word.ContentControl) {
         await Word.run(async (context) => {
             let range: Word.Range | void;
@@ -231,6 +231,8 @@ protected setCtrlsFontColor(ctrls: ContentControl[], color: string) {
 }
 
 export class EditContract extends WordContentCtrls {
+    private readonly _stylesListId = 'stylesList';
+    get stylesList() { return document.getElementById(this._stylesListId) }
     private readonly main: Btn[] =
         [
             [this.customizeContract, 'Customize Contract'],
@@ -238,13 +240,13 @@ export class EditContract extends WordContentCtrls {
             [this.finalizeContract, 'Finalize Contract'],
             [this.lockUnlockAll, 'Remove Cannot Delete For All'],
             goHome,
-        ]; 
+        ];
     private readonly goBack = [() => {
         USERFORM.innerHTML = '';
-        document.getElementById('stylesList')?.remove();
+        this.stylesList?.remove();
         this.showBtns(this.main)
     }, 'Go Back'] as Btn;
-    
+
     showMainBtn() {
         insertBtn([() => this.showBtns(this.main), 'Edit Contracts'], false);
     }
@@ -252,7 +254,7 @@ export class EditContract extends WordContentCtrls {
     private showBtns(btns: Btn[] = this.main, append = true, on: string = 'click') {
         USERFORM.innerHTML = '';
         const htmlBtns = btns.map(([fun, label]) => insertBtn([fun.bind(this), label], append, on));
-        
+
         if (btns === this.main) {
             htmlBtns
                 .slice(0, -1)//We exclude the goHome htmBtn
@@ -272,8 +274,8 @@ export class EditContract extends WordContentCtrls {
                 label
             ] as [Function, string]
         };
-    
-    
+
+
         const btns = [
             wrap(this.RTSiTag, this.RTSiTag, this.richText, this.RTSiStyles[0], true, true, 'Insert Single RT Si'),
             [() => this.insertRTDescription(true), 'Insert Single RT Description'],
@@ -287,23 +289,20 @@ export class EditContract extends WordContentCtrls {
             [this.insertRTSiAll, 'Insert RT Si For All'],
             [this.insertRTSectionAll, 'Insert RT Section For All'],
             [this.insertRTDescription, 'Insert RT Description For All'],
-            [this.insertSingleFiled, 'Insert Field']
+            [this.insertSingleFiled, 'Insert Field'],
+            [() => this.customizeContract(true), 'Show Nested Options Tree']
         ] as Btn[];
-    
+
         this.showBtns(btns);
-        this.showBtns([[() => this.customizeContract(true), 'Show Nested Options Tree']], true);
-        showStylesList();
-    
-        function showStylesList() {
-            const id = 'stylesList';
-            if (document.getElementById(id)) return;
+        if (!this.stylesList) showStylesList(this._stylesListId);
+
+        function showStylesList(id: string) {
             Word.run(async (context) => {
                 const allStyles = context.document.getStyles();
                 allStyles.load(['nameLocal']);
                 await context.sync();
                 const styles = allStyles.items.filter(style => style.nameLocal.startsWith(StylePrefix));
                 if (!styles.length) return;
-                document.createElement('select')
                 const container = createHTMLElement('div', '', '', undefined, id) as HTMLDivElement;
                 USERFORM.insertAdjacentElement('beforebegin', container);
                 const select = createHTMLElement('select', '', '', container) as HTMLSelectElement;
@@ -311,7 +310,7 @@ export class EditContract extends WordContentCtrls {
                     const option = createHTMLElement('option', '', style.nameLocal.split(StylePrefix)[1], select) as HTMLOptionElement;
                     option.value = style.nameLocal;
                 });
-    
+
                 select.onmouseenter = async () => {
                     const range = await getSelectionRange();
                     if (!range) return;
@@ -319,7 +318,7 @@ export class EditContract extends WordContentCtrls {
                     if (value) select.value = value;
                     range.untrack();
                 }
-    
+
                 select.onchange = async () => {
                     const range = await getSelectionRange();
                     if (!range) return;
@@ -328,7 +327,7 @@ export class EditContract extends WordContentCtrls {
                     await range.context.sync();
                 }
             })
-    
+
         }
     }
 
@@ -343,7 +342,7 @@ export class EditContract extends WordContentCtrls {
         const { search, matchWildcards } = await searchs();
         if (!styles?.length) return showNotification(`The styles[] has 0 length, no styles are included, the function will return`);
         if (!search?.length) return showNotification('The provided search string is not valid');
-        
+
 
         return await Word.run(async (context) => {
             const ctrls: ContentControl[] = [];
@@ -356,9 +355,9 @@ export class EditContract extends WordContentCtrls {
                 showNotification(`Found ${ranges.length} ranges matching the search string. First range text = ${ranges[0].text}`);
                 ctrls.push(...await insertCtrls(ranges))
             };
-    
+
             return ctrls;
-    
+
             async function insertCtrls(ranges: Word.Range[]) {
                 const ctrls: ContentControl[] = [];
                 for (const range of ranges) {
@@ -376,12 +375,12 @@ export class EditContract extends WordContentCtrls {
                 return ctrls
             }
         });
-    
+
         async function searchs() {
             const separator = '_&_';
             const search = (await promptForInput(`Provide the search string. You can provide more than one string to search by separated by ${separator} witohout space`, separator))?.split(separator) as string[];
             const matchWildcards = await promptConfirm('Match Wild Cards');
-    
+
             if (!styles) styles = (await promptForInput(`Provide the styles that that need to be matched separated by ","`))?.split(',') || [];
             return { search, matchWildcards }
         }
@@ -408,53 +407,53 @@ export class EditContract extends WordContentCtrls {
             ctrls = [await this.insertContentControl(range, this.RTDescriptionTag, this.RTDescriptionTag, 0, this.richText, this.RTDescriptionStyle, true, true)];
         }
         else ctrls = await this.findTextAndWrapItWithContentControl([this.RTDescriptionStyle], this.RTDescriptionTag, this.RTDescriptionTag, true, true);
-    
+
         if (!ctrls?.length) return;
         const ids = ctrls.map(c => c?.id || 0);
-    
+
         await this.insertFields(ids, style);
-    
+
     }
 
-    private async addOrUpdateCustomXml(id: string, text: string, root:string = 'contractFields', prefix:string = 'contract', nameSpace:string = 'contract-namespace') {
+    private async addOrUpdateCustomXml(id: string, text: string, root: string = 'contractFields', prefix: string = 'contract', nameSpace: string = 'contract-namespace') {
         await Word.run(async (context) => {
-            const newNode = `<${prefix}:${ id } >${ text }</${id}>`;
+            const newNode = `<${prefix}:${id} >${text}</${id}>`;
             const xmlParts = context.document.customXmlParts;
             let customPart = xmlParts.getByNamespace(nameSpace).getOnlyItemOrNullObject();
             customPart.load('isNullObject')
-          await context.sync();
-      
-        
-          if (customPart.isNullObject) {
-            // Create new XML part with root node
-            const newXml = `<${root} xmlns:${prefix}="${nameSpace}">${newNode}</${root}>`;
-            customPart = xmlParts.add(newXml);
             await context.sync();
-            console.log("Created new custom XML part.");
-          } else {
-              // Append new node to existing part
-              const xmlText = customPart.getXml();
-              await context.sync();
-            const xmlDoc = this.getXmlRootNode(xmlText);
-    
-              const rootNode = xmlDoc.getElementsByName(root)[0];
-              if (!rootNode) return console.warn("Root node not found.");
-    
+
+
+            if (customPart.isNullObject) {
+                // Create new XML part with root node
+                const newXml = `<${root} xmlns:${prefix}="${nameSpace}">${newNode}</${root}>`;
+                customPart = xmlParts.add(newXml);
+                await context.sync();
+                console.log("Created new custom XML part.");
+            } else {
+                // Append new node to existing part
+                const xmlText = customPart.getXml();
+                await context.sync();
+                const xmlDoc = this.getXmlRootNode(xmlText);
+
+                const rootNode = xmlDoc.getElementsByName(root)[0];
+                if (!rootNode) return console.warn("Root node not found.");
+
                 const newElement = xmlDoc.createElementNS(nameSpace, `${prefix}:${id}`);
                 newElement.textContent = text;
-              rootNode.appendChild(newElement);
-              await this.updateCustomXml(context, xmlParts, xmlDoc, customPart);
-          }
+                rootNode.appendChild(newElement);
+                await this.updateCustomXml(context, xmlParts, xmlDoc, customPart);
+            }
         });
     }
 
-    private getXmlRootNode(xmlText:OfficeExtension.ClientResult<string>) {
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(xmlText.value, "application/xml");
-              return xmlDoc;
+    private getXmlRootNode(xmlText: OfficeExtension.ClientResult<string>) {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlText.value, "application/xml");
+        return xmlDoc;
     }
 
-    private async updateCustomXml(context:Word.RequestContext, xmlParts:Word.CustomXmlPartCollection, xmlDoc:XMLDocument, oldXmlPart:Word.CustomXmlPart) {
+    private async updateCustomXml(context: Word.RequestContext, xmlParts: Word.CustomXmlPartCollection, xmlDoc: XMLDocument, oldXmlPart: Word.CustomXmlPart) {
         const serializer = new XMLSerializer();
         const updatedXml = serializer.serializeToString(xmlDoc);
         oldXmlPart.delete(); // Remove old part
@@ -463,21 +462,21 @@ export class EditContract extends WordContentCtrls {
         console.log("Appended new node to existing XML part.");
     }
 
-    private async associateFieldWithMain(mainID: number, subID: number, root:string = 'contractFields', prefix:string = 'contract', nameSpace:string = 'contract-namespace') {
+    private async associateFieldWithMain(mainID: number, subID: number, root: string = 'contractFields', prefix: string = 'contract', nameSpace: string = 'contract-namespace') {
         await Word.run(async (context) => {
             const ctrls = context.document.getContentControls();
             const main = ctrls.getById(mainID);
             const sub = ctrls.getById(subID);
-            
-          //const newNode = `<${prefix}:${ id } >${ text }</${id}>`;
-          const xmlParts = context.document.customXmlParts;
-          let customPart = xmlParts.getByNamespace(nameSpace).getOnlyItemOrNullObject();
-          customPart.load('isNullObject')
-        await context.sync();
+
+            //const newNode = `<${prefix}:${ id } >${ text }</${id}>`;
+            const xmlParts = context.document.customXmlParts;
+            let customPart = xmlParts.getByNamespace(nameSpace).getOnlyItemOrNullObject();
+            customPart.load('isNullObject')
+            await context.sync();
             if (!customPart) return console.log('customXmlPart not found');
-        
-    
-      });
+
+
+        });
     }
 
     private insertRTSiAll() {
@@ -513,7 +512,7 @@ export class EditContract extends WordContentCtrls {
                 }
             }
             await context.sync();
-    
+
         })
     }
 
@@ -527,7 +526,7 @@ export class EditContract extends WordContentCtrls {
         await range.context.sync();
         const text = range.text;
         const find = text.split('/').join('');
-    
+
         await Word.run(async (context) => {
             try {
                 const matches = await this.searchString(find, context, false, text);
@@ -550,11 +549,11 @@ export class EditContract extends WordContentCtrls {
         parent.load('tag');
         await range.context.sync();
         if (parent.tag === this.RTDropDownTag) return;
-            
+
         const options = range.text.split("/");
         if (!options.length) return showNotification("No options");
         showNotification(options.join());
-    
+
         const ctrl = await this.insertContentControl(range, this.RTDropDownTag, this.RTDropDownTag, index, this.dropDownList, null, false, true);
         if (!ctrl) return;
         ctrl.dropDownListContentControl.deleteAllListItems();
@@ -573,7 +572,7 @@ export class EditContract extends WordContentCtrls {
         const btns = createHTMLElement('div', 'btns', '', prompt);
         const btnOK = createHTMLElement('button', 'btnOK', 'OK', btns);
         const btnNo = createHTMLElement('button', 'btnCancel', 'NO', btns);
-    
+
         return new Promise((resolve, reject) => {
             btnOK.onclick = () => resolve(confirm(true));
             btnNo.onclick = () => resolve(confirm(false));
@@ -585,562 +584,567 @@ export class EditContract extends WordContentCtrls {
             if (fun) fun(confirm);
             return confirm;
         }
-}
-private async customizeContract(showNested: boolean = false) {
-    USERFORM.innerHTML = '';
-    const selected: string[] = [];
-    const RTDuplicateTag = this.RTDuplicateTag, RTSiTag = this.RTSiTag, RTSectionTag = this.RTSectionTag
-    const processed = (id: number) => selected.find(t => t.includes(id.toString()));
-    const TAGS = [...this.OPTIONS, this.RTDuplicateTag];
-    const getSelectCtrls = (ctrls: ContentControl[]) => ctrls.filter(ctrl => TAGS.includes(ctrl.tag));
-    const promptForInput = this.promptForInput.bind(this), getCtrlTitle = this.getCtrlTitle.bind(this), getFirstByTag = this.getFirstByTag.bind(this), getDocumentBase64 = this.getDocumentBase64.bind(this), getSelectionRange = this.getSelectionRange.bind(this), prepareTemplate = this.prepareTemplate.bind(this);
-    const props = ['id', 'tag', 'title'];
-    if (showNested) return await showNestedOptionsTree();
-
-    await loopSelectCtrls();
-
-    async function loopSelectCtrls() {
-        await Word.run(async (context) => {
-            const allRT = context.document.getContentControls();
-            allRT.load(props);
-            await context.sync();
-            const selectCtrls = getSelectCtrls(allRT.items);
-            for (const ctrl of selectCtrls)
-                await promptForSelection(ctrl);
-            await deleteUnselected();
-        });
     }
+    private async customizeContract(showNested: boolean = false) {
+        USERFORM.innerHTML = '';
+        const selected: string[] = [];
+        const RTDuplicateTag = this.RTDuplicateTag, RTSiTag = this.RTSiTag, RTSectionTag = this.RTSectionTag
+        const processed = (id: number) => selected.find(t => t.includes(id.toString()));
+        const TAGS = [...this.OPTIONS, this.RTDuplicateTag];
+        const getSelectCtrls = (ctrls: ContentControl[]) => ctrls.filter(ctrl => TAGS.includes(ctrl.tag));
+        const promptForInput = this.promptForInput.bind(this),
+            getCtrlTitle = this.getCtrlTitle.bind(this),
+            getFirstByTag = this.getFirstByTag.bind(this),
+            getDocumentBase64 = this.getDocumentBase64.bind(this),
+            getSelectionRange = this.getSelectionRange.bind(this),
+            prepareTemplate = this.prepareTemplate.bind(this);
+        const props = ['id', 'tag', 'title'];
+        if (showNested) return await showNestedOptionsTree();
 
-    async function deleteUnselected() {
-        const keep = selected
-            .filter(title => !title.startsWith('!'))
-            .map(title => Number(title));
-        console.log(`keep = ${keep.join(',\n')}`);
-        
-        try {
-            await currentDoc();
-            selected.length = 0;//We remove any element in selected
-            (false)
-            //await createNewDoc();
-        } catch (error) {
-            showNotification(`${error}`)
-        }
+        await loopSelectCtrls();
 
-        async function currentDoc() {
+        async function loopSelectCtrls() {
             await Word.run(async (context) => {
                 const allRT = context.document.getContentControls();
                 allRT.load(props);
                 await context.sync();
                 const selectCtrls = getSelectCtrls(allRT.items);
-                const ids: Set<number> = new Set();
-                
-                for (const ctrl of selectCtrls) {
-                    if (ctrl.tag === RTDuplicateTag) {
-                        ctrl.cannotEdit = false;//!This important, otherwise it will not be possible to delete any of the nested ctrls, and we will get an error from the shitty Word api
-                        ctrl.cannotDelete = false;//!In some cases, the Duplicate ctrl is nested in a 'Select' ctrl which needs to be deleted. If the Duplicate.cannotDelete = true, the parent will not be deleted, and we will get an error form the shitty Word api
-                        continue
-                    }
-                    const nested = ctrl.getContentControls();
-                    nested.load(['id']);
-                    await context.sync();
-                    const ctrls = [ctrl, ...nested.items.filter(c=>c.id !==ctrl.id)];//!the first element is the parent selectCtrl, and the rest are its nested
-                    const nestedIds = ctrls.map(c=>c.id)
-                    const escape = keep.filter(id => nestedIds.includes(id)).length //!This means that  either ctrl itself or one or more of its nested contentcontrols is included in keep, => we  need to keep ctrl.
-                    if (escape) {
-                        ctrl.cannotDelete = true;
-                        continue;
-                    }
-    
-                    ctrls.forEach(c => {
-                        c.cannotDelete = false;
-                        c.cannotEdit = false;
-                    });
-                    
-                    ids.add(ctrl.id);//!We keep only the envelopping ctrl
-                }
-                await context.sync();
-
-                const toDelete = await filterIds(Array.from(ids));
-                for (const id of toDelete) {
-                    const ctrl = context.document.getContentControls().getById(id);
-                    ctrl.delete(false);
-                }
-                await context.sync();
+                for (const ctrl of selectCtrls)
+                    await promptForSelection(ctrl);
+                await deleteUnselected();
             });
+        }
 
-            async function filterIds(ids: number[]) {
-                //!I got hard time to get this to work. Be careful before making any change.
-                //! We need to make sure that the array of ids of the ctrls to be deleted does not include the ids of any nested ctrl of any of the ids in the array. For example: if the array contains the id of ctrl x, the id of any ctrl nested within the range of ctrl x must be removed from the array
-                return await Word.run(async (context) => {
-                    const ctrls = context.document.getContentControls();
-                    ctrls.load(['id']);
+        async function deleteUnselected() {
+            const keep = selected
+                .filter(title => !title.startsWith('!'))
+                .map(title => Number(title));
+            console.log(`keep = ${keep.join(',\n')}`);
+
+            try {
+                await currentDoc();
+                selected.length = 0;//We remove any element in selected
+                (false)
+                //await createNewDoc();
+            } catch (error) {
+                showNotification(`${error}`)
+            }
+
+            async function currentDoc() {
+                await Word.run(async (context) => {
+                    const allRT = context.document.getContentControls();
+                    allRT.load(props);
                     await context.sync();
-                    for (const id of ids) {
-                        const ctrl = ctrls.getById(id);
+                    const selectCtrls = getSelectCtrls(allRT.items);
+                    const ids: Set<number> = new Set();
+
+                    for (const ctrl of selectCtrls) {
+                        if (ctrl.tag === RTDuplicateTag) {
+                            ctrl.cannotEdit = false;//!This important, otherwise it will not be possible to delete any of the nested ctrls, and we will get an error from the shitty Word api
+                            ctrl.cannotDelete = false;//!In some cases, the Duplicate ctrl is nested in a 'Select' ctrl which needs to be deleted. If the Duplicate.cannotDelete = true, the parent will not be deleted, and we will get an error form the shitty Word api
+                            continue
+                        }
                         const nested = ctrl.getContentControls();
-                        nested.load('id');
+                        nested.load(['id']);
                         await context.sync();
-                        const nestedIds = nested.items.filter(c => c.id !== id).map(c => c.id);
-                        ids = ids.filter(i => !nestedIds.includes(i));//!we remove any nested ctrls from the toDelete array
+                        const ctrls = [ctrl, ...nested.items.filter(c => c.id !== ctrl.id)];//!the first element is the parent selectCtrl, and the rest are its nested
+                        const nestedIds = ctrls.map(c => c.id)
+                        const escape = keep.filter(id => nestedIds.includes(id)).length //!This means that  either ctrl itself or one or more of its nested contentcontrols is included in keep, => we  need to keep ctrl.
+                        if (escape) {
+                            ctrl.cannotDelete = true;
+                            continue;
+                        }
+
+                        ctrls.forEach(c => {
+                            c.cannotDelete = false;
+                            c.cannotEdit = false;
+                        });
+
+                        ids.add(ctrl.id);//!We keep only the envelopping ctrl
                     }
-                    return ids
+                    await context.sync();
+
+                    const toDelete = await filterIds(Array.from(ids));
+                    for (const id of toDelete) {
+                        const ctrl = context.document.getContentControls().getById(id);
+                        ctrl.delete(false);
+                    }
+                    await context.sync();
                 });
-            }
-        };
 
-        async function createNewDoc() {
-            await Word.run(async (context) => {
-                return;//!Desactivating working with new document created from template until we find a solution to the context issue
-                const template = await getTemplate() as Base64URLString;
-                console.log(template);
-                if (!template) return showNotification('Failed to create the template');
-                const newDoc = context.application.createDocument(template);
-                const all = newDoc.contentControls;
-                all.load(['title', 'tag']);
-                await newDoc.context.sync();
-    
-                showNotification(`All ctrls from newDoc = : ${all.items.map(c => c.title).join(', ')}`);
-    
-                all.items.map(ctrl => {
-                    if (keep.includes(ctrl.id)) return;
-                    ctrl.cannotDelete = false;
-                    ctrl.delete(false);
-                });
-                await newDoc.context.sync()
-                newDoc.open();
-            });
-        }
-        
-    }
-
-    async function promptForSelection(ctrl: ContentControl) {
-        try {
-            await showSelectPrompt([ctrl]);
-        } catch (error) {
-            showNotification(`Error from promptForSelection() = ${error}`)
-        }
-    }
-
-    async function showSelectPrompt(selectCtrls: ContentControl[]) {
-        const blocks: selectBlock[] = [];
-        const subOptions = async (id: number, direct: boolean) => await showSelectPrompt(await getSubOptions(id, direct));
-        try {
-            for (const ctrl of selectCtrls) {
-                if (processed(ctrl.id)) continue;//!We must escape the ctrls that have already been processed
-                ctrl.select();
-                if (ctrl.tag === RTDuplicateTag) {
-                    await duplicateBlock(ctrl.id);
-                    continue
-                };
-                const addBtn = selectCtrls.indexOf(ctrl) + 1 === selectCtrls.length;
-                const block = await insertPromptBlock(ctrl.id, addBtn);
-                if (!block) continue;
-                blocks.push(block);
-                if (!block.container) await subOptions(ctrl.id, true);
-                else if (!block.checkBox && block.btnNext) {
-                    //!This is the case where selectCtrl has no "ctrlSi" contentControl as a direct child. We will await the user to click the button in order to process all the already displayed elements of selectCtrls[] until this point. Then, we will process the selectCtrl separetly before moving to the next selectCtrl in selectCtrls[]
-                    await btnOnClick(blocks, block.btnNext);//We must await the user to click the button in order to process all the already displayed elements/options of selectCtrls[].
-                    await subOptions(ctrl.id, true);//!We select only the direct select ctrls children
+                async function filterIds(ids: number[]) {
+                    //!I got hard time to get this to work. Be careful before making any change.
+                    //! We need to make sure that the array of ids of the ctrls to be deleted does not include the ids of any nested ctrl of any of the ids in the array. For example: if the array contains the id of ctrl x, the id of any ctrl nested within the range of ctrl x must be removed from the array
+                    return await Word.run(async (context) => {
+                        const ctrls = context.document.getContentControls();
+                        ctrls.load(['id']);
+                        await context.sync();
+                        for (const id of ids) {
+                            const ctrl = ctrls.getById(id);
+                            const nested = ctrl.getContentControls();
+                            nested.load('id');
+                            await context.sync();
+                            const nestedIds = nested.items.filter(c => c.id !== id).map(c => c.id);
+                            ids = ids.filter(i => !nestedIds.includes(i));//!we remove any nested ctrls from the toDelete array
+                        }
+                        return ids
+                    });
                 }
-                else if (block.btnNext) await btnOnClick(blocks, block.btnNext);//This is the case where btnNext was added because we reached the end of selectCtrls[] (addBtn = true). We then need to await the user to click the button in order to process all the already displayed elements/options of selectCtrls[].
-            }
-        } catch (error) {
-            return showNotification(`Error from showSelectPrompt() = ${error}`)
-        }
-    }
-
-    async function insertPromptBlock(id: number, addBtn: boolean): Promise<selectBlock | void> {
-        try {
-            return await wordRun();
-        } catch (error) {
-            return showNotification(`Error from insertPromptBlock() = ${error}`)
-        }
-
-        async function wordRun() {
-            return await Word.run(async (context) => {
-                const ctrl = context.document.contentControls.getById(id);
-                ctrl.load(props);
-                const label = await labelRange(ctrl, RTSiTag);
-                await context.sync();
-                if (!label) {
-                    //A select ctrl that does not have a direct RTSiTag nested ctrl, is a container for other selectCtrls that need to be displayed. They are meant to offer multiple options for the user to select only one of them. But this is not always the case
-                    if (!addBtn)
-                        return appendHTMLElements('');//!If this is not the last element in selectCtrls (addBtn == false) We will return a container with only a button to be clicked in order to move to the next select ctrl in the array
-                    else return { container: undefined };//!If this is the last element in selectCtrls array (addBtn == true), we will return a slectBlock with undefined container (which means that we will display the options nested within the select ctrl, but since this is the last ctrl in the selectCtrls array, we do not need to show a btnNext because when the nested options (i.e., the nested selectCtrls) will be displayed, a btnNext will be automatically inserted)
-                }
-
-                label.select();
-                const text = label.text || `The ctrl label was found but no text could be retrieved ! ctrl title = ${ctrl.title}`;
-                label.font.hidden = true;
-                await context.sync();
-                return appendHTMLElements(text, id.toString(), addBtn) as selectBlock;//The checkBox will have as id the title of the "select" contentcontrol}
-            });
-        }
-    }
-
-    function appendHTMLElements(text: string, id?: string, addBtn: boolean = false): selectBlock {
-        const container = createHTMLElement('div', 'promptContainer', '', USERFORM) as HTMLDivElement;
-        if (!id) return { container, btnNext: btn() }//!We return a container with a button with no checkBox
-        const option = createHTMLElement('div', 'select', '', container);
-        const checkBox = createHTMLElement('input', 'checkBox', '', option, id) as HTMLInputElement;//!We must give the checkBox the id of the selectCtrl because the id will be later used to retrieve the selectCtrl and process its children
-        checkBox.type = 'checkbox';
-        if (selected.includes(id)) checkBox.checked = true;//!Normaly this should never happen
-        createHTMLElement('label', 'label', text, option) as HTMLParagraphElement;
-        if (!addBtn) return { container, checkBox };
-        return { container, checkBox, btnNext: btn() };
-
-        function btn() {
-            const btns = createHTMLElement('div', 'btns', '', container);
-            return createHTMLElement('button', 'btnOK', 'Next', btns) as HTMLButtonElement;
-        }
-    }
-
-    function btnOnClick(blocks: selectBlock[], btn: HTMLButtonElement): Promise<string[]> {
-        return new Promise((resolve, reject) => {
-            !btn ? resolve(selected) : btn.onclick = ()=>processBlocks();
-            btnDelete(btn.parentElement as HTMLDivElement);
-
-            async function processBlocks(deleteSelected:boolean = false) {
-                const checkBoxes: [string, boolean][] =
-                    blocks
-                        .filter(block => block.checkBox)
-                        //@ts-ignore
-                        .map(block => [block.checkBox.id, block.checkBox.checked]);
-                blocks.forEach(block => block.container?.remove());//We remove all the containers from the DOM
-
-                for (const [id, checked] of checkBoxes) {
-                    const subOptions = await getSubOptions(Number(id), checked);
-                    if (checked)
-                        await isSelected(id, subOptions);
-                    else isNotSelected(id, subOptions);
-                }
-
-                if (deleteSelected)
-                    await deleteUnselected();
-                resolve(selected);
             };
 
-            function btnDelete(container: HTMLDivElement) {
-                if (!container) return;
-                const btn = createHTMLElement('button', '', 'Delete Unselected', container);
-                btn.onclick = () => processBlocks(true);
+            async function createNewDoc() {
+                await Word.run(async (context) => {
+                    return;//!Desactivating working with new document created from template until we find a solution to the context issue
+                    const template = await getTemplate() as Base64URLString;
+                    console.log(template);
+                    if (!template) return showNotification('Failed to create the template');
+                    const newDoc = context.application.createDocument(template);
+                    const all = newDoc.contentControls;
+                    all.load(['title', 'tag']);
+                    await newDoc.context.sync();
+
+                    showNotification(`All ctrls from newDoc = : ${all.items.map(c => c.title).join(', ')}`);
+
+                    all.items.map(ctrl => {
+                        if (keep.includes(ctrl.id)) return;
+                        ctrl.cannotDelete = false;
+                        ctrl.delete(false);
+                    });
+                    await newDoc.context.sync()
+                    newDoc.open();
+                });
             }
-        });
-    }
 
-
-    async function isSelected(id: string, subOptions: ContentControl[] | undefined) {
-        selected.push(id);
-        if (subOptions) await showSelectPrompt(subOptions);
-    };
-
-    function isNotSelected(id: string | number, subOptions: ContentControl[]) {
-        const exclude = (id: string | number) => `!${id}`;
-        selected.push(exclude(id));
-        subOptions
-            .forEach(ctrl => selected.push(exclude(ctrl.id)));
-        console.log(selected)
-    };
-
-    async function getSubOptions(id: number, directChildren: boolean, children?: ContentControl[]) {
-        if (!children) children = await getChildren();
-        if (!directChildren) return getSelectCtrls(children);
-        return getSelectCtrls(children).filter(c => c.parentContentControl.id === id);//!We need to make sure we get only the direct children of the ctrl and not all the nested ctrls
-        async function getChildren() {
-            return Word.run(async (context) => {
-                const ctrl = context.document.getContentControls().getById(id);
-                const children = ctrl.getContentControls();
-                children.load([...props, 'parentContentControl'])
-                await context.sync();
-                return children.items.filter(c => c.id !== id);//!We must exclude the ctrl itself which in some cases may be returned as part of its children due to a bug in Word API
-            })
-        }
-    }
-
-
-    async function duplicateBlock(id: number) {
-        const replace = Word.InsertLocation.replace;
-        const after = Word.InsertLocation.after;
-        try {
-            await insertClones(id);
-        } catch (error) {
-            showNotification(`${error}`)
         }
 
-        async function insertClones(id: number) {
-            await Word.run(async (context) => {
-                const ctrl = context.document.contentControls.getById(id);
-                ctrl.load(props);
-                const label = await labelRange(ctrl, RTSectionTag);
-                if (!label) return;
-                await context.sync();
-                if (!label.text) return showNotification("No lable text");
-                ctrl.select();
-                const message = `Combien de ${label.text} y'a-t-il ?`;
-                let answer = Number(await promptForInput(message, '1'));
-                if (isNaN(answer)) {
-                    showNotification(`The provided text cannot be converted into a number: ${answer}`);
-                    return await insertClones(id);
-                } else if (answer < 1) return isNotSelected(id, await getSubOptions(id, false));
-                const title = `${getCtrlTitle(ctrl.tag, id)}-Cloned ${answer}`
-                ctrl.title = title;//!We must update the title in case it is no matching the id in the template.
-                const ctrlContent = ctrl.getOoxml();
-                await context.sync();
-                for (let i = 1; i < answer; i++)
-                    ctrl.getRange().insertOoxml(ctrlContent.value, after);
-                const clones = ctrl.context.document.getContentControls().getByTitle(title);
-                clones.load(props);
-                label.font.hidden = true;
-                await context.sync();
-                const items = clones.items;//!clones.items.entries() caused the for loop to fail in scriptLab. The reason is unknown
-                try {
-                    for (const clone of items)
-                        await processClone(clone.id, items.indexOf(clone) + 1);
-                } catch (error) {
-                    showNotification(`Error from processClone() = ${error}`)
+        async function promptForSelection(ctrl: ContentControl) {
+            try {
+                await showSelectPrompt([ctrl]);
+            } catch (error) {
+                showNotification(`Error from promptForSelection() = ${error}`)
+            }
+        }
+
+        async function showSelectPrompt(selectCtrls: ContentControl[]) {
+            const blocks: selectBlock[] = [];
+            const subOptions = async (id: number, direct: boolean) => await showSelectPrompt(await getSubOptions(id, direct));
+            try {
+                for (const ctrl of selectCtrls) {
+                    if (processed(ctrl.id)) continue;//!We must escape the ctrls that have already been processed
+                    ctrl.select();
+                    if (ctrl.tag === RTDuplicateTag) {
+                        await duplicateBlock(ctrl.id);
+                        continue
+                    };
+                    const addBtn = selectCtrls.indexOf(ctrl) + 1 === selectCtrls.length;
+                    const block = await insertPromptBlock(ctrl.id, addBtn);
+                    if (!block) continue;
+                    blocks.push(block);
+                    if (!block.container) await subOptions(ctrl.id, true);
+                    else if (!block.checkBox && block.btnNext) {
+                        //!This is the case where selectCtrl has no "ctrlSi" contentControl as a direct child. We will await the user to click the button in order to process all the already displayed elements of selectCtrls[] until this point. Then, we will process the selectCtrl separetly before moving to the next selectCtrl in selectCtrls[]
+                        await btnOnClick(blocks, block.btnNext);//We must await the user to click the button in order to process all the already displayed elements/options of selectCtrls[].
+                        await subOptions(ctrl.id, true);//!We select only the direct select ctrls children
+                    }
+                    else if (block.btnNext) await btnOnClick(blocks, block.btnNext);//This is the case where btnNext was added because we reached the end of selectCtrls[] (addBtn = true). We then need to await the user to click the button in order to process all the already displayed elements/options of selectCtrls[].
+                }
+            } catch (error) {
+                return showNotification(`Error from showSelectPrompt() = ${error}`)
+            }
+        }
+
+        async function insertPromptBlock(id: number, addBtn: boolean): Promise<selectBlock | void> {
+            try {
+                return await wordRun();
+            } catch (error) {
+                return showNotification(`Error from insertPromptBlock() = ${error}`)
+            }
+
+            async function wordRun() {
+                return await Word.run(async (context) => {
+                    const ctrl = context.document.contentControls.getById(id);
+                    ctrl.load(props);
+                    const label = await labelRange(ctrl, RTSiTag);
+                    await context.sync();
+                    if (!label) {
+                        //A select ctrl that does not have a direct RTSiTag nested ctrl, is a container for other selectCtrls that need to be displayed. They are meant to offer multiple options for the user to select only one of them. But this is not always the case
+                        if (!addBtn)
+                            return appendHTMLElements('');//!If this is not the last element in selectCtrls (addBtn == false) We will return a container with only a button to be clicked in order to move to the next select ctrl in the array
+                        else return { container: undefined };//!If this is the last element in selectCtrls array (addBtn == true), we will return a slectBlock with undefined container (which means that we will display the options nested within the select ctrl, but since this is the last ctrl in the selectCtrls array, we do not need to show a btnNext because when the nested options (i.e., the nested selectCtrls) will be displayed, a btnNext will be automatically inserted)
+                    }
+
+                    label.select();
+                    const text = label.text || `The ctrl label was found but no text could be retrieved ! ctrl title = ${ctrl.title}`;
+                    label.font.hidden = true;
+                    await context.sync();
+                    return appendHTMLElements(text, id.toString(), addBtn) as selectBlock;//The checkBox will have as id the title of the "select" contentcontrol}
+                });
+            }
+        }
+
+        function appendHTMLElements(text: string, id?: string, addBtn: boolean = false): selectBlock {
+            const container = createHTMLElement('div', 'promptContainer', '', USERFORM) as HTMLDivElement;
+            if (!id) return { container, btnNext: btn() }//!We return a container with a button with no checkBox
+            const option = createHTMLElement('div', 'select', '', container);
+            const checkBox = createHTMLElement('input', 'checkBox', '', option, id) as HTMLInputElement;//!We must give the checkBox the id of the selectCtrl because the id will be later used to retrieve the selectCtrl and process its children
+            checkBox.type = 'checkbox';
+            if (selected.includes(id)) checkBox.checked = true;//!Normaly this should never happen
+            createHTMLElement('label', 'label', text, option) as HTMLParagraphElement;
+            if (!addBtn) return { container, checkBox };
+            return { container, checkBox, btnNext: btn() };
+
+            function btn() {
+                const btns = createHTMLElement('div', 'btns', '', container);
+                return createHTMLElement('button', 'btnOK', 'Next', btns) as HTMLButtonElement;
+            }
+        }
+
+        function btnOnClick(blocks: selectBlock[], btn: HTMLButtonElement): Promise<string[]> {
+            return new Promise((resolve, reject) => {
+                !btn ? resolve(selected) : btn.onclick = () => processBlocks();
+                btnDelete(btn.parentElement as HTMLDivElement);
+
+                async function processBlocks(deleteSelected: boolean = false) {
+                    const checkBoxes: [string, boolean][] =
+                        blocks
+                            .filter(block => block.checkBox)
+                            //@ts-ignore
+                            .map(block => [block.checkBox.id, block.checkBox.checked]);
+                    blocks.forEach(block => block.container?.remove());//We remove all the containers from the DOM
+
+                    for (const [id, checked] of checkBoxes) {
+                        const subOptions = await getSubOptions(Number(id), checked);
+                        if (checked)
+                            await isSelected(id, subOptions);
+                        else isNotSelected(id, subOptions);
+                    }
+
+                    if (deleteSelected)
+                        await deleteUnselected();
+                    resolve(selected);
+                };
+
+                function btnDelete(container: HTMLDivElement) {
+                    if (!container) return;
+                    const btn = createHTMLElement('button', '', 'Delete Unselected', container);
+                    btn.onclick = () => processBlocks(true);
                 }
             });
         }
 
-        async function processClone(id: number, i: number) {
-            await Word.run(async (context) => {
-                const clone = context.document.contentControls.getById(id);
-                clone.load(props);
-                const label = await labelRange(clone, RTSectionTag);
-                await context.sync();
-                if (!label) return;
-                clone.title = `${getCtrlTitle(clone.tag, clone.id)}-${i}`;
-                const text = `${label.text} ${i}`;
-                label.insertText(text, replace);
-                label.font.hidden = true;
-                await context.sync();
-                const div = createHTMLElement('div', '', text, USERFORM, '', false);
-                await showSelectPrompt(await getSubOptions(clone.id, true));//!We select only the direct select ctrls children
-                div.remove();
-            });
 
+        async function isSelected(id: string, subOptions: ContentControl[] | undefined) {
+            selected.push(id);
+            if (subOptions) await showSelectPrompt(subOptions);
         };
 
-    }
+        function isNotSelected(id: string | number, subOptions: ContentControl[]) {
+            const exclude = (id: string | number) => `!${id}`;
+            selected.push(exclude(id));
+            subOptions
+                .forEach(ctrl => selected.push(exclude(ctrl.id)));
+            console.log(selected)
+        };
 
-    async function labelRange(parent: ContentControl, tag: string) {
-        const ctrl = getFirstByTag(parent, tag);
-        ctrl.load(['id', 'parentContentControl']);
-        await parent.context.sync();
-        if (ctrl.parentContentControl.id !== parent.id) return undefined;//!The label ctrl must be a direct child of the parent ctrl
-        const range = ctrl.getRange('Content');
-        ctrl.cannotEdit = false;
-        range.font.hidden = false;
-        range.load(['text']);
-        return range;
-    }
-
-    function getFileURL() {
-        let url;
-        Office.context.document.getFilePropertiesAsync(undefined, (result) => {
-            if (result.error) return;
-            url = result.value.url;
-        });
-        return url
-    }
-
-    async function getTemplate() {
-        try {
-            return await getDocumentBase64();
-        } catch (error) {
-            showNotification(`Failed to create new Doc: ${error}`)
+        async function getSubOptions(id: number, directChildren: boolean, children?: ContentControl[]) {
+            if (!children) children = await getChildren();
+            if (!directChildren) return getSelectCtrls(children);
+            return getSelectCtrls(children).filter(c => c.parentContentControl.id === id);//!We need to make sure we get only the direct children of the ctrl and not all the nested ctrls
+            async function getChildren() {
+                return Word.run(async (context) => {
+                    const ctrl = context.document.getContentControls().getById(id);
+                    const children = ctrl.getContentControls();
+                    children.load([...props, 'parentContentControl'])
+                    await context.sync();
+                    return children.items.filter(c => c.id !== id);//!We must exclude the ctrl itself which in some cases may be returned as part of its children due to a bug in Word API
+                })
+            }
         }
-    }
 
-    async function showNestedOptionsTree() {
-        const selection = await getSelectionRange();
-        if (!selection) return prepareTemplate();
-        const ctrls = selection.getContentControls();
-        ctrls.load(props);
-        await selection.context.sync();
-        const ctrl = ctrls.items[0];
-        if (!ctrl.id) return failed('The selection is not inside a content control');
-        if (!TAGS.includes(ctrl.tag)) return failed(`Ctrl is not a select control. Its tag is ${ctrl.tag}`);
-        const subOptions = await getSubOptions(ctrl.id, true);
-        await showSelectPrompt(subOptions);
-        prepareTemplate();
-        function failed(message: string) {
-            showNotification(message);
+
+        async function duplicateBlock(id: number) {
+            const replace = Word.InsertLocation.replace;
+            const after = Word.InsertLocation.after;
+            try {
+                await insertClones(id);
+            } catch (error) {
+                showNotification(`${error}`)
+            }
+
+            async function insertClones(id: number) {
+                await Word.run(async (context) => {
+                    const ctrl = context.document.contentControls.getById(id);
+                    ctrl.load(props);
+                    const label = await labelRange(ctrl, RTSectionTag);
+                    if (!label) return;
+                    await context.sync();
+                    if (!label.text) return showNotification("No lable text");
+                    ctrl.select();
+                    const message = `Combien de ${label.text} y'a-t-il ?`;
+                    let answer = Number(await promptForInput(message, '1'));
+                    if (isNaN(answer)) {
+                        showNotification(`The provided text cannot be converted into a number: ${answer}`);
+                        return await insertClones(id);
+                    } else if (answer < 1) return isNotSelected(id, await getSubOptions(id, false));
+                    const title = `${getCtrlTitle(ctrl.tag, id)}-Cloned ${answer}`
+                    ctrl.title = title;//!We must update the title in case it is no matching the id in the template.
+                    const ctrlContent = ctrl.getOoxml();
+                    await context.sync();
+                    for (let i = 1; i < answer; i++)
+                        ctrl.getRange().insertOoxml(ctrlContent.value, after);
+                    const clones = ctrl.context.document.getContentControls().getByTitle(title);
+                    clones.load(props);
+                    label.font.hidden = true;
+                    await context.sync();
+                    const items = clones.items;//!clones.items.entries() caused the for loop to fail in scriptLab. The reason is unknown
+                    try {
+                        for (const clone of items)
+                            await processClone(clone.id, items.indexOf(clone) + 1);
+                    } catch (error) {
+                        showNotification(`Error from processClone() = ${error}`)
+                    }
+                });
+            }
+
+            async function processClone(id: number, i: number) {
+                await Word.run(async (context) => {
+                    const clone = context.document.contentControls.getById(id);
+                    clone.load(props);
+                    const label = await labelRange(clone, RTSectionTag);
+                    await context.sync();
+                    if (!label) return;
+                    clone.title = `${getCtrlTitle(clone.tag, clone.id)}-${i}`;
+                    const text = `${label.text} ${i}`;
+                    label.insertText(text, replace);
+                    label.font.hidden = true;
+                    await context.sync();
+                    const div = createHTMLElement('div', '', text, USERFORM, '', false);
+                    await showSelectPrompt(await getSubOptions(clone.id, true));//!We select only the direct select ctrls children
+                    div.remove();
+                });
+
+            };
+
+        }
+
+        async function labelRange(parent: ContentControl, tag: string) {
+            const ctrl = getFirstByTag(parent, tag);
+            ctrl.load(['id', 'parentContentControl']);
+            await parent.context.sync();
+            if (ctrl.parentContentControl.id !== parent.id) return undefined;//!The label ctrl must be a direct child of the parent ctrl
+            const range = ctrl.getRange('Content');
+            ctrl.cannotEdit = false;
+            range.font.hidden = false;
+            range.load(['text']);
+            return range;
+        }
+
+        function getFileURL() {
+            let url;
+            Office.context.document.getFilePropertiesAsync(undefined, (result) => {
+                if (result.error) return;
+                url = result.value.url;
+            });
+            return url
+        }
+
+        async function getTemplate() {
+            try {
+                return await getDocumentBase64();
+            } catch (error) {
+                showNotification(`Failed to create new Doc: ${error}`)
+            }
+        }
+
+        async function showNestedOptionsTree() {
+            const selection = await getSelectionRange();
+            if (!selection) return prepareTemplate();
+            const ctrls = selection.getContentControls();
+            ctrls.load(props);
+            await selection.context.sync();
+            const ctrl = ctrls.items[0];
+            if (!ctrl.id) return failed('The selection is not inside a content control');
+            if (!TAGS.includes(ctrl.tag)) return failed(`Ctrl is not a select control. Its tag is ${ctrl.tag}`);
+            const subOptions = await getSubOptions(ctrl.id, true);
+            await showSelectPrompt(subOptions);
             prepareTemplate();
-        }
-    }
-};
-
-private async promptForInput(question: string, deflt?: string, fun?: Function, cancel: boolean = true): Promise<string | void> {
-    if (!question) return '';
-    const container = createHTMLElement('div', 'promptContainer', '', USERFORM);
-    const prompt = createHTMLElement('div', 'prompt', '', container);
-    const ask = createHTMLElement('p', 'ask', question, prompt);
-    const input = createHTMLElement('input', 'answer', '', prompt) as HTMLInputElement;
-    const btns = createHTMLElement('div', 'btns', '', prompt);
-    const btnOK = createHTMLElement('button', 'btnOK', 'OK', btns);
-    const btnCancel = createHTMLElement('button', 'btnCancel', 'Cancel', btns);
-    if (deflt) input.value = deflt;
-    return new Promise((resolve, reject) => {
-        btnCancel.onclick = () => reject(container.remove());
-        btnOK.onclick = () => {
-            const answer = input.value;
-            console.log('user answer = ', answer);
-            container.remove();
-            if (fun) fun(answer);
-            resolve(answer)
-        };
-    });
-
-};
-
-
-/**
- * Asynchronously gets the entire document content as a Base64 string.
- * This function handles multi-slice documents by requesting each slice in parallel.
- * @returns A Promise that resolves with the Base64-encoded document content.
- */
-    private async getDocumentBase64(): Promise<Base64URLString> {
-    const failed = (result: Office.AsyncResult<Office.File | Office.Slice>) => result.status !== Office.AsyncResultStatus.Succeeded;
-    const sliceSize = 16 * 1024;//!We need not to exceed the Maximum call stack limit when the slices will be passed to String.FromCharCode()
-    return new Promise((resolve, reject) => {
-        // Step 1: Request the document as a compressed file.
-        Office.context.document.getFileAsync(
-            Office.FileType.Compressed,
-            { sliceSize: sliceSize },
-            (fileResult) => processFile(fileResult)
-        );
-
-        function processFile(fileResult: Office.AsyncResult<Office.File>) {
-            if (failed(fileResult))
-                return reject(fileResult.error);
-
-            const file = fileResult.value;
-            const sliceCount = file.sliceCount;
-            const slices: number[][] = [];
-
-            getSlice();
-
-            function getSlice() {
-                file.getSliceAsync(slices.length, (sliceResult) => processSlice(sliceResult));
+            function failed(message: string) {
+                showNotification(message);
+                prepareTemplate();
             }
+        }
+    };
 
-            function processSlice(sliceResult: Office.AsyncResult<Office.Slice>) {
-                try {
-                    if (failed(sliceResult))
-                        return file.closeAsync(() => reject(sliceResult.error));
+    private async promptForInput(question: string, deflt?: string, fun?: Function, cancel: boolean = true): Promise<string | void> {
+        if (!question) return '';
+        const container = createHTMLElement('div', 'promptContainer', '', USERFORM);
+        const prompt = createHTMLElement('div', 'prompt', '', container);
+        const ask = createHTMLElement('p', 'ask', question, prompt);
+        const input = createHTMLElement('input', 'answer', '', prompt) as HTMLInputElement;
+        const btns = createHTMLElement('div', 'btns', '', prompt);
+        const btnOK = createHTMLElement('button', 'btnOK', 'OK', btns);
+        const btnCancel = createHTMLElement('button', 'btnCancel', 'Cancel', btns);
+        if (deflt) input.value = deflt;
+        return new Promise((resolve, reject) => {
+            btnCancel.onclick = () => reject(container.remove());
+            btnOK.onclick = () => {
+                const answer = input.value;
+                console.log('user answer = ', answer);
+                container.remove();
+                if (fun) fun(answer);
+                resolve(answer)
+            };
+        });
 
-                    slices.push(sliceResult.value.data);
+    };
 
-                    if (slices.length < sliceCount) return getSlice();
 
-                    const binaryString = slices.map(slice => String.fromCharCode(...slice)).join('');
-                    const base64String = btoa(binaryString);
-                    file.closeAsync(() => resolve(base64String));
+    /**
+     * Asynchronously gets the entire document content as a Base64 string.
+     * This function handles multi-slice documents by requesting each slice in parallel.
+     * @returns A Promise that resolves with the Base64-encoded document content.
+     */
+    private async getDocumentBase64(): Promise<Base64URLString> {
+        const failed = (result: Office.AsyncResult<Office.File | Office.Slice>) => result.status !== Office.AsyncResultStatus.Succeeded;
+        const sliceSize = 16 * 1024;//!We need not to exceed the Maximum call stack limit when the slices will be passed to String.FromCharCode()
+        return new Promise((resolve, reject) => {
+            // Step 1: Request the document as a compressed file.
+            Office.context.document.getFileAsync(
+                Office.FileType.Compressed,
+                { sliceSize: sliceSize },
+                (fileResult) => processFile(fileResult)
+            );
 
-                } catch (error) {
-                    showNotification(`${error}, succeeded = ${sliceResult.status}, loaded = ${slices.length}`)
+            function processFile(fileResult: Office.AsyncResult<Office.File>) {
+                if (failed(fileResult))
+                    return reject(fileResult.error);
+
+                const file = fileResult.value;
+                const sliceCount = file.sliceCount;
+                const slices: number[][] = [];
+
+                getSlice();
+
+                function getSlice() {
+                    file.getSliceAsync(slices.length, (sliceResult) => processSlice(sliceResult));
                 }
 
+                function processSlice(sliceResult: Office.AsyncResult<Office.Slice>) {
+                    try {
+                        if (failed(sliceResult))
+                            return file.closeAsync(() => reject(sliceResult.error));
+
+                        slices.push(sliceResult.value.data);
+
+                        if (slices.length < sliceCount) return getSlice();
+
+                        const binaryString = slices.map(slice => String.fromCharCode(...slice)).join('');
+                        const base64String = btoa(binaryString);
+                        file.closeAsync(() => resolve(base64String));
+
+                    } catch (error) {
+                        showNotification(`${error}, succeeded = ${sliceResult.status}, loaded = ${slices.length}`)
+                    }
+
+
+                }
+            }
+        });
+    }
+
+    private async deleteAllNotSelected(selected: string[], wdDoc: Word.Document | Word.DocumentCreated) {
+        const all = wdDoc.contentControls;
+        all.load(['items', 'title', 'tag']);
+        await wdDoc.context.sync();
+        all.items
+            .filter(ctrl => !selected.includes(ctrl.title))
+            .forEach(ctrl => {
+                ctrl.select();
+                ctrl.cannotDelete = false;
+                ctrl.delete(true);
+            });
+        await wdDoc.context.sync();
+    }
+
+    private async setCanBeEditedForAllSelectCtrls(edit: boolean = true) {
+        await Word.run(async (context) => {
+            const ctrls = context.document
+                .contentControls;
+            ctrls.load(['title', 'tag']);
+            await context.sync();
+            ctrls.items.forEach(ctrl => {
+                if (this.OPTIONS.indexOf(ctrl.tag) > -1)
+                    ctrl.cannotEdit = edit;
+            });
+            await context.sync();
+        });
+    }
+
+
+    private setRangeStyle(objs: (ContentControl | Word.Paragraph)[], style: string) {
+        objs.forEach(o => o.getRange().style = style);
+    }
+
+    private async finalizeContract() {
+        const remove = [this.RTSiTag, this.RTDescriptionTag, this.RTObsTag, this.RTSectionTag];//The contentcontrol and its content will be deleted.
+        const content = [this.RTSelectTag, this.RTDuplicateTag];//We will delete the contentControl but keep its content
+        const styles = [...this.RTSiStyles, this.RTSectionStyle, this.RTObsStyle, this.RTDescriptionStyle];
+
+        await Word.run(async (context) => {
+            const allCtrls = context.document.getContentControls();
+            allCtrls.load(['tag', 'title']);
+            await context.sync();
+            const ids = allCtrls.items.map(c => c.id);
+            for (const id of ids) {
+                const ctrls = context.document.getContentControls();
+                ctrls.load('id');
+                await context.sync();
+                const ctrl = ctrls.items.find(c => c.id === id);
+                if (!ctrl) return;
+                ctrl.load(['tag', 'title']);
+                await context.sync();
+
+                ctrl.cannotDelete = false;//!We must remove the cannotDelete from all ctrls because this will prevent deleting the line on which there is a hidden contentcontrol
+                if (!ctrl?.tag) return;
+                if (remove.includes(ctrl.tag))
+                    ctrl.delete(false)
+                else if (content.includes(ctrl.tag))
+                    ctrl.delete(true)
+                else
+                    ctrl.appearance = Word.ContentControlAppearance.hidden;
 
             }
-        }
-    });
-}
 
-private async  deleteAllNotSelected(selected: string[], wdDoc: Word.Document | Word.DocumentCreated) {
-    const all = wdDoc.contentControls;
-    all.load(['items', 'title', 'tag']);
-    await wdDoc.context.sync();
-    all.items
-        .filter(ctrl => !selected.includes(ctrl.title))
-        .forEach(ctrl => {
-            ctrl.select();
-            ctrl.cannotDelete = false;
-            ctrl.delete(true);
-        });
-    await wdDoc.context.sync();
-}
-
-private async setCanBeEditedForAllSelectCtrls(edit: boolean = true) {
-    await Word.run(async (context) => {
-        const ctrls = context.document
-            .contentControls;
-        ctrls.load(['title', 'tag']);
-        await context.sync();
-        ctrls.items.forEach(ctrl => {
-            if (this.OPTIONS.indexOf(ctrl.tag) > -1)
-                ctrl.cannotEdit = edit;
-        });
-        await context.sync();
-    });
-}
-
-
-private setRangeStyle(objs: (ContentControl | Word.Paragraph)[], style: string) {
-    objs.forEach(o => o.getRange().style = style);
-}
-
-private async finalizeContract() {
-    const remove = [this.RTSiTag, this.RTDescriptionTag, this.RTObsTag, this.RTSectionTag];//The contentcontrol and its content will be deleted.
-    const content = [this.RTSelectTag, this.RTDuplicateTag];//We will delete the contentControl but keep its content
-    const styles = [...this.RTSiStyles, this.RTSectionStyle, this.RTObsStyle, this.RTDescriptionStyle];
-
-    await Word.run(async (context) => {
-        const allCtrls = context.document.getContentControls();
-        allCtrls.load(['tag', 'title']);
-        await context.sync();
-        const ids = allCtrls.items.map(c=>c.id);
-        for (const id of ids){
-            const ctrls = context.document.getContentControls();
-            ctrls.load('id');
             await context.sync();
-            const ctrl = ctrls.items.find(c=>c.id === id);
-            if(!ctrl) return;
-            ctrl.load(['tag', 'title']);
+
+            const body = context.document.body.getRange();
+            body.load('paragraphs');
             await context.sync();
-            
-            ctrl.cannotDelete = false;//!We must remove the cannotDelete from all ctrls because this will prevent deleting the line on which there is a hidden contentcontrol
-            if (!ctrl?.tag) return;
-            if(remove.includes(ctrl.tag))
-                ctrl.delete(false)
-            else if (content.includes(ctrl.tag))
-                ctrl.delete(true)
-            else
-                ctrl.appearance = Word.ContentControlAppearance.hidden;
+            const parags = body.paragraphs;
+            parags.load('style');
+            await context.sync();
+            parags.items
+                .filter(p => styles.includes(p.style))
+                .forEach(p => p.style = `${this.StylePrefix}Normal`);
 
-        }
+            await context.sync();
+        });
 
-        await context.sync();
-
-        const body = context.document.body.getRange();
-        body.load('paragraphs');
-        await context.sync();
-        const parags = body.paragraphs;
-        parags.load('style');
-        await context.sync();
-        parags.items
-            .filter(p => styles.includes(p.style))
-            .forEach(p => p.style = `${this.StylePrefix}Normal`);
-
-        await context.sync();
-    });
-
-}
+    }
 
 
-private async lockUnlockAll(unlock:boolean = false, tags:string[]=[]){
-    await Word.run(async (context)=>{
-        const all = context.document.getContentControls();
-        all.load(['tag', 'id']);
-        await context.sync();
-        let ctrls = all.items;
-        if (tags.length) ctrls = ctrls.filter(c => tags.includes(c.tag));
-        for (const ctrl of ctrls) 
-            ctrl.cannotDelete = unlock
-        await context.sync();
-    })
-}
+    private async lockUnlockAll(unlock: boolean = false, tags: string[] = []) {
+        await Word.run(async (context) => {
+            const all = context.document.getContentControls();
+            all.load(['tag', 'id']);
+            await context.sync();
+            let ctrls = all.items;
+            if (tags.length) ctrls = ctrls.filter(c => tags.includes(c.tag));
+            for (const ctrl of ctrls)
+                ctrl.cannotDelete = unlock
+            await context.sync();
+        })
+    }
 
 };
 
@@ -1189,7 +1193,7 @@ export class WordFileds {
 
         insertBtn(goHome, false);//We insert the goHome navigation button on top of all the inputs
     }
-    
+
     async editAllFields(inputs: [HTMLInputElement, number][]) {
         await Word.run(async (context) => {
             const fields = context.document.body.fields;

@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.7";
+const version = "v11.8";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home'];
 Office.onReady((info) => {
@@ -230,6 +230,7 @@ class WordContentCtrls {
 export class EditContract extends WordContentCtrls {
     constructor() {
         super(...arguments);
+        this._stylesListId = 'stylesList';
         this.main = [
             [this.customizeContract, 'Customize Contract'],
             [this.prepareTemplate, 'Prepare Template'],
@@ -239,10 +240,11 @@ export class EditContract extends WordContentCtrls {
         ];
         this.goBack = [() => {
                 USERFORM.innerHTML = '';
-                document.getElementById('stylesList')?.remove();
+                this.stylesList?.remove();
                 this.showBtns(this.main);
             }, 'Go Back'];
     }
+    get stylesList() { return document.getElementById(this._stylesListId); }
     showMainBtn() {
         insertBtn([() => this.showBtns(this.main), 'Edit Contracts'], false);
     }
@@ -280,15 +282,13 @@ export class EditContract extends WordContentCtrls {
             [this.insertRTSiAll, 'Insert RT Si For All'],
             [this.insertRTSectionAll, 'Insert RT Section For All'],
             [this.insertRTDescription, 'Insert RT Description For All'],
-            [this.insertSingleFiled, 'Insert Field']
+            [this.insertSingleFiled, 'Insert Field'],
+            [() => this.customizeContract(true), 'Show Nested Options Tree']
         ];
         this.showBtns(btns);
-        this.showBtns([[() => this.customizeContract(true), 'Show Nested Options Tree']], true);
-        showStylesList();
-        function showStylesList() {
-            const id = 'stylesList';
-            if (document.getElementById(id))
-                return;
+        if (!this.stylesList)
+            showStylesList(this._stylesListId);
+        function showStylesList(id) {
             Word.run(async (context) => {
                 const allStyles = context.document.getStyles();
                 allStyles.load(['nameLocal']);
@@ -296,7 +296,6 @@ export class EditContract extends WordContentCtrls {
                 const styles = allStyles.items.filter(style => style.nameLocal.startsWith(StylePrefix));
                 if (!styles.length)
                     return;
-                document.createElement('select');
                 const container = createHTMLElement('div', '', '', undefined, id);
                 USERFORM.insertAdjacentElement('beforebegin', container);
                 const select = createHTMLElement('select', '', '', container);
