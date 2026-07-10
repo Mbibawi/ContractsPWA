@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v12";
+const version = "v12.1";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'] as Btn;
@@ -1256,7 +1256,8 @@ export class WordFileds extends WordContentCtrls {
 
             async function awaitPromise() {
                 return new Promise((resolve) => {
-                    const edit = async () => {
+                    const edit = async (cancel: boolean = false) => {
+                        if (cancel) return resolve(showBtns());
                         for (const [input, field] of inputs) {
                             if (!input.value) continue;
                             if (!field) return console.log('field not found');
@@ -1264,11 +1265,11 @@ export class WordFileds extends WordContentCtrls {
                             console.log('Modified field = ' + field.code);
                         }
                         await context.sync();
-                        resolve('done');
+                        resolve(showBtns());
                     };
 
-                    insertBtn([() => edit(), 'Update All Fileds From Inputs', 'Parses the values of the inputs, and updates the corresponding fields'], true);
-                    insertBtn([() => resolve(showBtns()), 'Cancel and go back', 'Cancels the editing session'], false);//We insert the goHome navigation button on top of all the inputs
+                    insertBtn([() => edit(false), 'Update All Fileds From Inputs', 'Parses the values of the inputs, and updates the corresponding fields'], true);
+                    insertBtn([() => edit(true), 'Cancel and go back', 'Cancels the editing session'], false);//We insert the goHome navigation button on top of all the inputs
                 })
             };
 
