@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.9.6";
+const version = "v11.9.7";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'];
 Office.onReady((info) => {
@@ -1241,7 +1241,7 @@ export class WordFileds extends WordContentCtrls {
         async function onClick(question, deflt) {
             const type = Word.FieldType.empty; //!We chose the empty field on purpose
             await Word.run(async (context) => {
-                const range = context.document.getSelection();
+                const range = context.document.getSelection().getRange(Word.RangeLocation.whole);
                 const field = range.insertField(Word.InsertLocation.replace, type);
                 field.code = `FILLIN "${question}"  \\d ${deflt}  \\* MERGEFORMAT`;
                 field.updateResult();
