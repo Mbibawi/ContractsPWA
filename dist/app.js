@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.9.2";
+const version = "v11.9.3";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'];
 Office.onReady((info) => {
@@ -1235,17 +1235,15 @@ export class WordFileds extends WordContentCtrls {
             const def = ['Provide the FILLIN default value', 'default'];
             [question, def].forEach(([label, id]) => {
                 const div = create('div', '', '', window);
-                create('label', '', label, div);
-                create('input', '', '', div, id);
+                create('label', '', label, div, undefined, true);
+                create('input', '', '', div, id, true);
             });
             const btn = create('button', '', 'Insert FILLIN Field', window);
-            btn.onclick = () => onClick(question[1], def[1]);
+            btn.onclick = () => onClick(question[0], def[0]);
         }
         async function onClick(question, def) {
             await Word.run(async (context) => {
-                const range = await getSelection();
-                if (!range)
-                    return;
+                const range = context.document.getSelection();
                 const field = range.insertField(Word.InsertLocation.replace, type);
                 field.code = `FILLIN "${question}"  \\d ${def || '[*]'}  \\* MERGEFORMAT`;
                 field.updateResult();
