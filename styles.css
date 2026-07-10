@@ -188,8 +188,9 @@ button:active {
   border-radius: '4px';
   white-space: 'normal';
   font-size: '12px';
-  opacity: '0';
-  visibility: 'hidden';
+  /* opacity: '0'; */
+  display: none;
+  /* visibility: 'hidden'; */
   pointer-events: 'none';
   transition: 'opacity 0.15s ease';
 }
@@ -205,8 +206,8 @@ button:active {
   background: rgba(0, 0, 0, 0.45);
   /* dimming effect */
   z-index: 9998;
-  pointer-events: all;
   /* ensures it blocks clicks */
+  pointer-events: all;
 }
 
 /* The modal window itself */
@@ -214,6 +215,7 @@ button:active {
   position: fixed;
   top: 50%;
   left: 50%;
+  margin: 3px;
   transform: translate(-50%, -50%);
 
   background: white;

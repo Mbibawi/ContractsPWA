@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.9";
+const version = "v11.9.1";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'] as Btn;
@@ -51,7 +51,7 @@ function createHTMLElement(tag: string, css?: string, textContent?: string, pare
 function getModalContainer(parent: HTMLElement, textContent?: string, id?: string, append: boolean = true) {
     const modal = createHTMLElement('div', 'modal', textContent, parent, id, append);
     const window = createHTMLElement('div', 'modal-window', '', modal, '', append);
-    return window as HTMLDivElement
+    return [modal, window] as HTMLDivElement[]
 }
 
 function insertBtn([fun, label, hint]: Btn, append: boolean = true, on: string = 'click') {
@@ -74,12 +74,12 @@ function insertBtn([fun, label, hint]: Btn, append: boolean = true, on: string =
         wrapper.appendChild(hintBox);
 
         htmlBtn.addEventListener('mouseenter', () => {
-            hintBox!.style.opacity = '1';
-            hintBox!.style.visibility = 'visible';
+            //hintBox!.style.opacity = '1';
+            hintBox!.style.display = 'block';
         });
         htmlBtn.addEventListener('mouseleave', () => {
-            hintBox!.style.opacity = '0';
-            hintBox!.style.visibility = 'hidden';
+            //hintBox!.style.opacity = '0';
+            hintBox!.style.display = 'none';
         });
     }
 
@@ -1281,7 +1281,7 @@ export class WordFileds extends WordContentCtrls {
         const type = Word.FieldType.empty;//!We chose the empty field on purpose
         const getSelection = this.getSelectionRange.bind(this);
         const create = createHTMLElement
-        const modal = getModalContainer(USERFORM, '', 'newField', false);
+        const [modal, window] = getModalContainer(USERFORM, '', 'newField', false);
         showDialogue();
 
 
@@ -1289,7 +1289,7 @@ export class WordFileds extends WordContentCtrls {
             const question = ['Provide the FILLIN field prompt', 'ask'];
             const def = ['Provide the FILLIN default value', 'default'];
             [question, def].forEach(([label, id]) => {
-                const div = create('div', '', '', modal);
+                const div = create('div', '', '', window);
                 create('label', '', label, div);
                 create('input', '', '', div, id);
             });

@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.9";
+const version = "v11.9.1";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'];
 Office.onReady((info) => {
@@ -47,7 +47,7 @@ function createHTMLElement(tag, css, textContent, parent, id, append = true) {
 function getModalContainer(parent, textContent, id, append = true) {
     const modal = createHTMLElement('div', 'modal', textContent, parent, id, append);
     const window = createHTMLElement('div', 'modal-window', '', modal, '', append);
-    return window;
+    return [modal, window];
 }
 function insertBtn([fun, label, hint], append = true, on = 'click') {
     if (!USERFORM)
@@ -70,12 +70,12 @@ function insertBtn([fun, label, hint], append = true, on = 'click') {
         hintBox.classList = 'hintBox';
         wrapper.appendChild(hintBox);
         htmlBtn.addEventListener('mouseenter', () => {
-            hintBox.style.opacity = '1';
-            hintBox.style.visibility = 'visible';
+            //hintBox!.style.opacity = '1';
+            hintBox.style.display = 'block';
         });
         htmlBtn.addEventListener('mouseleave', () => {
-            hintBox.style.opacity = '0';
-            hintBox.style.visibility = 'hidden';
+            //hintBox!.style.opacity = '0';
+            hintBox.style.display = 'none';
         });
     }
 }
@@ -1225,13 +1225,13 @@ export class WordFileds extends WordContentCtrls {
         const type = Word.FieldType.empty; //!We chose the empty field on purpose
         const getSelection = this.getSelectionRange.bind(this);
         const create = createHTMLElement;
-        const modal = getModalContainer(USERFORM, '', 'newField', false);
+        const [modal, window] = getModalContainer(USERFORM, '', 'newField', false);
         showDialogue();
         function showDialogue() {
             const question = ['Provide the FILLIN field prompt', 'ask'];
             const def = ['Provide the FILLIN default value', 'default'];
             [question, def].forEach(([label, id]) => {
-                const div = create('div', '', '', modal);
+                const div = create('div', '', '', window);
                 create('label', '', label, div);
                 create('input', '', '', div, id);
             });
