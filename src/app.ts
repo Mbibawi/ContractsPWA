@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.9.9";
+const version = "v12";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'] as Btn;
@@ -38,8 +38,8 @@ function showNotification(message: string, clear: boolean = false) {
     createHTMLElement('p', 'notification', message, NOTIFICATION, '', true);
 }
 
-function createHTMLElement(tag: string, css?: string, textContent?: string, parent?: HTMLElement | Document, id?: string, append: boolean = true) {
-    const el = document.createElement(tag);
+function createHTMLElement<T extends HTMLElement>(tag: string, css?: string, textContent?: string, parent?: HTMLElement | Document, id?: string, append: boolean = true) {
+    const el = document.createElement(tag) as T;
     if (textContent) el.textContent = textContent;
     if (css) el.classList = css;
     if (id) el.id = id;
@@ -1218,24 +1218,23 @@ export class WordFileds extends WordContentCtrls {
 
     private showButtons() {
         USERFORM.innerHTML = '';
-        insertBtn([() => this.showInputs(), 'Edit The FILLIN Fields', 'Shows the interface to edit the FILLIN fiels in the document'], true);
+        insertBtn([async () => await this.showInputs(), 'Edit The FILLIN Fields', 'Shows the interface to edit the FILLIN fiels in the document'], true);
         insertBtn([() => this.insertNewFILLINField(), 'Insert new FILLIN filed', 'Inserts a new FILLIN field in the selected range. It replaces the selected text with the FILLIN field'], true);
-        insertBtn(goHome)
+        insertBtn(goHome);
     }
 
     private async showInputs() {
         USERFORM.innerHTML = '';
-
         await Word.run(async (context) => {
             const fields = context.document.body.fields;
-            fields.load(["code", "result"]);
+            fields.load(['code', 'result', 'type']);
             await context.sync();
             const fillIn = fields.items.filter(field => field.type === this._fillIn);
             if (!fillIn.length) return console.log("no FILLIN fields were found");
             fillIn.forEach(field => field.result.load('text'));
             await context.sync();
 
-            const inputs: [HTMLInputElement, number][] = fillIn.map((field, index) => {
+            const inputs: [HTMLInputElement, Word.Field][] = fillIn.map((field, index) => {
                 const code = field.code;
                 console.log("field code = " + code);
                 const match = code.match(/(?:FILLIN|ASK)\s+"([^"]+)"/i);
@@ -1245,42 +1244,37 @@ export class WordFileds extends WordContentCtrls {
                     console.log('could not extract label from code = ' + code);
                     return undefined;
                 };
-                const l = document.createElement('label');
-                const input = document.createElement('input');
-                input.id = `FILLIN_${index.toString()}`;
+                const div = createHTMLElement<HTMLDivElement>('div', '', '', USERFORM, '', true);
+                createHTMLElement<HTMLBaseElement>('label', '', lable, div, '', true);
+                const input = createHTMLElement<HTMLInputElement>('input', '', '', div, `FILLIN_${index.toString()}`, true);
                 input.value = field.result.text;
-                const div = document.createElement('div');
-                div.append(l, input);
-                USERFORM.appendChild(div);
-
-                l.textContent = lable;
-                //input.onchange = () => this.editField(index, input);
-                return [input, index] as [HTMLInputElement, number];
+                return [input, field] as [HTMLInputElement, Word.Field];
             }).filter(item => item !== undefined);
 
-            insertBtn([() => this.editAllFields(inputs), 'Update All Fileds From Inputs', 'Parses the values of the inputs, and updates the corresponding fields'], true);
-        });
+            const showBtns = this.showButtons.bind(this);
+            await awaitPromise();
 
-        insertBtn(goHome, false);//We insert the goHome navigation button on top of all the inputs
+            async function awaitPromise() {
+                return new Promise((resolve) => {
+                    const edit = async () => {
+                        for (const [input, field] of inputs) {
+                            if (!input.value) continue;
+                            if (!field) return console.log('field not found');
+                            field.result.insertText(input.value, Word.InsertLocation.replace);
+                            console.log('Modified field = ' + field.code);
+                        }
+                        await context.sync();
+                        resolve('done');
+                    };
+
+                    insertBtn([() => edit(), 'Update All Fileds From Inputs', 'Parses the values of the inputs, and updates the corresponding fields'], true);
+                    insertBtn([() => resolve(showBtns()), 'Cancel and go back', 'Cancels the editing session'], false);//We insert the goHome navigation button on top of all the inputs
+                })
+            };
+
+        });
     }
 
-    async editAllFields(inputs: [HTMLInputElement, number][]) {
-        await Word.run(async (context) => {
-            const fields = context.document.body.fields;
-            fields.load(['code', 'result']);
-            await context.sync();
-
-            for (const [input, index] of inputs) {
-                if (!input.value) continue;
-                const field = fields.items[index]
-                if (!field) return console.log('field not found');
-                field.result.insertText(input.value, Word.InsertLocation.replace);
-                await context.sync();
-                console.log('Modified field = ' + field.code);
-            }
-        });
-
-    }
 
     async insertNewFILLINField() {
         const create = createHTMLElement
