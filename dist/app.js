@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.9.4";
+const version = "v11.9.5";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'];
 Office.onReady((info) => {
@@ -69,15 +69,15 @@ function insertBtn([fun, label, hint], append = true, on = 'click') {
         hintBox.innerText = hint;
         hintBox.classList = 'hintBox';
         wrapper.appendChild(hintBox);
-        htmlBtn.addEventListener('mouseenter', () => {
-            //hintBox!.style.opacity = '1';
-            hintBox.style.display = 'block';
-        });
-        htmlBtn.addEventListener('mouseleave', () => {
-            //hintBox!.style.opacity = '0';
-            hintBox.style.display = 'none';
-        });
+        htmlBtn.onmouseenter = () => hideElement(hintBox, false);
+        htmlBtn.onmouseleave = () => hideElement(hintBox, true);
     }
+}
+function hideElement(element, hide) {
+    if (hide)
+        element.style.display = 'none';
+    else
+        element.style.display = 'block';
 }
 class WordContentCtrls {
     constructor() {
