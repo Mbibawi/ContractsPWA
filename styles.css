@@ -215,7 +215,7 @@ button:active {
   position: fixed;
   top: 50%;
   left: 50%;
-  margin: 3px;
+  padding: 3Px;
   transform: translate(-50%, -50%);
 
   background: white;

@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.9.1";
+const version = "v11.9.2";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'] as Btn;
@@ -1214,8 +1214,12 @@ export class WordFileds extends WordContentCtrls {
     private readonly _fillIn = Word.FieldType.fillIn;
 
     showMainBtn() {
-        insertBtn([() => this.showInputs(), 'Edit The FILLIN Fields in the document', 'Shows the interface to edit the existing FILLIN fiels, or insert new fields'], true);
-        insertBtn([() => this.insertNewFILLINField(), 'Insert a new FILLIN filed', 'Inserts a new FILLIN field at the begining of the selected range'], true);
+        insertBtn([() => this.showButtons(), 'Edit FILLIN Fields', 'Displays the user interface for editing the existing FILLIN fiels, or inserting new FILLIN fields'], true);
+    }
+
+    private showButtons() {
+        insertBtn([() => this.showInputs(), 'Edit The FILLIN Fields', 'Shows the interface to edit the FILLIN fiels in the document'], true);
+        insertBtn([() => this.insertNewFILLINField(), 'Insert new FILLIN filed', 'Inserts a new FILLIN field in the selected range. It replaces the selected text with the FILLIN field'], true);
     }
 
     private async showInputs() {
@@ -1294,7 +1298,7 @@ export class WordFileds extends WordContentCtrls {
                 create('input', '', '', div, id);
             });
 
-            const btn = create('button', '', '', modal);
+            const btn = create('button', '', 'Insert FILLIN Field', window);
             btn.onclick = () => onClick(question[1], def[1]);
         }
 
