@@ -3,6 +3,6 @@
 type ContentControl = Word.ContentControl;
 type ContentControlType = Word.ContentControlType.richText | Word.ContentControlType.richTextInline | Word.ContentControlType.richTextParagraphs | Word.ContentControlType.comboBox | Word.ContentControlType.checkBox | Word.ContentControlType.dropDownList | Word.ContentControlType.datePicker | Word.ContentControlType.richTextTable | Word.ContentControlType.richTextTableCell;
 
-type Btn = [Function, string];
+type Btn = [Function, string, string | undefined];
 
-type selectBlock = {container: HTMLDivElement|undefined, checkBox?: HTMLInputElement, btnNext?: HTMLButtonElement};
+type selectBlock = { wraper?: HTMLDivElement, checkBox?: HTMLInputElement, btnNext?: HTMLButtonElement };
