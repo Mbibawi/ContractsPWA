@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.9.7";
+const version = "v11.9.8";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'];
 Office.onReady((info) => {
@@ -69,11 +69,12 @@ function insertBtn([fun, label, hint], append = true, on = 'click') {
         hintBox.innerText = hint;
         hintBox.classList = 'hintBox';
         wrapper.appendChild(hintBox);
-        htmlBtn.onmouseenter = () => hideElement(hintBox, false);
-        htmlBtn.onmouseleave = () => hideElement(hintBox, true);
+        htmlBtn.onmouseover = (e) => hideElement(hintBox, false, e);
+        htmlBtn.onmouseout = (e) => hideElement(hintBox, true, e);
     }
 }
-function hideElement(element, hide) {
+function hideElement(element, hide, e) {
+    e?.stopPropagation();
     if (hide)
         element.style.display = 'none';
     else

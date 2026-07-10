@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.9.7";
+const version = "v11.9.8";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'] as Btn;
@@ -73,12 +73,13 @@ function insertBtn([fun, label, hint]: Btn, append: boolean = true, on: string =
         hintBox.classList = 'hintBox';
         wrapper.appendChild(hintBox);
 
-        htmlBtn.onmouseenter = () => hideElement(hintBox, false);
-        htmlBtn.onmouseleave = () => hideElement(hintBox, true);
+        htmlBtn.onmouseover = (e) => hideElement(hintBox, false, e);
+        htmlBtn.onmouseout = (e) => hideElement(hintBox, true, e);
     }
 }
 
-function hideElement(element: HTMLElement, hide: boolean) {
+function hideElement(element: HTMLElement, hide: boolean, e?: MouseEvent) {
+    e?.stopPropagation();
     if (hide) element.style.display = 'none';
     else element.style.display = 'block'
 }
