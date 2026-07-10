@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.9.5";
+const version = "v11.9.6";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'] as Btn;
@@ -1281,35 +1281,33 @@ export class WordFileds extends WordContentCtrls {
     }
 
     async insertNewFILLINField() {
-        const type = Word.FieldType.empty;//!We chose the empty field on purpose
-        const getSelection = this.getSelectionRange.bind(this);
         const create = createHTMLElement
         const [modal, window] = getModalContainer(USERFORM, '', 'newField', false);
         showDialogue();
 
 
         function showDialogue() {
-            const question = ['Provide the FILLIN field prompt', 'ask'];
-            const def = ['Provide the FILLIN default value', 'default'];
-            [question, def].forEach(([label, id]) => {
-                const div = create('div', '', '', window);
-                create('label', '', label, div, undefined, true);
-                create('input', '', '', div, id, true);
+            const labels = ['Provide the FILLIN field prompt', 'Provide the FILLIN default value'];
+
+            const inputs = labels.map(label => {
+                create('label', '', label, window, undefined, true);
+                return create('input', '', '', window, '', true) as HTMLInputElement;
             });
 
-            const btn = create('button', '', 'Insert FILLIN Field', window);
-            btn.onclick = () => onClick(question[0], def[0]);
+            const btn = create('button', '', 'Insert FILLIN Field', window, 'ok', true);
+            btn.onclick = () => onClick(inputs[0].value, inputs[1].value || '[*]');
         }
 
-        async function onClick(question: string, def: string) {
+        async function onClick(question: string, deflt: string) {
+            const type = Word.FieldType.empty;//!We chose the empty field on purpose
             await Word.run(async (context) => {
                 const range = context.document.getSelection();
                 const field = range.insertField(Word.InsertLocation.replace, type);
-                field.code = `FILLIN "${question}"  \\d ${def || '[*]'}  \\* MERGEFORMAT`;
+                field.code = `FILLIN "${question}"  \\d ${deflt}  \\* MERGEFORMAT`;
                 field.updateResult();
+                modal.remove();
                 await context.sync();
             });
-            modal.remove();
         }
 
     }
