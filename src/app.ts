@@ -514,7 +514,7 @@ export class EditContract extends WordContentCtrls {
             try {
                 await Word.run(range, async (context) => {
                     const _ctrl = range.context.document.contentControls.getById(ctrl.id);
-                    ctrl.load(['paragraphs', 'paragraphs/style']);
+                    _ctrl.load(['paragraphs', 'paragraphs/style']);
                     await context.sync();
                     const si = _ctrl.paragraphs.items.find(p => siStyle.includes(p.style));
                     if (!si) return showAlert('No paragraph styled with on of the "RTSi" styles was found in the selected range');
