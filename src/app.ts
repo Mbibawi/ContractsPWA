@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v12.5";
+const version = "v12.6";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'] as Btn;
@@ -122,22 +122,24 @@ class WordContentCtrls {
     protected readonly hidden = Word.ContentControlAppearance.hidden;
     protected readonly OPTIONS = [this.RTSelectTag, 'RTShow', 'RTEdit'];
 
-    protected async insertFields(ids: number[], style: string) {
-        await Word.run(async (context) => {
-            for (const id of ids) {
-                if (!id) continue;
-                const ctrl = context.document.getContentControls().getById(id);
-                await context.sync();
-                try {
-                    const start = ctrl.getRange(Word.RangeLocation.before);
-                    await this.insertSingleFiled(start, ids.indexOf(id))
-                } catch (error) {
-                    showNotification(`Error inserting field: ctrl.id = ${ctrl?.id}, error: ${error}`);
-                    continue
-                }
+    /**
+     * 
+     * @param ctrls 
+     */
+    protected async insertFields(ctrls: ContentControl[]) {
+        for (const ctrl of ctrls) {
+            try {
+                const start = ctrl.getRange(Word.RangeLocation.before);
+                const field = await this.insertSingleFiled(start, ctrls.indexOf(ctrl));
+                if (field) field.untrack();
+                ctrl.untrack();
+                await ctrl.context.sync();
+            } catch (error) {
+                showNotification(`Error inserting field: ctrl.id = ${ctrl?.id}, error: ${error}`);
+                continue
             }
-            await context.sync();
-        });
+        }
+        ;
     }
 
     protected async insertSingleFiled(range?: Word.Range | void, i: number = 0, style: string = '') {
@@ -145,16 +147,30 @@ class WordContentCtrls {
             range = (await this.getSelectionRange())?.getRange(Word.RangeLocation.start);
             if (!range) return console.log('could not retrieve the range to insert the field contentcontrol');
         };
-        const field = await this.insertContentControl(range, this.RTFieldTag, this.RTFieldTag, i, this.richText, style, false, false, '[*]');
+        const field = await this.insertContentControl(range, this.RTFieldTag, this.RTFieldTag, i, this.richText, style, false, false, '[*]', ['id']);
         if (!field) return;
         // field.onExited.add(() => updateAllFields(field));
         field.font.bold = true;
+        return field
     }
-
-    protected async insertContentControl(range: Word.Range, title: string, tag: string, index: number = 1, type: ContentControlType, style: string | null, cannotEdit: boolean = true, cannotDelete: boolean = true, placeHolder?: string): Promise<Word.ContentControl | undefined> {
+    /**
+     * 
+     * @param range The range which will be wraped by the inserted ContentControl 
+     * @param title The title of the ContentControl
+     * @param tag   The tag of the ContentControl
+     * @param index A number that will just be used in case the function is called for the creation of a serie (or an Array) of CpontentControls and we want to console.log the index of each ContentControl in the array after its creation.
+     * @param type The new ContentControl's type 
+     * @param style The style of the ContentControl
+     * @param cannotEdit Sets the boolean value of the cannotEdit property of the ContentControl
+     * @param cannotDelete Sets the boolean value of the cannotDelete property of the ContentControl
+     * @param placeHolder If provided, the ContentControl text will be initiated with the provided placeholder
+     * @param props The new ContentControl's properties that we might want to get loaded after its creation
+     * @returns The newly created Word.ContentControl object
+     */
+    protected async insertContentControl(range: Word.Range, title: string, tag: string, index: number = 1, type: ContentControlType, style: string | null, cannotEdit: boolean = true, cannotDelete: boolean = true, placeHolder?: string, props: string[] = []): Promise<Word.ContentControl | undefined> {
         range.select();
-        const styles = range.context.document.getStyles();
-        styles.load(['nameLocal', 'type']);
+        //const styles = range.context.document.getStyles();
+        //styles.load(['nameLocal', 'type']);
         // Insert a rich text content control around the found range.
 
         const ctrl = range.insertContentControl(type);
@@ -169,12 +185,14 @@ class WordContentCtrls {
             ctrl.tag = tag;
             ctrl.appearance = Word.ContentControlAppearance.boundingBox;
             if (placeHolder) ctrl.placeholderText = placeHolder;
-            const foundStyle = styles.items.find(s => s.nameLocal === style);
-            if (style && foundStyle?.type === Word.StyleType.character)
-                ctrl.style = style;
             if (style) ctrl.getRange().style = style;
             ctrl.cannotDelete = cannotDelete;
             ctrl.cannotEdit = cannotEdit;//!This must come at the end after the style has been set.
+            if (props.length) {
+                //If the props agrument is passed, we assume the user intends to use the ContenControl object when returned by the function. Therefor we track it otherwise it will be garbage collected and it will not be able to work with it when returned
+                ctrl.load(props);
+                ctrl.track();
+            };
             await ctrl.context.sync();
             showNotification(`Wrapped text in range ${index} with a content control.`);
             return ctrl;
@@ -188,16 +206,16 @@ class WordContentCtrls {
     protected async wrapSelectionWithContentControl(title: string, tag: string, type: ContentControlType, style: string | null, cannotEdit: boolean, cannotDelete: boolean) {
         const range = await this.getSelectionRange();
         if (!range) return;
-        if (this.RTSiStyles.includes(range.style)) style = range.style;
+        if (!style && this.RTSiStyles.includes(range.style)) style = range.style || null;
         await this.insertContentControl(range, title, tag, 0, type, style, cannotEdit, cannotDelete);
     }
 
-    protected async getSelectionRange(fun?: (range: Word.Range) => Promise<any>) {
+    protected async getSelectionRange(props: string[] = [], fun?: (range: Word.Range) => Promise<any>) {
         return await Word.run(async (context) => {
             const range = context.document
                 .getSelection()
                 .getRange('Content');
-            range.load(['style', 'isEmpty']);
+            range.load(['style', 'isEmpty', ...props]);
             range.track();
             await context.sync();
             //if (range.isEmpty) return showAlert('The selection range is empty, you must select a text to continue');
@@ -338,6 +356,7 @@ export class EditContract extends WordContentCtrls {
             promptConfirm = this.promptConfirm.bind(this);
 
         const siTag = this.RTSiTag,
+            selectTag = this.RTSelectTag,
             sectionTag = this.RTSectionTag,
             descTag = this.RTDescriptionTag,
             stylePrefix = this.StylePrefix,
@@ -350,11 +369,11 @@ export class EditContract extends WordContentCtrls {
             dropDownList = this.dropDownList;
 
 
-        const wrapSelection = this.wrapSelectionWithContentControl.bind(this);
+        const wrapRange = this.wrapSelectionWithContentControl.bind(this);
 
         function wrap(title: string, tag: string, type: ContentControlType, style: string | null, cannotEdit: boolean, cannotDelete: boolean, label: string, hint: string | undefined) {
             return [
-                () => wrapSelection(title, tag, type, style, cannotEdit, cannotDelete),
+                () => wrapRange(title, tag, type, style, cannotEdit, cannotDelete),
                 label,
                 hint
             ] as Btn
@@ -366,6 +385,7 @@ export class EditContract extends WordContentCtrls {
         const btns = [
             wrap(this.RTSiTag, this.RTSiTag, this.richText, this.RTSiStyles[0], true, true, 'Insert Single RT Si', single(this.RTSiTag)),
             wrap(this.RTSelectTag, this.RTSelectTag, this.richText, null, false, true, 'Insert Single RT Select', single(this.RTSelectTag, 'Any such contentControl is a container. Each contentcontrol having the same tag within its range, will be considered as an option to select or to exclude')),
+            [inserRTtBlock_Select_Si, 'Insert RT Select & Si Block', 'Finds the first paragraph formatted with any of the RTSiStyles. Wraps this paragraph in a RTSi ContentControl, Then wraps the whol selected range in a RTSelect ContentControl.'],
             [insertDropDownList, 'Insert a Dropdown List from selection', 'Creates a dropwdown list from the selected string. The options to choose from must be separated by "/"'],
             [() => insertRTDescription(true), 'Insert Single RT Description', single(this.RTDescriptionTag)],
             [this.insertSingleFiled, 'Insert ContentControl Field', single(this.RTFieldTag)],
@@ -422,18 +442,18 @@ export class EditContract extends WordContentCtrls {
 
         async function insertRTDescription(selection: boolean = false, style: string = `${stylePrefix}Normal`) {
             NOTIFICATION.innerHTML = '';
-            let ctrls: (ContentControl | undefined)[] | void;
+            let ctrls: (ContentControl | undefined)[] | void = [];
             if (selection) {
                 const range = await getSelectionRange();
                 if (!range) return
-                ctrls = [await insertContentControl(range, descTag, descTag, 0, richText, descStyle, true, true)];
+                ctrls.push(await insertContentControl(range, descTag, descTag, 0, richText, descStyle, true, true, undefined, ['id']));
             }
             else ctrls = await findTextAndWrapItWithContentControl([descStyle], descTag, descTag, true, true);
 
             if (!ctrls?.length) return;
-            const ids = ctrls.map(c => c?.id || 0);
+            //const ids = ctrls.map(c => c?.id || 0);
 
-            await insertFields(ids, style);
+            await insertFields(ctrls.filter(ctrl => ctrl !== undefined));
 
         }
 
@@ -482,6 +502,28 @@ export class EditContract extends WordContentCtrls {
             xmlParts.add(updatedXml); // Add updated part
             await context.sync();
             console.log("Appended new node to existing XML part.");
+        }
+
+        async function inserRTtBlock_Select_Si() {
+            const range = await getSelectionRange();
+            if (!range) return;
+            //Wraping the range with ContentControl "RTSelect"
+            const ctrl = await insertContentControl(range, selectTag, selectTag, undefined, richText, null, false, false, undefined, ['paragraphs']);
+            if (!ctrl) return showAlert('Failed to insert the RTSelect ContentControl');
+
+            ctrl.paragraphs.load(['style']);
+            await range.context.sync();
+
+            const si = ctrl.paragraphs.items.find(p => siStyle.includes(p.style));
+            if (!si) return showAlert('No paragraph styled with on of the "RTSi" styles was found in the selected range');
+            const siRange = si.getRange();
+            si.track();//!We must track it otrherwise it will be garbage collected after range.context.sync() is called, and will not be passed to insertContentControl()
+            await range.context.sync();
+
+            //Wraping the paragraph with ContentControl "RTSi"
+            await insertContentControl(siRange, siTag, siTag, undefined, richText, si.style, true, true);
+            [range, ctrl, si].forEach(obj => obj.untrack());
+            await range.context.sync();
         }
 
         function insertRTSiAll() {
@@ -559,14 +601,15 @@ export class EditContract extends WordContentCtrls {
             if (!options.length) return showNotification("No options");
             showNotification(options.join());
 
-            const ctrl = await insertContentControl(range, dorpDownTag, dorpDownTag, index, dropDownList, null, false, true);
+            const ctrl = await insertContentControl(range, dorpDownTag, dorpDownTag, index, dropDownList, null, false, true, undefined, ['id']);
             if (!ctrl) return;
             ctrl.dropDownListContentControl.deleteAllListItems();
             options.forEach(option => ctrl.dropDownListContentControl.addListItem(option));
             setCtrlsFontColor([ctrl], dropDownColor);
             setCtrlsColor([ctrl], dropDownColor);
-            await ctrl.context.sync();
             range.untrack();
+            ctrl.untrack();
+            await ctrl.context.sync();
         }
 
         /**
@@ -578,7 +621,7 @@ export class EditContract extends WordContentCtrls {
         async function findTextAndWrapItWithContentControl(styles: string[], title: string, tag: string, cannotEdit: boolean, cannotDelete: boolean) {
             const { search, matchWildcards } = await searchs();
             if (!styles?.length) return showNotification(`The styles[] has 0 length, no styles are included, the function will return`);
-            if (!search?.length) return showAlert('The provided search string is not valid');
+            if (!search?.length) return showNotification('The provided search string is not valid');
 
 
             return await Word.run(async (context) => {
@@ -590,35 +633,35 @@ export class EditContract extends WordContentCtrls {
                     await context.sync();
                     const ranges = matches.items.filter(range => styles.includes(range.style));
                     showNotification(`Found ${ranges.length} ranges matching the search string. First range text = ${ranges[0].text}`);
-                    ctrls.push(...await insertCtrls(ranges))
+                    ctrls.push(...await insertCtrls(ranges, context))
                 };
 
                 return ctrls;
-
-                async function insertCtrls(ranges: Word.Range[]) {
-                    const ctrls: ContentControl[] = [];
-                    for (const range of ranges) {
-                        const parent = range.parentContentControlOrNullObject;
-                        parent.load('tag');
-                        await context.sync();
-                        if (parent.tag === tag) continue;
-                        try {
-                            const ctrl = await insertContentControl(range, title, tag, ranges.indexOf(range), richText, range.style, cannotEdit, cannotDelete);
-                            if (ctrl) ctrls.push(ctrl);
-                        } catch (error) {
-                            showNotification(`Error from insertCtrls() while inserting the contentControl() in the matching range. Error = ${error}`)
-                        }
-                    }
-                    return ctrls
-                }
             });
+
+            async function insertCtrls(ranges: Word.Range[], context: Word.RequestContext) {
+                const ctrls: ContentControl[] = [];
+                for (const range of ranges) {
+                    const parent = range.parentContentControlOrNullObject;
+                    parent.load('tag');
+                    await context.sync();
+                    if (parent.tag === tag) continue;
+                    try {
+                        const ctrl = await insertContentControl(range, title, tag, ranges.indexOf(range), richText, range.style, cannotEdit, cannotDelete, undefined, ['id']);
+                        if (ctrl) ctrls.push(ctrl);
+                    } catch (error) {
+                        showNotification(`Error from insertCtrls() while inserting the contentControl() in the matching range. Error = ${error}`)
+                    }
+                }
+                return ctrls
+            }
 
             async function searchs() {
                 const separator = '_&_';
                 const search = (await promptForInput(`Provide the search string. You can provide more than one string to search by separated by ${separator} witohout space`, separator))?.split(separator) as string[];
                 const matchWildcards = await promptConfirm('Match Wild Cards');
 
-                if (!styles) styles = (await promptForInput(`Provide the styles that that need to be matched separated by ","`))?.split(',') || [];
+                if (!styles) styles = (await promptForInput(`Provide the styles that that need to be matched separated by ","`))?.split(',').map(style => style.trim()) || [];
                 return { search, matchWildcards }
             }
         }
