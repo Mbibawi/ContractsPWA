@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.12.8";
+const version = "v11.12.9";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'] as Btn;
@@ -514,14 +514,19 @@ export class EditContract extends WordContentCtrls {
             const si = ctrl.paragraphs.items.find(p => siStyle.includes(p.style));
             if (!si) return showAlert('No paragraph styled with on of the "RTSi" styles was found in the selected range');
 
-            const style = si.style;
-            si.track();//!We must track it otrherwise it will be garbage collected after range.context.sync() is called, and will not be passed to insertContentControl()
-            await range.context.sync();
+            try {
+                const style = si.style;
+                si.track();//!We must track it otrherwise it will be garbage collected after range.context.sync() is called, and will not be passed to insertContentControl()
+                await range.context.sync();
 
-            //Wraping the paragraph with ContentControl "RTSi"
-            await insertContentControl(si, siTag, siTag, undefined, richText, style, true, true);
-            [range, ctrl, si].forEach(obj => obj.untrack());
-            await range.context.sync();
+                //Wraping the paragraph with ContentControl "RTSi"
+                await insertContentControl(si, siTag, siTag, undefined, richText, style, true, true);
+                [range, ctrl, si].forEach(obj => obj.untrack());
+                await range.context.sync();
+
+            } catch (error: any) {
+                console.log(error.debugInfo || error)
+            }
         }
 
         function insertRTSiAll() {
