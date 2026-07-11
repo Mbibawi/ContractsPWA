@@ -507,16 +507,17 @@ export class EditContract extends WordContentCtrls {
 
 
             //Wraping the range with ContentControl "RTSelect"
-            const ctrl = await insertContentControl(range, selectTag, selectTag, undefined, richText, null, false, false, undefined, ['id']);
+            const ctrl = await insertContentControl(range, selectTag, selectTag, undefined, richText, null, false, false, undefined, ['id', 'paragraphs', 'paragraphs/style']);
             if (!ctrl) return showAlert('Failed to insert the RTSelect ContentControl');
 
 
             try {
-                await Word.run(range, async (context) => {
-                    const _ctrl = range.context.document.contentControls.getById(ctrl.id);
-                    _ctrl.load(['paragraphs', 'paragraphs/style']);
+                await Word.run(ctrl, async (context) => {
+                    //const _ctrl = range.context.document.contentControls.getById(ctrl.id);
+                    //_ctrl.load(['paragraphs', 'paragraphs/style']);
                     await context.sync();
-                    const si = _ctrl.paragraphs.items.find(p => siStyle.includes(p.style));
+                    //const si = _ctrl.paragraphs.items.find(p => siStyle.includes(p.style));
+                    const si = ctrl.paragraphs.items.find(p => siStyle.includes(p.style));
                     if (!si) return showAlert('No paragraph styled with on of the "RTSi" styles was found in the selected range');
                     //Wraping the paragraph with ContentControl "RTSi"
                     await insertContentControl(si, siTag, siTag, undefined, richText, si.style, true, true);
