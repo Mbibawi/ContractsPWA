@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.13.3";
+const version = "v11.13.4";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'] as Btn;
@@ -172,10 +172,10 @@ class WordContentCtrls {
             range.select();
             const ctrl = range.insertContentControl(type);
             ctrl.load(['id', ...props.filter(prop => prop !== 'id')]);
+            ctrl.track();//!We must track the object before range.context.sync() is called otherwise it will be lost.
             await range.context.sync();
             console.log(`the newly created ContentControl id = ${ctrl.id} `);
             // Set properties for the new content control.
-            ctrl.select();
             ctrl.title = this.getCtrlTitle(title, ctrl.id);
             ctrl.tag = tag;
             ctrl.appearance = Word.ContentControlAppearance.boundingBox;
@@ -183,10 +183,7 @@ class WordContentCtrls {
             if (style) ctrl.getRange().style = style;
             ctrl.cannotDelete = cannotDelete;
             ctrl.cannotEdit = cannotEdit;//!This must come at the end after the style has been set.
-            if (props.length) {
-                //If the props agrument is passed, we assume the user intends to use the ContenControl object when returned by the function. Therefor we track it otherwise it will be garbage collected and it will not be able to work with it when returned
-                ctrl.track();
-            };
+            ctrl.select();
             await range.context.sync();
             showNotification(`Wrapped text in range ${index} with a content control.`);
             return ctrl;
