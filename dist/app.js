@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.13.3";
+const version = "v11.13.4";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'];
 Office.onReady((info) => {
@@ -171,7 +171,7 @@ class WordContentCtrls {
             range.select();
             const ctrl = range.insertContentControl(type);
             ctrl.load(['id', ...props.filter(prop => prop !== 'id')]);
-            ctrl.track();
+            ctrl.track(); //!We must track the object before range.context.sync() is called otherwise it will be lost.
             await range.context.sync();
             console.log(`the newly created ContentControl id = ${ctrl.id} `);
             // Set properties for the new content control.
