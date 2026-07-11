@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.13.1";
+const version = "v11.13.2";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'] as Btn;
@@ -512,10 +512,12 @@ export class EditContract extends WordContentCtrls {
 
 
             try {
-                ctrl.load(['paragraphs', 'paragraphs/style']);
+                const _ctrl = range.context.document.contentControls.getById(ctrl.id);
+                _ctrl.load(['paragraphs', 'paragraphs/style']);
                 await range.context.sync();
-                const si = ctrl.paragraphs.items.find(p => siStyle.includes(p.style));
+                const si = _ctrl.paragraphs.items.find(p => siStyle.includes(p.style));
                 if (!si) return showAlert('No paragraph styled with on of the "RTSi" styles was found in the selected range');
+                si.track();
                 //Wraping the paragraph with ContentControl "RTSi"
                 await insertContentControl(si, siTag, siTag, undefined, richText, si.style, true, true);
                 [range, ctrl, si].forEach(obj => obj.untrack());
