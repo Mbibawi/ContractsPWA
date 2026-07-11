@@ -192,7 +192,7 @@ button:active {
   display: none;
   /* visibility: 'hidden'; */
   pointer-events: 'none';
-  transition: 'opacity 0.15s ease';
+  /* transition: 'opacity 0.15s ease'; */
 }
 
 
