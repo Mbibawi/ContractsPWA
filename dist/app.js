@@ -1,11 +1,11 @@
 /// <reference types="./types.d.ts" />
-const version = "v12.2";
+const version = "v12.3";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'];
 Office.onReady((info) => {
     // Check that we loaded into Word
     if (info.host !== Office.HostType.Word)
-        return showNotification('This addin is designed to work on Word only');
+        return showAlert('This addin is designed to work on Word only');
     USERFORM = document.getElementById('userFormSection');
     NOTIFICATION = document.getElementById('notification');
     mainUI();
@@ -30,6 +30,12 @@ function showNotification(message, clear = false) {
     if (clear)
         NOTIFICATION.innerHTML = '';
     createHTMLElement('p', 'notification', message, NOTIFICATION, '', true);
+}
+function showAlert(message, clear = false) {
+    const [modal, window] = getModalContainer(USERFORM, 'Alert', 'alert', false);
+    createHTMLElement('p', '', message, window, '', true);
+    const btn = createHTMLElement('button', '', 'OK', window, '', true);
+    btn.onclick = () => { modal.remove(); };
 }
 function createHTMLElement(tag, css, textContent, parent, id, append = true) {
     const el = document.createElement(tag);
@@ -185,7 +191,7 @@ class WordContentCtrls {
             style = range.style;
         await this.insertContentControl(range, title, tag, 0, type, style, cannotEdit, cannotDelete);
     }
-    async getSelectionRange() {
+    async getSelectionRange(fun) {
         return await Word.run(async (context) => {
             const range = context.document
                 .getSelection()
@@ -194,7 +200,9 @@ class WordContentCtrls {
             range.track();
             await context.sync();
             if (range.isEmpty)
-                return showNotification('The selection range is empty');
+                return showAlert('The selection range is empty, you must select a text to continue');
+            if (fun)
+                await fun(range);
             return range;
         });
     }
@@ -362,9 +370,10 @@ export class EditContract extends WordContentCtrls {
                     if (!range)
                         return;
                     const value = Array.from(select.options).find(o => o.value === range?.style)?.value || range.style;
+                    range.untrack();
+                    await range.context.sync();
                     if (value)
                         select.value = value;
-                    range.untrack();
                 };
                 select.onchange = async () => {
                     const range = await getSelectionRange();
@@ -389,7 +398,7 @@ export class EditContract extends WordContentCtrls {
         if (!styles?.length)
             return showNotification(`The styles[] has 0 length, no styles are included, the function will return`);
         if (!search?.length)
-            return showNotification('The provided search string is not valid');
+            return showAlert('The provided search string is not valid');
         return await Word.run(async (context) => {
             const ctrls = [];
             for (const find of search) {
@@ -451,7 +460,7 @@ export class EditContract extends WordContentCtrls {
         if (selection) {
             const range = await this.getSelectionRange();
             if (!range)
-                return showNotification('No Text Was selected !');
+                return;
             ctrls = [await this.insertContentControl(range, this.RTDescriptionTag, this.RTDescriptionTag, 0, this.richText, this.RTDescriptionStyle, true, true)];
         }
         else
@@ -694,7 +703,7 @@ export class EditContract extends WordContentCtrls {
                     const template = await getTemplate();
                     console.log(template);
                     if (!template)
-                        return showNotification('Failed to create the template');
+                        return showAlert('Failed to create the template');
                     const newDoc = context.application.createDocument(template);
                     const all = newDoc.contentControls;
                     all.load(['title', 'tag']);
@@ -892,7 +901,7 @@ export class EditContract extends WordContentCtrls {
                 const message = `Combien de ${label.text} y'a-t-il ?`;
                 let answer = Number(await promptForInput(message, '1'));
                 if (isNaN(answer)) {
-                    showNotification(`The provided text cannot be converted into a number: ${answer}`);
+                    showAlert(`The provided text cannot be converted into a number: ${answer}`);
                     return await insertClones(ctrl);
                 }
                 else if (answer < 1)
