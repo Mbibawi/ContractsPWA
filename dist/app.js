@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v12.4";
+const version = "v12.5";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'];
 Office.onReady((info) => {
@@ -100,6 +100,7 @@ class WordContentCtrls {
         this.RTObsTag = 'RTObs';
         this.RTDescriptionTag = 'RTDesc';
         this.RTSiTag = 'RTSi';
+        this.RTDeleteTag = '>>>> DeleteCtrl >>>>';
         //Stylesreadonly 
         this.RTSectionStyle = `${this.StylePrefix}${this.RTSectionTag}`;
         this.RTObsStyle = `${this.StylePrefix}${this.RTObsTag}`;
@@ -317,7 +318,10 @@ export class EditContract extends WordContentCtrls {
     ;
     prepareTemplate() {
         USERFORM.innerHTML = '';
-        const wrapSelection = this.wrapSelectionWithContentControl.bind(this), getSelectionRange = this.getSelectionRange.bind(this), StylePrefix = this.StylePrefix;
+        const searchString = this.searchString.bind(this), getSelectionRange = this.getSelectionRange.bind(this), insertContentControl = this.insertContentControl.bind(this), insertFields = this.insertFields.bind(this), setCtrlsColor = this.setCtrlsColor.bind(this), setCtrlsFontColor = this.setCtrlsFontColor.bind(this), promptForInput = this.promptForInput.bind(this), promptConfirm = this.promptConfirm.bind(this);
+        const siTag = this.RTSiTag, sectionTag = this.RTSectionTag, descTag = this.RTDescriptionTag, stylePrefix = this.StylePrefix, richText = this.richText, dorpDownTag = this.RTDropDownTag;
+        const descStyle = this.RTDescriptionStyle, siStyle = this.RTSiStyles, sectionStyle = this.RTSectionStyle, dropDownColor = this.RTDropDownColor, dropDownList = this.dropDownList;
+        const wrapSelection = this.wrapSelectionWithContentControl.bind(this);
         function wrap(title, tag, type, style, cannotEdit, cannotDelete, label, hint) {
             return [
                 () => wrapSelection(title, tag, type, style, cannotEdit, cannotDelete),
@@ -331,18 +335,18 @@ export class EditContract extends WordContentCtrls {
         const btns = [
             wrap(this.RTSiTag, this.RTSiTag, this.richText, this.RTSiStyles[0], true, true, 'Insert Single RT Si', single(this.RTSiTag)),
             wrap(this.RTSelectTag, this.RTSelectTag, this.richText, null, false, true, 'Insert Single RT Select', single(this.RTSelectTag, 'Any such contentControl is a container. Each contentcontrol having the same tag within its range, will be considered as an option to select or to exclude')),
-            [this.insertDropDownList, 'Insert a Dropdown List from selection', 'Creates a dropwdown list from the selected string. The options to choose from must be separated by "/"'],
-            [() => this.insertRTDescription(true), 'Insert Single RT Description', single(this.RTDescriptionTag)],
+            [insertDropDownList, 'Insert a Dropdown List from selection', 'Creates a dropwdown list from the selected string. The options to choose from must be separated by "/"'],
+            [() => insertRTDescription(true), 'Insert Single RT Description', single(this.RTDescriptionTag)],
             [this.insertSingleFiled, 'Insert ContentControl Field', single(this.RTFieldTag)],
             [this._fields.insertNewFILLINField, 'Insert FILLIN Field', single(this.RTFieldTag)],
             wrap(this.RTSectionTag, this.RTSectionTag, this.richText, this.RTSectionTag, true, true, 'Insert Single RT Section', single(this.RTSectionTag)),
             //wrap(this.RTOrTag, this.RTOrTag, this.richText, null, false, true, 'Insert Single RT OR', single(this.RTOrTag, 'need to check what it does')),
             wrap(this.RTCloneTag, this.RTCloneTag, this.richText, null, false, true, 'Insert Single RT Dublicate Block', single(this.RTCloneTag, 'need to check what it does')),
             wrap(this.RTObsTag, this.RTObsTag, this.richText, this.RTObsTag, true, true, 'Insert Single RT Obs', single(this.RTObsTag)),
-            [this.insertDropDownListAll, 'Insert DropDown List For All Matches', 'It will check the document for all the strings matching the "/" separated values of the selected range and will convert them into drowpdown lists. The matching strings do not need to include the "/" mark'],
-            [this.insertRTSiAll, 'Insert RT Si For All', all(this.RTSiStyles.join(' or '), this.RTSiTag)],
-            [this.insertRTSectionAll, 'Insert RT Section For All', all(this.RTSectionStyle, this.RTSectionTag)],
-            [this.insertRTDescription, 'Insert RT Description For All', all(this.RTDescriptionStyle, this.RTDescriptionTag)],
+            [insertDropDownListAll, 'Insert DropDown List For All Matches', 'It will check the document for all the strings matching the "/" separated values of the selected range and will convert them into drowpdown lists. The matching strings do not need to include the "/" mark'],
+            [insertRTSiAll, 'Insert RT Si For All', all(this.RTSiStyles.join(' or '), this.RTSiTag)],
+            [insertRTSectionAll, 'Insert RT Section For All', all(this.RTSectionStyle, this.RTSectionTag)],
+            [insertRTDescription, 'Insert RT Description For All', all(this.RTDescriptionStyle, this.RTDescriptionTag)],
             [() => this.customizeContract(true), 'Show Nested Options Tree', 'Lists all the selection options in the document'],
             [this.updateAllContentControlIDs, 'Update ContentControl Titles', 'Updates the titles of all the ContentControls in the document'],
         ];
@@ -354,14 +358,14 @@ export class EditContract extends WordContentCtrls {
                 const allStyles = context.document.getStyles();
                 allStyles.load(['nameLocal']);
                 await context.sync();
-                const styles = allStyles.items.filter(style => style.nameLocal.startsWith(StylePrefix));
+                const styles = allStyles.items.filter(style => style.nameLocal.startsWith(stylePrefix));
                 if (!styles.length)
                     return;
                 const container = createHTMLElement('div', '', '', undefined, id);
                 USERFORM.insertAdjacentElement('beforebegin', container);
                 const select = createHTMLElement('select', '', '', container);
                 styles.forEach(style => {
-                    const option = createHTMLElement('option', '', style.nameLocal.split(StylePrefix)[1], select);
+                    const option = createHTMLElement('option', '', style.nameLocal.split(stylePrefix)[1], select);
                     option.value = style.nameLocal;
                 });
                 select.onmouseenter = async () => {
@@ -384,255 +388,223 @@ export class EditContract extends WordContentCtrls {
                 };
             });
         }
-    }
-    /**
-     * Wraps every occurrence of text formatted with a specific character style in a rich text content control.
-     *
-     * @param style The name of the character style to find (e.g., "Emphasis", "Strong", "MyCustomStyle").
-     * @returns A Promise that resolves when the operation is complete.
-     */
-    async findTextAndWrapItWithContentControl(styles, title, tag, cannotEdit, cannotDelete) {
-        const insertContentControl = this.insertContentControl.bind(this), promptForInput = this.promptForInput, promptConfirm = this.promptConfirm, RichText = this.richText;
-        const { search, matchWildcards } = await searchs();
-        if (!styles?.length)
-            return showNotification(`The styles[] has 0 length, no styles are included, the function will return`);
-        if (!search?.length)
-            return showAlert('The provided search string is not valid');
-        return await Word.run(async (context) => {
-            const ctrls = [];
-            for (const find of search) {
-                const matches = await this.searchString(find, context, matchWildcards);
-                if (!matches?.items.length)
-                    continue;
-                matches.load(['style', 'text', 'parentContentControlOrNullObject']);
-                await context.sync();
-                const ranges = matches.items.filter(range => styles.includes(range.style));
-                showNotification(`Found ${ranges.length} ranges matching the search string. First range text = ${ranges[0].text}`);
-                ctrls.push(...await insertCtrls(ranges));
+        async function insertRTDescription(selection = false, style = `${stylePrefix}Normal`) {
+            NOTIFICATION.innerHTML = '';
+            let ctrls;
+            if (selection) {
+                const range = await getSelectionRange();
+                if (!range)
+                    return;
+                ctrls = [await insertContentControl(range, descTag, descTag, 0, richText, descStyle, true, true)];
             }
-            ;
-            return ctrls;
-            async function insertCtrls(ranges) {
-                const ctrls = [];
-                for (const range of ranges) {
-                    const parent = range.parentContentControlOrNullObject;
-                    parent.load('tag');
+            else
+                ctrls = await findTextAndWrapItWithContentControl([descStyle], descTag, descTag, true, true);
+            if (!ctrls?.length)
+                return;
+            const ids = ctrls.map(c => c?.id || 0);
+            await insertFields(ids, style);
+        }
+        async function addOrUpdateCustomXml(id, text, root = 'contractFields', prefix = 'contract', nameSpace = 'contract-namespace') {
+            await Word.run(async (context) => {
+                const newNode = `<${prefix}:${id} >${text}</${id}>`;
+                const xmlParts = context.document.customXmlParts;
+                let customPart = xmlParts.getByNamespace(nameSpace).getOnlyItemOrNullObject();
+                customPart.load('isNullObject');
+                await context.sync();
+                if (customPart.isNullObject) {
+                    // Create new XML part with root node
+                    const newXml = `<${root} xmlns:${prefix}="${nameSpace}">${newNode}</${root}>`;
+                    customPart = xmlParts.add(newXml);
                     await context.sync();
-                    if (parent.tag === tag)
-                        continue;
+                    console.log("Created new custom XML part.");
+                }
+                else {
+                    // Append new node to existing part
+                    const xmlText = customPart.getXml();
+                    await context.sync();
+                    const xmlDoc = getXmlRootNode(xmlText);
+                    const rootNode = xmlDoc.getElementsByName(root)[0];
+                    if (!rootNode)
+                        return console.warn("Root node not found.");
+                    const newElement = xmlDoc.createElementNS(nameSpace, `${prefix}:${id}`);
+                    newElement.textContent = text;
+                    rootNode.appendChild(newElement);
+                    await updateCustomXml(context, xmlParts, xmlDoc, customPart);
+                }
+            });
+        }
+        function getXmlRootNode(xmlText) {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlText.value, "application/xml");
+            return xmlDoc;
+        }
+        async function updateCustomXml(context, xmlParts, xmlDoc, oldXmlPart) {
+            const serializer = new XMLSerializer();
+            const updatedXml = serializer.serializeToString(xmlDoc);
+            oldXmlPart.delete(); // Remove old part
+            xmlParts.add(updatedXml); // Add updated part
+            await context.sync();
+            console.log("Appended new node to existing XML part.");
+        }
+        function insertRTSiAll() {
+            insertForAllParags(siStyle, siTag);
+        }
+        function insertRTSectionAll() {
+            insertForAllParags([sectionStyle], sectionTag);
+        }
+        async function insertForAllParags(Styles, tag) {
+            NOTIFICATION.innerHTML = '';
+            await Word.run(async (context) => {
+                const paragraphs = context.document.body.paragraphs;
+                paragraphs.load(['style', 'text', 'parentContentControlOrNullObject']);
+                await context.sync();
+                const parags = paragraphs.items
+                    .filter(p => Styles.includes(p.style));
+                for (const parag of parags) {
+                    parag.select();
+                    const style = parag.style;
                     try {
-                        const ctrl = await insertContentControl(range, title, tag, ranges.indexOf(range), RichText, range.style, cannotEdit, cannotDelete);
-                        if (ctrl)
-                            ctrls.push(ctrl);
+                        const parent = parag.parentContentControlOrNullObject;
+                        parent.load(['tag']);
+                        await context.sync();
+                        if (parent.tag === tag)
+                            continue; //We escape paragraphs already wraped in a contentcontrol with the same tag
+                        console.log(`range style: ${parag.style} & text = ${parag.text}`);
+                        await insertContentControl(parag.getRange('Content'), tag, tag, parags.indexOf(parag), richText, style);
                     }
                     catch (error) {
-                        showNotification(`Error from insertCtrls() while inserting the contentControl() in the matching range. Error = ${error}`);
+                        console.log(`Error from insertForAllParags() when trying to wrap the paragraph : ${parag.text}. Error :\n${error}`);
+                        continue;
                     }
                 }
-                return ctrls;
-            }
-        });
-        async function searchs() {
-            const separator = '_&_';
-            const search = (await promptForInput(`Provide the search string. You can provide more than one string to search by separated by ${separator} witohout space`, separator))?.split(separator);
-            const matchWildcards = await promptConfirm('Match Wild Cards');
-            if (!styles)
-                styles = (await promptForInput(`Provide the styles that that need to be matched separated by ","`))?.split(',') || [];
-            return { search, matchWildcards };
+                await context.sync();
+            });
         }
-    }
-    async searchString(search, context, matchWildcards, replaceWith) {
-        const searchResults = context.document.body.search(search, { matchWildcards: matchWildcards });
-        searchResults.load(['style', 'text']);
-        searchResults.track();
-        await context.sync();
-        if (!replaceWith)
-            return searchResults;
-        for (const match of searchResults.items)
-            match.insertText(replaceWith, Word.InsertLocation.replace);
-        await context.sync();
-        return await this.searchString(replaceWith, context, false);
-    }
-    async insertRTDescription(selection = false, style = `${this.StylePrefix}Normal`) {
-        NOTIFICATION.innerHTML = '';
-        let ctrls;
-        if (selection) {
-            const range = await this.getSelectionRange();
+        async function insertDropDownListAll() {
+            NOTIFICATION.innerHTML = '';
+            const range = await getSelectionRange();
             if (!range)
                 return;
-            ctrls = [await this.insertContentControl(range, this.RTDescriptionTag, this.RTDescriptionTag, 0, this.richText, this.RTDescriptionStyle, true, true)];
-        }
-        else
-            ctrls = await this.findTextAndWrapItWithContentControl([this.RTDescriptionStyle], this.RTDescriptionTag, this.RTDescriptionTag, true, true);
-        if (!ctrls?.length)
-            return;
-        const ids = ctrls.map(c => c?.id || 0);
-        await this.insertFields(ids, style);
-    }
-    async addOrUpdateCustomXml(id, text, root = 'contractFields', prefix = 'contract', nameSpace = 'contract-namespace') {
-        await Word.run(async (context) => {
-            const newNode = `<${prefix}:${id} >${text}</${id}>`;
-            const xmlParts = context.document.customXmlParts;
-            let customPart = xmlParts.getByNamespace(nameSpace).getOnlyItemOrNullObject();
-            customPart.load('isNullObject');
-            await context.sync();
-            if (customPart.isNullObject) {
-                // Create new XML part with root node
-                const newXml = `<${root} xmlns:${prefix}="${nameSpace}">${newNode}</${root}>`;
-                customPart = xmlParts.add(newXml);
-                await context.sync();
-                console.log("Created new custom XML part.");
-            }
-            else {
-                // Append new node to existing part
-                const xmlText = customPart.getXml();
-                await context.sync();
-                const xmlDoc = this.getXmlRootNode(xmlText);
-                const rootNode = xmlDoc.getElementsByName(root)[0];
-                if (!rootNode)
-                    return console.warn("Root node not found.");
-                const newElement = xmlDoc.createElementNS(nameSpace, `${prefix}:${id}`);
-                newElement.textContent = text;
-                rootNode.appendChild(newElement);
-                await this.updateCustomXml(context, xmlParts, xmlDoc, customPart);
-            }
-        });
-    }
-    getXmlRootNode(xmlText) {
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(xmlText.value, "application/xml");
-        return xmlDoc;
-    }
-    async updateCustomXml(context, xmlParts, xmlDoc, oldXmlPart) {
-        const serializer = new XMLSerializer();
-        const updatedXml = serializer.serializeToString(xmlDoc);
-        oldXmlPart.delete(); // Remove old part
-        xmlParts.add(updatedXml); // Add updated part
-        await context.sync();
-        console.log("Appended new node to existing XML part.");
-    }
-    async associateFieldWithMain(mainID, subID, root = 'contractFields', prefix = 'contract', nameSpace = 'contract-namespace') {
-        await Word.run(async (context) => {
-            const ctrls = context.document.getContentControls();
-            const main = ctrls.getById(mainID);
-            const sub = ctrls.getById(subID);
-            //const newNode = `<${prefix}:${ id } >${ text }</${id}>`;
-            const xmlParts = context.document.customXmlParts;
-            let customPart = xmlParts.getByNamespace(nameSpace).getOnlyItemOrNullObject();
-            customPart.load('isNullObject');
-            await context.sync();
-            if (!customPart)
-                return console.log('customXmlPart not found');
-        });
-    }
-    insertRTSiAll() {
-        this.insertForAllParags(this.RTSiStyles, this.RTSiTag);
-    }
-    insertRTSectionAll() {
-        this.insertForAllParags([this.RTSectionStyle], this.RTSectionTag);
-    }
-    async insertForAllParags(Styles, tag) {
-        NOTIFICATION.innerHTML = '';
-        await Word.run(async (context) => {
-            const paragraphs = context.document.body.paragraphs;
-            paragraphs.load(['style', 'text', 'parentContentControlOrNullObject']);
-            await context.sync();
-            const parags = paragraphs.items
-                .filter(p => Styles.includes(p.style));
-            for (const parag of parags) {
-                parag.select();
-                const style = parag.style;
+            range.load(["text"]);
+            const bookmark = 'temporaryBookmark';
+            range.getRange(Word.RangeLocation.start).insertBookmark(bookmark); //!We must select the begining of the range otherwise insertContentControl() will fail. This is due to the shitty Word js api as usual
+            await range.context.sync();
+            const text = range.text;
+            const find = text.split('/').join('');
+            await Word.run(async (context) => {
                 try {
-                    const parent = parag.parentContentControlOrNullObject;
-                    parent.load(['tag']);
+                    const matches = await searchString(find, context, false, text);
+                    for (const match of matches.items)
+                        await insertDropDownList(match, matches.items.indexOf(match) + 1);
+                    context.document.getBookmarkRange(bookmark).select();
+                    context.document.deleteBookmark(bookmark);
                     await context.sync();
-                    if (parent.tag === tag)
-                        continue; //We escape paragraphs already wraped in a contentcontrol with the same tag
-                    console.log(`range style: ${parag.style} & text = ${parag.text}`);
-                    await this.insertContentControl(parag.getRange('Content'), tag, tag, parags.indexOf(parag), this.richText, style);
                 }
                 catch (error) {
-                    console.log(`Error from insertForAllParags() when trying to wrap the paragraph : ${parag.text}. Error :\n${error}`);
-                    continue;
+                    showNotification(`Error from insertDropDownList = ${error}`);
                 }
+            });
+        }
+        async function insertDropDownList(range, index = 0) {
+            if (!range)
+                range = await getSelectionRange();
+            if (!range)
+                return;
+            range.load(["text", 'parentContentControlOrNullObject']);
+            await range.context.sync();
+            const parent = range.parentContentControlOrNullObject;
+            parent.load('tag');
+            await range.context.sync();
+            if (parent.tag === dorpDownTag)
+                return;
+            const options = range.text.split("/");
+            if (!options.length)
+                return showNotification("No options");
+            showNotification(options.join());
+            const ctrl = await insertContentControl(range, dorpDownTag, dorpDownTag, index, dropDownList, null, false, true);
+            if (!ctrl)
+                return;
+            ctrl.dropDownListContentControl.deleteAllListItems();
+            options.forEach(option => ctrl.dropDownListContentControl.addListItem(option));
+            setCtrlsFontColor([ctrl], dropDownColor);
+            setCtrlsColor([ctrl], dropDownColor);
+            await ctrl.context.sync();
+            range.untrack();
+        }
+        /**
+ * Wraps every occurrence of text formatted with a specific character style in a rich text content control.
+ *
+ * @param style The name of the character style to find (e.g., "Emphasis", "Strong", "MyCustomStyle").
+ * @returns A Promise that resolves when the operation is complete.
+ */
+        async function findTextAndWrapItWithContentControl(styles, title, tag, cannotEdit, cannotDelete) {
+            const { search, matchWildcards } = await searchs();
+            if (!styles?.length)
+                return showNotification(`The styles[] has 0 length, no styles are included, the function will return`);
+            if (!search?.length)
+                return showAlert('The provided search string is not valid');
+            return await Word.run(async (context) => {
+                const ctrls = [];
+                for (const find of search) {
+                    const matches = await searchString(find, context, matchWildcards);
+                    if (!matches?.items.length)
+                        continue;
+                    matches.load(['style', 'text', 'parentContentControlOrNullObject']);
+                    await context.sync();
+                    const ranges = matches.items.filter(range => styles.includes(range.style));
+                    showNotification(`Found ${ranges.length} ranges matching the search string. First range text = ${ranges[0].text}`);
+                    ctrls.push(...await insertCtrls(ranges));
+                }
+                ;
+                return ctrls;
+                async function insertCtrls(ranges) {
+                    const ctrls = [];
+                    for (const range of ranges) {
+                        const parent = range.parentContentControlOrNullObject;
+                        parent.load('tag');
+                        await context.sync();
+                        if (parent.tag === tag)
+                            continue;
+                        try {
+                            const ctrl = await insertContentControl(range, title, tag, ranges.indexOf(range), richText, range.style, cannotEdit, cannotDelete);
+                            if (ctrl)
+                                ctrls.push(ctrl);
+                        }
+                        catch (error) {
+                            showNotification(`Error from insertCtrls() while inserting the contentControl() in the matching range. Error = ${error}`);
+                        }
+                    }
+                    return ctrls;
+                }
+            });
+            async function searchs() {
+                const separator = '_&_';
+                const search = (await promptForInput(`Provide the search string. You can provide more than one string to search by separated by ${separator} witohout space`, separator))?.split(separator);
+                const matchWildcards = await promptConfirm('Match Wild Cards');
+                if (!styles)
+                    styles = (await promptForInput(`Provide the styles that that need to be matched separated by ","`))?.split(',') || [];
+                return { search, matchWildcards };
             }
-            await context.sync();
-        });
-    }
-    async insertDropDownListAll() {
-        NOTIFICATION.innerHTML = '';
-        const range = await this.getSelectionRange();
-        if (!range)
-            return;
-        range.load(["text"]);
-        const bookmark = 'temporaryBookmark';
-        range.getRange(Word.RangeLocation.start).insertBookmark(bookmark); //!We must select the begining of the range otherwise insertContentControl() will fail. This is due to the shitty Word js api as usual
-        await range.context.sync();
-        const text = range.text;
-        const find = text.split('/').join('');
-        await Word.run(async (context) => {
-            try {
-                const matches = await this.searchString(find, context, false, text);
-                for (const match of matches.items)
-                    await this.insertDropDownList(match, matches.items.indexOf(match) + 1);
-                context.document.getBookmarkRange(bookmark).select();
-                context.document.deleteBookmark(bookmark);
+        }
+        async function associateFieldWithMain(mainID, subID, root = 'contractFields', prefix = 'contract', nameSpace = 'contract-namespace') {
+            await Word.run(async (context) => {
+                const ctrls = context.document.getContentControls();
+                const main = ctrls.getById(mainID);
+                const sub = ctrls.getById(subID);
+                //const newNode = `<${prefix}:${ id } >${ text }</${id}>`;
+                const xmlParts = context.document.customXmlParts;
+                let customPart = xmlParts.getByNamespace(nameSpace).getOnlyItemOrNullObject();
+                customPart.load('isNullObject');
                 await context.sync();
-            }
-            catch (error) {
-                showNotification(`Error from insertDropDownList = ${error}`);
-            }
-        });
-    }
-    async insertDropDownList(range, index = 0) {
-        if (!range)
-            range = await this.getSelectionRange();
-        if (!range)
-            return;
-        range.load(["text", 'parentContentControlOrNullObject']);
-        await range.context.sync();
-        const parent = range.parentContentControlOrNullObject;
-        parent.load('tag');
-        await range.context.sync();
-        if (parent.tag === this.RTDropDownTag)
-            return;
-        const options = range.text.split("/");
-        if (!options.length)
-            return showNotification("No options");
-        showNotification(options.join());
-        const ctrl = await this.insertContentControl(range, this.RTDropDownTag, this.RTDropDownTag, index, this.dropDownList, null, false, true);
-        if (!ctrl)
-            return;
-        ctrl.dropDownListContentControl.deleteAllListItems();
-        options.forEach(option => ctrl.dropDownListContentControl.addListItem(option));
-        this.setCtrlsFontColor([ctrl], this.RTDropDownColor);
-        this.setCtrlsColor([ctrl], this.RTDropDownColor);
-        await ctrl.context.sync();
-        range.untrack();
-    }
-    async promptConfirm(question, fun) {
-        if (!question)
-            question = 'No question was provided !!!';
-        const container = createHTMLElement('div', 'promptContainer', '', USERFORM);
-        const prompt = createHTMLElement('div', 'prompt', '', container);
-        createHTMLElement('p', 'ask', question, prompt);
-        const btns = createHTMLElement('div', 'btns', '', prompt);
-        const btnOK = createHTMLElement('button', 'btnOK', 'OK', btns);
-        const btnNo = createHTMLElement('button', 'btnCancel', 'NO', btns);
-        return new Promise((resolve, reject) => {
-            btnOK.onclick = () => resolve(confirm(true));
-            btnNo.onclick = () => resolve(confirm(false));
-        });
-        function confirm(confirm) {
-            container.remove();
-            if (fun)
-                fun(confirm);
-            return confirm;
+                if (!customPart)
+                    return console.log('customXmlPart not found');
+            });
         }
     }
+    ;
     async customizeContract(showNested = false) {
         USERFORM.innerHTML = '';
-        const deleteCtrl = '>>>>DeleteCtrl>>>>';
+        const deleteCtrl = this.RTDeleteTag;
         const processed = [];
         const add = (id) => !processed.includes(id) ? processed.push(id) : processed;
         const RTDuplicateTag = this.RTCloneTag, RTSiTag = this.RTSiTag, RTSectionTag = this.RTSectionTag;
@@ -994,6 +966,71 @@ export class EditContract extends WordContentCtrls {
         }
     }
     ;
+    async finalizeContract() {
+        const toDelte = this.RTDeleteTag;
+        const remove = [this.RTSiTag, this.RTDescriptionTag, this.RTObsTag, this.RTSectionTag, toDelte]; //The contentcontrol and its content will be deleted.
+        const content = [this.RTSelectTag, this.RTCloneTag]; //We will delete the contentControl but keep its content
+        const styles = [...this.RTSiStyles, this.RTSectionStyle, this.RTObsStyle, this.RTDescriptionStyle];
+        await Word.run(async (context) => {
+            const allCtrls = context.document.getContentControls();
+            allCtrls.load(['tag', 'title']);
+            await context.sync();
+            for (const ctrl of allCtrls.items) {
+                ctrl.cannotDelete = false; //!We must remove the cannotDelete from all ctrls because this will prevent deleting the line on which there is a hidden contentcontrol
+                if (!ctrl?.tag)
+                    continue;
+                if (remove.includes(ctrl.tag) || ctrl.title === toDelte)
+                    ctrl.delete(false);
+                else if (content.includes(ctrl.tag))
+                    ctrl.delete(true);
+                else
+                    ctrl.appearance = Word.ContentControlAppearance.hidden;
+            }
+            await context.sync();
+            const body = context.document.body.getRange();
+            body.load('paragraphs');
+            await context.sync();
+            const parags = body.paragraphs;
+            parags.load('style');
+            await context.sync();
+            parags.items
+                .filter(p => styles.includes(p.style))
+                .forEach(p => p.style = `${this.StylePrefix}Normal`);
+            await context.sync();
+        });
+    }
+    async searchString(search, context, matchWildcards, replaceWith) {
+        const searchResults = context.document.body.search(search, { matchWildcards: matchWildcards });
+        searchResults.load(['style', 'text']);
+        searchResults.track();
+        await context.sync();
+        if (!replaceWith)
+            return searchResults;
+        for (const match of searchResults.items)
+            match.insertText(replaceWith, Word.InsertLocation.replace);
+        await context.sync();
+        return await this.searchString(replaceWith, context, false);
+    }
+    async promptConfirm(question, fun) {
+        if (!question)
+            question = 'No question was provided !!!';
+        const container = createHTMLElement('div', 'promptContainer', '', USERFORM);
+        const prompt = createHTMLElement('div', 'prompt', '', container);
+        createHTMLElement('p', 'ask', question, prompt);
+        const btns = createHTMLElement('div', 'btns', '', prompt);
+        const btnOK = createHTMLElement('button', 'btnOK', 'OK', btns);
+        const btnNo = createHTMLElement('button', 'btnCancel', 'NO', btns);
+        return new Promise((resolve, reject) => {
+            btnOK.onclick = () => resolve(confirm(true));
+            btnNo.onclick = () => resolve(confirm(false));
+        });
+        function confirm(confirm) {
+            container.remove();
+            if (fun)
+                fun(confirm);
+            return confirm;
+        }
+    }
     async promptForInput(question, deflt, fun, cancel = true) {
         if (!question)
             return '';
@@ -1086,47 +1123,6 @@ export class EditContract extends WordContentCtrls {
     }
     setRangeStyle(objs, style) {
         objs.forEach(o => o.getRange().style = style);
-    }
-    async finalizeContract() {
-        const remove = [this.RTSiTag, this.RTDescriptionTag, this.RTObsTag, this.RTSectionTag]; //The contentcontrol and its content will be deleted.
-        const content = [this.RTSelectTag, this.RTCloneTag]; //We will delete the contentControl but keep its content
-        const styles = [...this.RTSiStyles, this.RTSectionStyle, this.RTObsStyle, this.RTDescriptionStyle];
-        await Word.run(async (context) => {
-            const allCtrls = context.document.getContentControls();
-            allCtrls.load(['tag', 'title']);
-            await context.sync();
-            const ids = allCtrls.items.map(c => c.id);
-            for (const id of ids) {
-                const ctrls = context.document.getContentControls();
-                ctrls.load('id');
-                await context.sync();
-                const ctrl = ctrls.items.find(c => c.id === id);
-                if (!ctrl)
-                    return;
-                ctrl.load(['tag', 'title']);
-                await context.sync();
-                ctrl.cannotDelete = false; //!We must remove the cannotDelete from all ctrls because this will prevent deleting the line on which there is a hidden contentcontrol
-                if (!ctrl?.tag)
-                    return;
-                if (remove.includes(ctrl.tag))
-                    ctrl.delete(false);
-                else if (content.includes(ctrl.tag))
-                    ctrl.delete(true);
-                else
-                    ctrl.appearance = Word.ContentControlAppearance.hidden;
-            }
-            await context.sync();
-            const body = context.document.body.getRange();
-            body.load('paragraphs');
-            await context.sync();
-            const parags = body.paragraphs;
-            parags.load('style');
-            await context.sync();
-            parags.items
-                .filter(p => styles.includes(p.style))
-                .forEach(p => p.style = `${this.StylePrefix}Normal`);
-            await context.sync();
-        });
     }
     async lockUnlockAll(unlock = false, tags = []) {
         await Word.run(async (context) => {
