@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v12.6";
+const version = "v12.7";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'] as Btn;
@@ -517,12 +517,13 @@ export class EditContract extends WordContentCtrls {
             const si = ctrl.paragraphs.items.find(p => siStyle.includes(p.style));
             if (!si) return showAlert('No paragraph styled with on of the "RTSi" styles was found in the selected range');
             const siRange = si.getRange();
-            si.track();//!We must track it otrherwise it will be garbage collected after range.context.sync() is called, and will not be passed to insertContentControl()
+            siRange.track();//!We must track it otrherwise it will be garbage collected after range.context.sync() is called, and will not be passed to insertContentControl()
+            si.track();//!We must track it before calling range.context.sync()
             await range.context.sync();
 
             //Wraping the paragraph with ContentControl "RTSi"
             await insertContentControl(siRange, siTag, siTag, undefined, richText, si.style, true, true);
-            [range, ctrl, si].forEach(obj => obj.untrack());
+            [range, ctrl, si, siRange].forEach(obj => obj.untrack());
             await range.context.sync();
         }
 
