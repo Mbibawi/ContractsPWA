@@ -382,7 +382,7 @@ export class EditContract extends WordContentCtrls {
         const btns = [
             wrap(this.RTSiTag, this.RTSiTag, this.richText, this.RTSiStyles[0], true, true, 'Insert Single RT Si', single(this.RTSiTag)),
             wrap(this.RTSelectTag, this.RTSelectTag, this.richText, null, false, true, 'Insert Single RT Select', single(this.RTSelectTag, 'Any such contentControl is a container. Each contentcontrol having the same tag within its range, will be considered as an option to select or to exclude')),
-            [inserRTtBlock_Select_Si, 'Insert RT Select & Si Block', 'Finds the first paragraph formatted with any of the RTSiStyles. Wraps this paragraph in a RTSi ContentControl, Then wraps the whol selected range in a RTSelect ContentControl.'],
+            [insertRTBlock_Select_Si, 'Insert RT Select & Si Block', 'Finds the first paragraph formatted with any of the RTSiStyles. Wraps this paragraph in a RTSi ContentControl, Then wraps the whol selected range in a RTSelect ContentControl.'],
             [insertDropDownList, 'Insert a Dropdown List from selection', 'Creates a dropwdown list from the selected string. The options to choose from must be separated by "/"'],
             [() => insertRTDescription(true), 'Insert Single RT Description', single(this.RTDescriptionTag)],
             [this.insertSingleFiled, 'Insert ContentControl Field', single(this.RTFieldTag)],
@@ -501,7 +501,7 @@ export class EditContract extends WordContentCtrls {
             console.log("Appended new node to existing XML part.");
         }
 
-        async function inserRTtBlock_Select_Si() {
+        async function insertRTBlock_Select_Si() {
             const range = await getSelectionRange();
             if (!range) return;
 
@@ -509,7 +509,6 @@ export class EditContract extends WordContentCtrls {
             //Wraping the range with ContentControl "RTSelect"
             const ctrl = await insertContentControl(range, selectTag, selectTag, undefined, richText, null, false, false, undefined, ['paragraphs', 'paragraphs/style']);
             if (!ctrl) return showAlert('Failed to insert the RTSelect ContentControl');
-
 
 
             try {
