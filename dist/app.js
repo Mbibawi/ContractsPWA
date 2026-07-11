@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v12.7";
+const version = "v11.12.8";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'];
 Office.onReady((info) => {
@@ -168,9 +168,6 @@ class WordContentCtrls {
      */
     async insertContentControl(range, title, tag, index = 1, type, style, cannotEdit = true, cannotDelete = true, placeHolder, props = []) {
         range.select();
-        //const styles = range.context.document.getStyles();
-        //styles.load(['nameLocal', 'type']);
-        // Insert a rich text content control around the found range.
         const ctrl = range.insertContentControl(type);
         ctrl.load(['id']);
         ctrl.track();
@@ -195,7 +192,7 @@ class WordContentCtrls {
                 ctrl.track();
             }
             ;
-            await ctrl.context.sync();
+            await range.context.sync();
             showNotification(`Wrapped text in range ${index} with a content control.`);
             return ctrl;
         }
@@ -480,13 +477,12 @@ export class EditContract extends WordContentCtrls {
             const si = ctrl.paragraphs.items.find(p => siStyle.includes(p.style));
             if (!si)
                 return showAlert('No paragraph styled with on of the "RTSi" styles was found in the selected range');
-            const siRange = si.getRange();
-            siRange.track(); //!We must track it otrherwise it will be garbage collected after range.context.sync() is called, and will not be passed to insertContentControl()
-            si.track(); //!We must track it before calling range.context.sync()
+            const style = si.style;
+            si.track(); //!We must track it otrherwise it will be garbage collected after range.context.sync() is called, and will not be passed to insertContentControl()
             await range.context.sync();
             //Wraping the paragraph with ContentControl "RTSi"
-            await insertContentControl(siRange, siTag, siTag, undefined, richText, si.style, true, true);
-            [range, ctrl, si, siRange].forEach(obj => obj.untrack());
+            await insertContentControl(si, siTag, siTag, undefined, richText, style, true, true);
+            [range, ctrl, si].forEach(obj => obj.untrack());
             await range.context.sync();
         }
         function insertRTSiAll() {
