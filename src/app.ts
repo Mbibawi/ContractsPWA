@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v12.3";
+const version = "v12.4";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'] as Btn;
@@ -199,7 +199,7 @@ class WordContentCtrls {
             range.load(['style', 'isEmpty']);
             range.track();
             await context.sync();
-            if (range.isEmpty) return showAlert('The selection range is empty, you must select a text to continue');
+            //if (range.isEmpty) return showAlert('The selection range is empty, you must select a text to continue');
             if (fun) await fun(range);
             return range
         });
@@ -342,19 +342,19 @@ export class EditContract extends WordContentCtrls {
 
         const btns = [
             wrap(this.RTSiTag, this.RTSiTag, this.richText, this.RTSiStyles[0], true, true, 'Insert Single RT Si', single(this.RTSiTag)),
-            [() => this.insertRTDescription(true), 'Insert Single RT Description', single(this.RTDescriptionTag)],
             wrap(this.RTSelectTag, this.RTSelectTag, this.richText, null, false, true, 'Insert Single RT Select', single(this.RTSelectTag, 'Any such contentControl is a container. Each contentcontrol having the same tag within its range, will be considered as an option to select or to exclude')),
+            [this.insertDropDownList, 'Insert a Dropdown List from selection', 'Creates a dropwdown list from the selected string. The options to choose from must be separated by "/"'],
+            [() => this.insertRTDescription(true), 'Insert Single RT Description', single(this.RTDescriptionTag)],
+            [this.insertSingleFiled, 'Insert ContentControl Field', single(this.RTFieldTag)],
+            [this._fields.insertNewFILLINField, 'Insert FILLIN Field', single(this.RTFieldTag)],
             wrap(this.RTSectionTag, this.RTSectionTag, this.richText, this.RTSectionTag, true, true, 'Insert Single RT Section', single(this.RTSectionTag)),
             //wrap(this.RTOrTag, this.RTOrTag, this.richText, null, false, true, 'Insert Single RT OR', single(this.RTOrTag, 'need to check what it does')),
             wrap(this.RTCloneTag, this.RTCloneTag, this.richText, null, false, true, 'Insert Single RT Dublicate Block', single(this.RTCloneTag, 'need to check what it does')),
-            [this.insertDropDownList, 'Insert a Dropdown List from selection', 'Creates a dropwdown list from the selected string. The options to choose from must be separated by "/"'],
             wrap(this.RTObsTag, this.RTObsTag, this.richText, this.RTObsTag, true, true, 'Insert Single RT Obs', single(this.RTObsTag)),
             [this.insertDropDownListAll, 'Insert DropDown List For All Matches', 'It will check the document for all the strings matching the "/" separated values of the selected range and will convert them into drowpdown lists. The matching strings do not need to include the "/" mark'],
             [this.insertRTSiAll, 'Insert RT Si For All', all(this.RTSiStyles.join(' or '), this.RTSiTag)],
             [this.insertRTSectionAll, 'Insert RT Section For All', all(this.RTSectionStyle, this.RTSectionTag)],
             [this.insertRTDescription, 'Insert RT Description For All', all(this.RTDescriptionStyle, this.RTDescriptionTag)],
-            [this.insertSingleFiled, 'Insert ContentControl Field', single(this.RTFieldTag)],
-            [this._fields.insertNewFILLINField, 'Insert FILLIN Field', single(this.RTFieldTag)],
             [() => this.customizeContract(true), 'Show Nested Options Tree', 'Lists all the selection options in the document'],
             [this.updateAllContentControlIDs, 'Update ContentControl Titles', 'Updates the titles of all the ContentControls in the document'],
         ] as Btn[];
