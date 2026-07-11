@@ -167,15 +167,13 @@ class WordContentCtrls {
      * @returns The newly created Word.ContentControl object
      */
     async insertContentControl(range, title, tag, index = 1, type, style, cannotEdit = true, cannotDelete = true, placeHolder, props = []) {
-        range.select();
-        const ctrl = range.insertContentControl(type);
-        ctrl.load(['id']);
-        ctrl.track();
-        await range.context.sync();
-        // Set properties for the new content control.
-        if (ctrl.id)
-            console.log(`the newly created ContentControl id = ${ctrl.id} `);
         try {
+            range.select();
+            const ctrl = range.insertContentControl(type);
+            ctrl.load(['id', ...props.filter(prop => prop !== 'id')]);
+            await range.context.sync();
+            console.log(`the newly created ContentControl id = ${ctrl.id} `);
+            // Set properties for the new content control.
             ctrl.select();
             ctrl.title = this.getCtrlTitle(title, ctrl.id);
             ctrl.tag = tag;
@@ -188,7 +186,6 @@ class WordContentCtrls {
             ctrl.cannotEdit = cannotEdit; //!This must come at the end after the style has been set.
             if (props.length) {
                 //If the props agrument is passed, we assume the user intends to use the ContenControl object when returned by the function. Therefor we track it otherwise it will be garbage collected and it will not be able to work with it when returned
-                ctrl.load(props);
                 ctrl.track();
             }
             ;
@@ -197,7 +194,7 @@ class WordContentCtrls {
             return ctrl;
         }
         catch (error) {
-            showNotification(`There was an error while setting the properties of the newly crated contentcontrol by insertContentControl(): ${error}.`);
+            showNotification(`There was an error while setting the properties of the newly crated contentcontrol by insertContentControl(): ${error.debugInfo || error}.`);
             return undefined;
         }
     }
@@ -468,16 +465,15 @@ export class EditContract extends WordContentCtrls {
             const range = await getSelectionRange();
             if (!range)
                 return;
-            //Wraping the range with ContentControl "RTSelect"
-            const ctrl = await insertContentControl(range, selectTag, selectTag, undefined, richText, null, false, false, undefined, ['id', 'paragraphs', 'paragraphs/style']);
-            if (!ctrl)
-                return showAlert('Failed to insert the RTSelect ContentControl');
             try {
-                await Word.run(ctrl, async (context) => {
-                    //const _ctrl = range.context.document.contentControls.getById(ctrl.id);
-                    //_ctrl.load(['paragraphs', 'paragraphs/style']);
+                await Word.run(range, async (context) => {
+                    //Wraping the range with ContentControl "RTSelect"
+                    const _ctrl = await insertContentControl(range, selectTag, selectTag, undefined, richText, null, false, false, undefined, ['id']);
+                    if (!_ctrl)
+                        return showAlert('Failed to insert the RTSelect ContentControl');
+                    const ctrl = context.document.contentControls.getById(_ctrl.id);
+                    ctrl.load(['paragraphs', 'paragraphs/style']);
                     await context.sync();
-                    //const si = _ctrl.paragraphs.items.find(p => siStyle.includes(p.style));
                     const si = ctrl.paragraphs.items.find(p => siStyle.includes(p.style));
                     if (!si)
                         return showAlert('No paragraph styled with on of the "RTSi" styles was found in the selected range');
