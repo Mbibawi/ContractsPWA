@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.14";
+const version = "v11.14.1";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'];
 Office.onReady((info) => {
@@ -650,9 +650,9 @@ export class EditContract extends WordContentCtrls {
         await loopSelectCtrls();
         async function loopSelectCtrls() {
             await Word.run(async (context) => {
-                if (showNested)
-                    return await showNestedOptionsTree(context);
                 selectCtrls.push(...await fetchSelectCtrls(context));
+                if (showNested)
+                    return await showNestedOptionsTree(context); //!This must come after selectCtrls is populated
                 try {
                     for (const ctrl of selectCtrls)
                         await promptForSelection([ctrl], context);
