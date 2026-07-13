@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.14.5";
+const version = "v11.14.6";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'] as Btn;
@@ -866,24 +866,26 @@ export class EditContract extends WordContentCtrls {
 
         async function deleteUnselected(context: Word.RequestContext) {
             try {
-                await currentDoc();
+                await process();
                 //await createNewDoc();
             } catch (error) {
                 showNotification(`${error}`)
             }
 
-            async function currentDoc() {
-                const _delete = selectCtrls.filter(c => c.delete);
+            async function process() {
                 const ctrls = context.document.contentControls;
                 ctrls.load('id');
                 await context.sync();
+                ctrls.items.forEach(ctrl => ctrl.cannotDelete = false);
+                await context.sync();
+                const _delete = selectCtrls.filter(c => c.delete);
                 const toDelete = ctrls.items.filter(ctrl => _delete.find(c => c.id === ctrl.id));
 
-                console.log(`toDelete = ${toDelete.map(ctrl => ctrl.id).join(',\n')}`);
+                console.log(`toDelete ids = ${toDelete.map(ctrl => ctrl.id)}`);
+
                 for (const ctrl of toDelete) {
                     try {
                         //if (ctrl.tag === RTDuplicateTag) continue;
-                        unprotect(ctrl);
                         ctrl.delete(false);
                         await context.sync();
                     } catch (error) {
@@ -892,10 +894,6 @@ export class EditContract extends WordContentCtrls {
                 }
             };
 
-            function unprotect(ctrl: Word.ContentControl) {
-                ctrl.cannotDelete = false;
-                ctrl.cannotEdit = false;
-            }
 
         }
 
