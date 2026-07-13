@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.14.6";
+const version = "v11.14.7";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'];
 Office.onReady((info) => {
@@ -643,7 +643,7 @@ export class EditContract extends WordContentCtrls {
     ;
     async customizeContract(showNested = false) {
         const RTDuplicateTag = this.RTCloneTag, RTSiTag = this.RTSiTag, RTSectionTag = this.RTSectionTag, RTSelect = this.RTSelectTag;
-        const promptForInput = this.promptForInput.bind(this), getCtrlTitle = this.getCtrlTitle.bind(this), prepareTemplate = this.prepareTemplate.bind(this);
+        const promptForInput = this.promptForInput.bind(this), getCtrlTitle = this.getCtrlTitle.bind(this), prepareTemplate = this.prepareTemplate.bind(this), promptConfirm = this.promptConfirm;
         const selectCtrls = [];
         await loopSelectCtrls();
         async function loopSelectCtrls() {
@@ -951,6 +951,8 @@ export class EditContract extends WordContentCtrls {
             selectCtrls.push(...await fetchSelectCtrls(context, ctrls));
             for (const ctrl of selectCtrls)
                 await promptForSelection([ctrl], context);
+            if (await promptConfirm('Do you want to delete the unselected contentcontrols?'))
+                await deleteUnselected(context);
             prepareTemplate();
         }
     }
@@ -1024,7 +1026,6 @@ export class EditContract extends WordContentCtrls {
             return '';
         const { modal, window } = getModalContainer(USERFORM);
         const prompt = element('div', 'prompt', '', window);
-        const ask = element('p', 'ask', question, prompt);
         const input = element('input', 'answer', '', prompt);
         const btns = element('div', 'btns', '', prompt);
         const btnOK = element('button', 'btnOK', 'OK', btns);

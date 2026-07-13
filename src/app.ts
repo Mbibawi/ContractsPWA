@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.14.6";
+const version = "v11.14.7";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'] as Btn;
@@ -689,7 +689,8 @@ export class EditContract extends WordContentCtrls {
 
         const promptForInput = this.promptForInput.bind(this),
             getCtrlTitle = this.getCtrlTitle.bind(this),
-            prepareTemplate = this.prepareTemplate.bind(this);
+            prepareTemplate = this.prepareTemplate.bind(this),
+            promptConfirm = this.promptConfirm;
 
         const selectCtrls: selectCtrl[] = [];
 
@@ -1022,6 +1023,9 @@ export class EditContract extends WordContentCtrls {
             selectCtrls.push(...await fetchSelectCtrls(context, ctrls));
             for (const ctrl of selectCtrls)
                 await promptForSelection([ctrl], context);
+            
+            if (await promptConfirm('Do you want to delete the unselected contentcontrols?'))
+                await deleteUnselected(context);
             prepareTemplate();
         }
     }
@@ -1103,7 +1107,6 @@ export class EditContract extends WordContentCtrls {
         if (!question) return '';
         const { modal, window } = getModalContainer(USERFORM);
         const prompt = element('div', 'prompt', '', window);
-        const ask = element('p', 'ask', question, prompt);
         const input = element('input', 'answer', '', prompt) as HTMLInputElement;
         const btns = element('div', 'btns', '', prompt);
         const btnOK = element('button', 'btnOK', 'OK', btns);
