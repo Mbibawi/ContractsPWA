@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.14.2";
+const version = "v11.14.3";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'];
 Office.onReady((info) => {
@@ -676,9 +676,8 @@ export class EditContract extends WordContentCtrls {
             if (!label)
                 return showAlert('The lable was not found, it was probably deleted at some point');
             const range = label.getRange('Content');
-            range.load('text');
-            label.cannotEdit = false; //!WARNING: we must remove the cannotEdit protection before unhindng the text
-            label.font.hidden = false;
+            range.font.hidden = false; //!WARNING, this must come before range;load('text')
+            range.load(['text']);
             range.track();
             await context.sync();
             return range;
