@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.14.4";
+const version = "v11.14.5";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'];
 Office.onReady((info) => {
@@ -648,9 +648,9 @@ export class EditContract extends WordContentCtrls {
         await loopSelectCtrls();
         async function loopSelectCtrls() {
             await Word.run(async (context) => {
-                selectCtrls.push(...await fetchSelectCtrls(context));
                 if (showNested)
-                    return await showNestedOptionsTree(context); //!This must come after selectCtrls is populated
+                    return await showNestedOptionsTree(context); //!This must come before selectCtrls is populated. Will populate it from the selection
+                selectCtrls.push(...await fetchSelectCtrls(context));
                 try {
                     for (const ctrl of selectCtrls)
                         await promptForSelection([ctrl], context);
@@ -676,7 +676,7 @@ export class EditContract extends WordContentCtrls {
             if (!label)
                 return showAlert('The lable was not found, it was probably deleted at some point');
             label.cannotEdit = false; //!WARNING, we must unlock the cannotEdit before unhidding the font
-            label.font.hidden = false; //!WARNING, this must come before range;load('text')
+            label.font.hidden = false; //!WARNING, this must come before range.load('text')
             label.load(['text']);
             label.font.hidden = true;
             label.cannotEdit = true;
@@ -686,6 +686,8 @@ export class EditContract extends WordContentCtrls {
         }
         ;
         async function promptForSelection(ctrls, context) {
+            if (!ctrls?.length)
+                return;
             try {
                 await processCtrls();
             }
@@ -948,8 +950,10 @@ export class EditContract extends WordContentCtrls {
         async function showNestedOptionsTree(context) {
             const ctrls = context.document.getSelection().contentControls;
             await context.sync();
-            const selectCtrls = await fetchSelectCtrls(context, ctrls);
-            await promptForSelection(selectCtrls, context);
+            selectCtrls.length = 0;
+            selectCtrls.push(...await fetchSelectCtrls(context, ctrls));
+            for (const ctrl of selectCtrls)
+                await promptForSelection([ctrl], context);
             prepareTemplate();
         }
     }
