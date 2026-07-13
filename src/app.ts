@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.14.7";
+const version = "v11.14.8";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'] as Btn;
@@ -730,13 +730,12 @@ export class EditContract extends WordContentCtrls {
             label.load(['text']);
             label.font.hidden = true;
             label.cannotEdit = true;
-            label.track();
             await context.sync();
             return label
         };
 
 
-        async function promptForSelection(ctrls: selectCtrl[], context: Word.RequestContext) {
+        async function promptForSelection(ctrls: selectCtrl[], context: Word.RequestContext, clear: boolean = true) {
             if (!ctrls?.length) return;
             try {
                 await processCtrls()
@@ -746,7 +745,7 @@ export class EditContract extends WordContentCtrls {
 
 
             async function processCtrls() {
-                USERFORM.innerHTML = '';//We clear the form before populating it
+                if (clear) USERFORM.innerHTML = '';//We clear the form before populating it
                 const blocks: selectBlock[] = [];
 
                 for (const ctrl of ctrls) {
@@ -792,7 +791,6 @@ export class EditContract extends WordContentCtrls {
 
                 const label = await labelRange(ctrl.hasLabel.id, context);
                 if (!label?.text) return showAlert("InsertClones() failed: The ContentControl to be replicated/cloned, must have a direct ContentControl child having as tag 'RTSection'. No such tag was found");
-                const text = label.text;
 
                 const original = context.document.contentControls.getById(ctrl.id);
                 await context.sync();
@@ -808,20 +806,18 @@ export class EditContract extends WordContentCtrls {
 
                 original.title = `${getCtrlTitle(ctrl.tag, ctrl.id)}-Cloned ${answer} times`;//We give it a unique title by which we will retrieve the colnes that we will create.
 
-                const ctrlContent = original.getOoxml();
+                const Ooxml = original.getOoxml();
                 const range = original.getRange();
-                label.font.hidden = true;
-                context.trackedObjects.remove(label);
                 await context.sync();
                 for (let i = 1; i < answer; i++)
-                    range.insertOoxml(ctrlContent.value, after);
+                    range.insertOoxml(Ooxml.value, after);
 
-                const clones = original.context.document.getContentControls().getByTitle(original.title);
+                const clones = context.document.contentControls.getByTitle(original.title);
                 await context.sync();
-                const select = await fetchSelectCtrls(context, clones);
+                const clonesProps = (await fetchSelectCtrls(context, clones)).entries();
                 try {
-                    for (const clone of select)
-                        await processClone(clone, text, select.indexOf(clone) + 1);
+                    for (const [index, clone] of clonesProps)
+                        await processClone(clone, label.text, index + 1);
                 } catch (error) {
                     showNotification(`Error from processClone() = ${error}`)
                 }
@@ -836,13 +832,10 @@ export class EditContract extends WordContentCtrls {
                 label.insertText(text, replace);
                 const ctrl = context.document.contentControls.getById(clone.id);
                 ctrl.title = `${getCtrlTitle(clone.tag, clone.id)}-${i}`;
-                label.font.hidden = true;
-                context.trackedObjects.remove(label);
                 await context.sync();
                 const div = element('div', '', text, USERFORM, '', false);
                 await promptForSelection(subOptions(clone), context);//!We select only the direct select ctrls children
                 div.remove();
-
             };
 
         }
@@ -875,7 +868,7 @@ export class EditContract extends WordContentCtrls {
 
             async function process() {
                 const ctrls = context.document.contentControls;
-                ctrls.load('id');
+                ctrls.load(['id', 'cannotDelete']);
                 await context.sync();
                 ctrls.items.forEach(ctrl => ctrl.cannotDelete = false);
                 await context.sync();
@@ -1023,7 +1016,7 @@ export class EditContract extends WordContentCtrls {
             selectCtrls.push(...await fetchSelectCtrls(context, ctrls));
             for (const ctrl of selectCtrls)
                 await promptForSelection([ctrl], context);
-            
+
             if (await promptConfirm('Do you want to delete the unselected contentcontrols?'))
                 await deleteUnselected(context);
             prepareTemplate();
