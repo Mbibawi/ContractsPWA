@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.14.1";
+const version = "v11.14.2";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'];
 Office.onReady((info) => {
@@ -642,9 +642,7 @@ export class EditContract extends WordContentCtrls {
     }
     ;
     async customizeContract(showNested = false) {
-        const RTDuplicateTag = this.RTCloneTag, RTSiTag = this.RTSiTag, RTSectionTag = this.RTSectionTag;
-        const TAGS = [this.RTSelectTag, 'RTShow', 'RTEdit'];
-        const props = ['id', 'title', 'tag', 'parentContentControlOrNullObject/id', 'contentControls/id', 'contentControls/tag', 'contentControls/parentContentControlOrNullObject/id'];
+        const RTDuplicateTag = this.RTCloneTag, RTSiTag = this.RTSiTag, RTSectionTag = this.RTSectionTag, RTSelect = this.RTSelectTag;
         const promptForInput = this.promptForInput.bind(this), getCtrlTitle = this.getCtrlTitle.bind(this), prepareTemplate = this.prepareTemplate.bind(this);
         const selectCtrls = [];
         await loopSelectCtrls();
@@ -672,21 +670,20 @@ export class EditContract extends WordContentCtrls {
                 ;
             });
         }
-        async function hasLabel(c, tag, context) {
-            const lbl = c.children.find(child => child.tag === tag);
-            if (!lbl)
-                return undefined;
-            const label = context.document.contentControls.getById(lbl.id);
-            label.load(['text']);
-            label.font.hidden = false;
-            context.trackedObjects.add(label);
+        async function labelRange(id, context) {
+            const label = context.document.contentControls.getById(id);
             await context.sync();
-            return label;
+            if (!label)
+                return showAlert('The lable was not found, it was probably deleted at some point');
+            const range = label.getRange('Content');
+            range.load('text');
+            label.cannotEdit = false; //!WARNING: we must remove the cannotEdit protection before unhindng the text
+            label.font.hidden = false;
+            range.track();
+            await context.sync();
+            return range;
         }
         ;
-        function getSelectCtrls(ctrls) {
-            return ctrls.filter(ctrl => TAGS.includes(ctrl.tag));
-        }
         async function promptForSelection(ctrls, context) {
             try {
                 await processCtrls();
@@ -707,13 +704,13 @@ export class EditContract extends WordContentCtrls {
                         continue;
                     }
                     ;
-                    const label = await hasLabel(ctrl, RTSiTag, context);
-                    if (!label) {
+                    if (ctrl?.hasLabel?.tag !== RTSiTag) {
                         await promptForSelection(subOptions(ctrl), context); //When a 'RTSelect' ContentControl  does not have a lable (which is a 'RTSi' ContentControl) it means that this ContentControl is a mere wraper for sub 'RTSelect' ContentControls, each representing an option from which the user must choose. Hence, we do not need to prompt the user to decide whether to keep or delete this select section 
                         continue;
                     }
-                    label.font.hidden = true;
-                    context.trackedObjects.remove(label);
+                    const label = await labelRange(ctrl.hasLabel.id, context);
+                    if (!label)
+                        return;
                     const isLast = ctrls.indexOf(ctrl) === ctrls.length - 1; //We check if this is the last contentcontrol in the array
                     const block = promptSelectBlock(ctrl, isLast, label.text || 'Label text could not be retrived');
                     if (!block)
@@ -738,7 +735,9 @@ export class EditContract extends WordContentCtrls {
                 showNotification(`${error}`);
             }
             async function insertClones(ctrl) {
-                const label = await hasLabel(ctrl, RTSectionTag, context); //'RTSelect' ContentControls who are meant to be cloned, must have a direct ContentControl child having as tag 'RTSection' which contains the title of the block to be replicated/cloned (e.g. "Seller")
+                if (ctrl?.hasLabel?.tag !== RTSectionTag)
+                    return showAlert('The Clone does not have any RTSection label !'); //'RTSelect' ContentControls who are meant to be cloned, must have a direct ContentControl child having as tag 'RTSection' which contains the title of the block to be replicated/cloned (e.g. "Seller")
+                const label = await labelRange(ctrl.hasLabel.id, context);
                 if (!label?.text)
                     return showAlert("InsertClones() failed: The ContentControl to be replicated/cloned, must have a direct ContentControl child having as tag 'RTSection'. No such tag was found");
                 const text = label.text;
@@ -775,9 +774,11 @@ export class EditContract extends WordContentCtrls {
                 }
             }
             async function processClone(clone, text, i) {
-                const label = await hasLabel(clone, RTSectionTag, context);
+                if (clone.hasLabel?.tag !== RTSectionTag)
+                    return showAlert('The clone does not have an RTSection label !');
+                const label = await labelRange(clone.hasLabel.id, context);
                 if (!label)
-                    return showAlert(`ProcessClone() failed: We could not retrieve the ContentControl having as tag 'RTSection'. No such tag was found`);
+                    return;
                 text += i.toString();
                 label.insertText(text, replace);
                 const ctrl = context.document.contentControls.getById(clone.id);
@@ -849,15 +850,28 @@ export class EditContract extends WordContentCtrls {
                 .filter(c => c !== undefined); //we remove undefined elements
         }
         async function fetchSelectCtrls(context, allRT) {
+            const props = ['id', 'title', 'tag', 'parentContentControlOrNullObject/id', 'contentControls/id', 'contentControls/tag', 'contentControls/parentContentControl/id'];
+            const labelTags = [RTSectionTag, RTSiTag];
             if (!allRT)
                 allRT = context.document.getContentControls();
             allRT.load(props);
             await context.sync();
-            const _select = getSelectCtrls(allRT.items);
-            const ctrls = _select.map(c => {
-                const children = getSelectCtrls(c.contentControls.items)
-                    .filter(child => child.id !== c.id)
-                    .filter(child => child.parentContentControlOrNullObject.id === c.id) /*!we keep only one level of children*/
+            const selectCtrls = getSelectCtrls(allRT.items);
+            const ctrls = selectCtrls.map(select => {
+                const isDirect = (id) => id === select.id;
+                const hasLabel = () => {
+                    const label = select.contentControls.items
+                        .find(child => labelTags.includes(child.tag)
+                        && isDirect(child.parentContentControl.id));
+                    if (!label)
+                        return undefined;
+                    return {
+                        id: label.id,
+                        tag: label.tag
+                    };
+                };
+                const children = getSelectCtrls(select.contentControls.items)
+                    .filter(child => isDirect(child.parentContentControl.id)) /*!we keep only one level of children*/
                     .map(child => {
                     return {
                         id: child.id,
@@ -865,17 +879,21 @@ export class EditContract extends WordContentCtrls {
                     };
                 });
                 return {
-                    id: c.id,
-                    tag: c.tag,
-                    title: c.title,
-                    parent: c.parentContentControlOrNullObject.id,
+                    id: select.id,
+                    tag: select.tag,
+                    title: select.title,
+                    parent: select.parentContentControlOrNullObject.id,
                     children: children,
+                    hasLabel: hasLabel(),
                     processed: false,
                     delete: false,
                 };
             });
             console.log(ctrls);
             return ctrls;
+            function getSelectCtrls(ctrls) {
+                return ctrls.filter(ctrl => [RTSelect].includes(ctrl.tag));
+            }
         }
         ;
         /**
@@ -927,7 +945,7 @@ export class EditContract extends WordContentCtrls {
             ;
         }
         async function showNestedOptionsTree(context) {
-            const ctrls = context.document.getSelection().getContentControls();
+            const ctrls = context.document.getSelection().contentControls;
             await context.sync();
             const selectCtrls = await fetchSelectCtrls(context, ctrls);
             await promptForSelection(selectCtrls, context);

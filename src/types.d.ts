@@ -22,5 +22,9 @@ type selectCtrl = {
     children: {
         id: number;
         tag: string;
-    }[]
+    }[],
+    hasLabel: {
+        id: number,
+        tag: string
+    } | undefined
 }
