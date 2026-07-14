@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.15.0";
+const version = "v11.15.1";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'] as Btn;
@@ -688,7 +688,7 @@ export class EditContract extends WordContentCtrls {
     };
 
     private async customizeContract(showNested: boolean = false) {
-        const RTDuplicateTag = this.RTCloneTag, RTSiTag = this.RTSiTag, RTSectionTag = this.RTSectionTag, RTSelect = this.RTSelectTag;
+        const RTClone = this.RTCloneTag, RTSiTag = this.RTSiTag, RTSectionTag = this.RTSectionTag, RTSelect = this.RTSelectTag;
 
 
         const promptForInput = this.promptForInput.bind(this),
@@ -739,7 +739,7 @@ export class EditContract extends WordContentCtrls {
         };
 
 
-        async function promptForSelection(ctrls: selectCtrl[], context: Word.RequestContext, clear: boolean = true) {
+        async function promptForSelection(ctrls: selectCtrl[], context: Word.RequestContext, cloneCtrlSelected: boolean = false, clear: boolean = true) {
             if (!ctrls?.length) return;
             try {
                 await processCtrls()
@@ -753,26 +753,22 @@ export class EditContract extends WordContentCtrls {
                 const blocks: selectBlock[] = [];
 
                 for (const ctrl of ctrls) {
-                    if (ctrl.processed) continue;//!We must escape the ctrls that have already been processed
-                    ctrl.processed = true;
 
-                    if (ctrl.tag === RTDuplicateTag) {
-                        //This is the case where we will prompt the user for the number of copies we need to create of the same 'RTSelect' (like of there are more than one party: several sellers/buyers, etc.)
-                        await cloneSelectBlock(ctrl, context);
-                        continue
-                    };
+                    if (ctrl.processed) continue;//!WE MUST escape the ctrls that have already been processed.
+                    ctrl.processed = true;
 
                     if (!ctrl?.hasLabel) {
                         await promptForSelection(subOptions(ctrl), context); //When a 'RTSelect' ContentControl  does not have a lable (which is a 'RTSi' or 'RTSection' ContentControl) it means that this ContentControl is a mere wraper for sub 'RTSelect' ContentControls, each representing an option from which the user must choose. Hence, we do not need to prompt the user to decide whether to keep or delete this select section 
                         continue
-                    }
+                    };
+
                     const label = await labelRange(ctrl.hasLabel.id, context);
-                    if (!label) return;
+                    if (!label) return showAlert("The Label ContentControl could not be found");
                     const isLast = ctrls.indexOf(ctrl) === ctrls.length - 1;//We check if this is the last contentcontrol in the array
                     const block = promptSelectBlock(ctrl, isLast, label.text || 'Label text could not be retrived');
                     if (!block) continue;
                     blocks.push(block);
-                    if (block.btnNext) await btnOnClick(blocks, context);//This is the case where btnNext was added because we reached the end of ctrls[] (isLast = true). We then need to await the user to click the button in order to process all the already displayed elements/options of ctrls[].
+                    if (block.btnNext) await btnOnClick(blocks, context);//This is the case where btnNext was added because we reached the end of ctrls[] (isLast = true). We then need to await the user to click the button in order to process all the already displayed html elements/options of ctrls[].
                 }
             }
         }
@@ -795,12 +791,6 @@ export class EditContract extends WordContentCtrls {
 
                 const label = await labelRange(ctrl.hasLabel.id, context);
                 if (!label?.text) return showAlert("InsertClones() failed: The ContentControl to be replicated/cloned, must have a direct ContentControl child having as tag 'RTSection'. No such tag was found");
-
-                const original = context.document.contentControls.getById(ctrl.id);
-                await context.sync();
-                if (!original) return showAlert('InsertClones() failed: We could not retrive the original ContentControl to be replicated.');
-
-                original.select();
                 const message = `Combien de ${label.text} y'a-t-il ?`;
                 let answer = Number(await promptForInput(message, '1'));
                 if (isNaN(answer)) {
@@ -808,31 +798,38 @@ export class EditContract extends WordContentCtrls {
                     return await insertClones(ctrl);//reprompting the user
                 } else if (answer < 1) return isNotSelected(ctrl);
 
-                original.title = `${getCtrlTitle(ctrl.tag, ctrl.id)}-Cloned ${answer} times`;//We give it a unique title by which we will retrieve the colnes that we will create.
-
-                const Ooxml = original.getOoxml();
-                const range = original.getRange();
-                await context.sync();
-                for (let i = 1; i < answer; i++)
-                    range.insertOoxml(Ooxml.value, after);
-
-                const clones = context.document.contentControls.getByTitle(original.title);
-                await context.sync();
-                const clonesProps = (await fetchSelectCtrls(context, clones)).entries();
                 try {
+                    const original = context.document.contentControls.getById(ctrl.id);
+                    if (!original) throw new Error('InsertClones() failed: We could not retrive the original ContentControl to be replicated.');
+                    original.select();
+                    original.title = `${getCtrlTitle(ctrl.tag, ctrl.id)}-Cloned ${answer} times`;//We give it a unique title by which we will retrieve the colnes that we will create.
+                    const Ooxml = original.getOoxml();
+                    const range = original.getRange();
+                    for (let i = 1; i < answer; i++)
+                        range.insertOoxml(Ooxml.value, after);
+                    const clones = context.document.contentControls.getByTitle(original.title);
+                    clones.load('id');
+                    await context.sync();
+
+                    if (!clones?.items.length) throw new Error('Failed to retrieve the clones');
+
+                    const clonesProps = (await fetchSelectCtrls(context, clones)).entries();
                     for (const [index, clone] of clonesProps)
                         await processClone(clone, label.text, index + 1);
+
                 } catch (error) {
                     showNotification(`Error from processClone() = ${error}`)
+
                 }
+
 
             }
 
             async function processClone(clone: selectCtrl, text: string, i: number) {
                 if (clone.hasLabel?.tag !== RTSectionTag) return showAlert('The clone does not have an RTSection label !');
                 const label = await labelRange(clone.hasLabel.id, context);
-                if (!label) return;
-                text += i.toString();
+                if (!label) throw new Error('Failed to retrive the label of the Clone');
+                text = `${text}-${i}`;
                 label.insertText(text, replace);
                 const ctrl = context.document.contentControls.getById(clone.id);
                 ctrl.title = `${getCtrlTitle(clone.tag, clone.id)}-${i}`;
@@ -845,7 +842,8 @@ export class EditContract extends WordContentCtrls {
         }
 
         async function isSelected(ctrl: selectCtrl, context: Word.RequestContext) {
-            await promptForSelection(subOptions(ctrl), context);
+            if (ctrl.tag === RTClone) await cloneSelectBlock(ctrl, context);
+            else await promptForSelection(subOptions(ctrl), context, ctrl.tag === RTClone);
         };
 
 
@@ -947,7 +945,7 @@ export class EditContract extends WordContentCtrls {
             return ctrls;
 
             function getSelectCtrls<T extends ContentControl | selectCtrl>(ctrls: T[]): T[] {
-                return ctrls.filter(ctrl => [RTSelect].includes(ctrl.tag));
+                return ctrls.filter(ctrl => [RTSelect, RTClone].includes(ctrl.tag));
             }
 
         };
