@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.15.5";
+const version = "v11.15.6";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'];
 Office.onReady((info) => {
@@ -728,7 +728,6 @@ export class EditContract extends WordContentCtrls {
          * @param id
          */
         async function cloneSelectBlock(ctrl, context) {
-            const replace = Word.InsertLocation.replace;
             const after = Word.InsertLocation.after;
             try {
                 await insertClones(ctrl);
@@ -783,7 +782,9 @@ export class EditContract extends WordContentCtrls {
                 if (!label)
                     throw new Error('Failed to retrive the label of the Clone');
                 text = `${text}-${i}`;
-                label.insertText(text, replace);
+                label.cannotEdit = false; //!IMPORTANT, otherwise we will get an error.
+                label.insertText(text, Word.InsertLocation.replace);
+                label.cannotEdit = true;
                 const ctrl = context.document.contentControls.getById(clone.id);
                 ctrl.title = `${getCtrlTitle(clone.tag, clone.id)}-${i}`;
                 await context.sync();

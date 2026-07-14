@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.15.5";
+const version = "v11.15.6";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'] as Btn;
@@ -782,7 +782,6 @@ export class EditContract extends WordContentCtrls {
          * @param id 
          */
         async function cloneSelectBlock(ctrl: selectCtrl, context: Word.RequestContext) {
-            const replace = Word.InsertLocation.replace;
             const after = Word.InsertLocation.after;
             try {
                 await insertClones(ctrl);
@@ -832,11 +831,14 @@ export class EditContract extends WordContentCtrls {
             }
 
             async function processClone(clone: selectCtrl, text: string, i: number) {
+
                 if (clone.hasLabel?.tag !== RTSectionTag) return showAlert('The clone does not have an RTSection label !');
                 const label = await labelRange(clone.hasLabel.id, context);
                 if (!label) throw new Error('Failed to retrive the label of the Clone');
                 text = `${text}-${i}`;
-                label.insertText(text, replace);
+                label.cannotEdit = false;//!IMPORTANT, otherwise we will get an error.
+                label.insertText(text, Word.InsertLocation.replace);
+                label.cannotEdit = true;
                 const ctrl = context.document.contentControls.getById(clone.id);
                 ctrl.title = `${getCtrlTitle(clone.tag, clone.id)}-${i}`;
                 await context.sync();
