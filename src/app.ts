@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.15.1";
+const version = "v11.15.2";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'] as Btn;
@@ -739,7 +739,7 @@ export class EditContract extends WordContentCtrls {
         };
 
 
-        async function promptForSelection(ctrls: selectCtrl[], context: Word.RequestContext, cloneCtrlSelected: boolean = false, clear: boolean = true) {
+        async function promptForSelection(ctrls: selectCtrl[], context: Word.RequestContext, clear: boolean = true) {
             if (!ctrls?.length) return;
             try {
                 await processCtrls()
@@ -796,7 +796,9 @@ export class EditContract extends WordContentCtrls {
                 if (isNaN(answer)) {
                     showAlert(`The provided text cannot be converted into a number: ${answer}`);
                     return await insertClones(ctrl);//reprompting the user
-                } else if (answer < 1) return isNotSelected(ctrl);
+                }
+                else if (answer < 2) return;
+                else if (answer < 1) return isNotSelected(ctrl);
 
                 try {
                     const original = context.document.contentControls.getById(ctrl.id);
@@ -822,7 +824,6 @@ export class EditContract extends WordContentCtrls {
 
                 }
 
-
             }
 
             async function processClone(clone: selectCtrl, text: string, i: number) {
@@ -842,7 +843,7 @@ export class EditContract extends WordContentCtrls {
         }
 
         async function isSelected(ctrl: selectCtrl, context: Word.RequestContext) {
-            if (ctrl.tag === RTClone) await cloneSelectBlock(ctrl, context);
+            if (ctrl.tag === RTClone) await cloneSelectBlock(ctrl, context);//We need to prompt the user to decide if he wants to clone/copy this block
             else await promptForSelection(subOptions(ctrl), context, ctrl.tag === RTClone);
         };
 

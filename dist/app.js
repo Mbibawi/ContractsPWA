@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.15.1";
+const version = "v11.15.2";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'];
 Office.onReady((info) => {
@@ -692,7 +692,7 @@ export class EditContract extends WordContentCtrls {
             return label;
         }
         ;
-        async function promptForSelection(ctrls, context, cloneCtrlSelected = false, clear = true) {
+        async function promptForSelection(ctrls, context, clear = true) {
             if (!ctrls?.length)
                 return;
             try {
@@ -752,6 +752,8 @@ export class EditContract extends WordContentCtrls {
                     showAlert(`The provided text cannot be converted into a number: ${answer}`);
                     return await insertClones(ctrl); //reprompting the user
                 }
+                else if (answer < 2)
+                    return;
                 else if (answer < 1)
                     return isNotSelected(ctrl);
                 try {
@@ -796,7 +798,7 @@ export class EditContract extends WordContentCtrls {
         }
         async function isSelected(ctrl, context) {
             if (ctrl.tag === RTClone)
-                await cloneSelectBlock(ctrl, context);
+                await cloneSelectBlock(ctrl, context); //We need to prompt the user to decide if he wants to clone/copy this block
             else
                 await promptForSelection(subOptions(ctrl), context, ctrl.tag === RTClone);
         }
