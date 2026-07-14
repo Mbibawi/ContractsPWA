@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.15.6";
+const version = "v11.15.7";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'];
 Office.onReady((info) => {
@@ -768,6 +768,7 @@ export class EditContract extends WordContentCtrls {
                     if (!clones?.items.length)
                         throw new Error('Failed to retrieve the clones');
                     const clonesProps = await fetchSelectCtrls(context, clones);
+                    selectCtrls.push(...clonesProps.filter(c => c.id !== ctrl.id)); //!WARNING: the newly inserted clones ARE NOT in selectCtrls[]. We need to ADD THEM otherwise subOptions() will not be able to find them in selectCtrls[], and will return an empty array
                     for (const clone of clonesProps)
                         await processClone(clone, label.text, clonesProps.indexOf(clone) + 1);
                 }
@@ -782,15 +783,16 @@ export class EditContract extends WordContentCtrls {
                 if (!label)
                     throw new Error('Failed to retrive the label of the Clone');
                 text = `${text}-${i}`;
-                label.cannotEdit = false; //!IMPORTANT, otherwise we will get an error.
+                label.cannotEdit = false; //!WARNING, we must set cannotEdit to false before modifing the text, otherwise we will get an error.
                 label.insertText(text, Word.InsertLocation.replace);
                 label.cannotEdit = true;
                 const ctrl = context.document.contentControls.getById(clone.id);
+                ctrl.select();
                 ctrl.title = `${getCtrlTitle(clone.tag, clone.id)}-${i}`;
                 await context.sync();
-                const div = element('div', '', text, USERFORM, '', false);
-                await promptForSelection(subOptions(clone), context); //!We select only the direct select ctrls children
-                div.remove();
+                USERFORM.innerHTML = ''; //!We need to clear the userform html here because promptForselection() will not do it.
+                element('div', '', text, USERFORM, '', true);
+                await promptForSelection(subOptions(clone), context, false); //!We MUST not clear the USERFORM (clear = false)
             }
             ;
         }
