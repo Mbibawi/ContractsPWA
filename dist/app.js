@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.15.2";
+const version = "v11.15.3";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'];
 Office.onReady((info) => {
@@ -762,8 +762,10 @@ export class EditContract extends WordContentCtrls {
                         throw new Error('InsertClones() failed: We could not retrive the original ContentControl to be replicated.');
                     original.select();
                     original.title = `${getCtrlTitle(ctrl.tag, ctrl.id)}-Cloned ${answer} times`; //We give it a unique title by which we will retrieve the colnes that we will create.
-                    const Ooxml = original.getOoxml();
                     const range = original.getRange();
+                    const Ooxml = original.getOoxml();
+                    Ooxml.load(['value']);
+                    await context.sync();
                     for (let i = 1; i < answer; i++)
                         range.insertOoxml(Ooxml.value, after);
                     const clones = context.document.contentControls.getByTitle(original.title);
@@ -942,6 +944,8 @@ export class EditContract extends WordContentCtrls {
             await context.sync();
             selectCtrls.length = 0;
             selectCtrls.push(...await fetchSelectCtrls(context, ctrls));
+            if (!ctrls.items.length)
+                return showAlert('You must select a range containing the RTSelect ContentContrls you want to show its tree'); //!This MUST COME AFTER selectCtrls.push() because ctrls.items are not available until fetchSelectCtrls() loads their properties.
             for (const ctrl of selectCtrls)
                 await promptForSelection([ctrl], context);
             if (await promptConfirm('Do you want to delete the unselected contentcontrols?'))
