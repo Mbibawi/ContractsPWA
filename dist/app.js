@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.14.9";
+const version = "v11.15.0";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'];
 Office.onReady((info) => {
@@ -52,7 +52,9 @@ function element(tag, css, textContent, parent, id, append = true) {
     return el;
 }
 function getModalContainer(parent, textContent, id, append = true) {
-    const modal = element('div', 'modal', textContent, parent, id, append);
+    const modal = element('div', 'modal', '', parent, id, append);
+    if (textContent)
+        element('p', '', textContent, modal, '', true);
     const window = element('div', 'modal-window', '', modal, '', append);
     return { modal, window };
 }
@@ -196,12 +198,28 @@ class WordContentCtrls {
         }
     }
     async wrapSelectionWithContentControl(title, tag, type, style, cannotEdit, cannotDelete) {
-        const range = await this.getSelectionRange();
+        const range = await this.getSelectionRange(['paragraphs', 'paragraphs/style']);
         if (!range)
             return;
         if (!style && this.RTSiStyles.includes(range.style))
             style = range.style || null;
-        await this.insertContentControl(range, title, tag, 0, type, style, cannotEdit, cannotDelete);
+        const ctrl = await this.insertContentControl(range, title, tag, 0, type, style, cannotEdit, cannotDelete);
+        if (!ctrl)
+            return;
+        if (tag === this.RTCloneTag) {
+            const style = this.RTSectionStyle;
+            const p = range.paragraphs.items.find(p => p.style === style);
+            if (!p)
+                return showAlert('The Repeat ContentControl must have a RTSection ContentControl, we did not have any such styled paragraphs within the selected range.');
+            await Word.run(range, async (context) => {
+                const range = ctrl?.getRange('Content');
+                range.load(['paragraphs', 'paragraphs/style']);
+                await context.sync();
+                const p = range.paragraphs.items.find(p => p.style === style);
+                if (p)
+                    await this.insertContentControl(p, this.RTSectionTag, this.RTSectionTag, 1, this.richText, null, true, true);
+            });
+        }
     }
     async getSelectionRange(props = [], fun) {
         return await Word.run(async (context) => {
@@ -416,35 +434,6 @@ export class EditContract extends WordContentCtrls {
             //const ids = ctrls.map(c => c?.id || 0);
             await insertFields(ctrls.filter(ctrl => ctrl !== undefined));
         }
-        async function addOrUpdateCustomXml(id, text, root = 'contractFields', prefix = 'contract', nameSpace = 'contract-namespace') {
-            await Word.run(async (context) => {
-                const newNode = `<${prefix}:${id} >${text}</${id}>`;
-                const xmlParts = context.document.customXmlParts;
-                let customPart = xmlParts.getByNamespace(nameSpace).getOnlyItemOrNullObject();
-                customPart.load('isNullObject');
-                await context.sync();
-                if (customPart.isNullObject) {
-                    // Create new XML part with root node
-                    const newXml = `<${root} xmlns:${prefix}="${nameSpace}">${newNode}</${root}>`;
-                    customPart = xmlParts.add(newXml);
-                    await context.sync();
-                    console.log("Created new custom XML part.");
-                }
-                else {
-                    // Append new node to existing part
-                    const xmlText = customPart.getXml();
-                    await context.sync();
-                    const xmlDoc = getXmlRootNode(xmlText);
-                    const rootNode = xmlDoc.getElementsByName(root)[0];
-                    if (!rootNode)
-                        return console.warn("Root node not found.");
-                    const newElement = xmlDoc.createElementNS(nameSpace, `${prefix}:${id}`);
-                    newElement.textContent = text;
-                    rootNode.appendChild(newElement);
-                    await updateCustomXml(context, xmlParts, xmlDoc, customPart);
-                }
-            });
-        }
         function getXmlRootNode(xmlText) {
             const parser = new DOMParser();
             const xmlDoc = parser.parseFromString(xmlText.value, "application/xml");
@@ -571,11 +560,15 @@ export class EditContract extends WordContentCtrls {
             await ctrl.context.sync();
         }
         /**
- * Wraps every occurrence of text formatted with a specific character style in a rich text content control.
- *
- * @param style The name of the character style to find (e.g., "Emphasis", "Strong", "MyCustomStyle").
- * @returns A Promise that resolves when the operation is complete.
- */
+         * Wraps every occurrence of text formatted with a specific character style in a rich text content control.
+         *
+         * @param styles any array of styles that we will check that the range style is included in this array of styles.
+         * @param title the title of the content control.
+         * @param tag the tag of the content control.
+         * @param cannotEdit true if the content control cannot be edited.
+         * @param cannotDelete true if the content control cannot be deleted.
+         * @returns A Promise that resolves when the operation is complete.
+         */
         async function findTextAndWrapItWithContentControl(styles, title, tag, cannotEdit, cannotDelete) {
             const { search, matchWildcards } = await searchs();
             if (!styles?.length)
@@ -625,18 +618,33 @@ export class EditContract extends WordContentCtrls {
                 return { search, matchWildcards };
             }
         }
-        async function associateFieldWithMain(mainID, subID, root = 'contractFields', prefix = 'contract', nameSpace = 'contract-namespace') {
+        async function addOrUpdateCustomXml(id, text, root = 'contractFields', prefix = 'contract', nameSpace = 'contract-namespace') {
             await Word.run(async (context) => {
-                const ctrls = context.document.getContentControls();
-                const main = ctrls.getById(mainID);
-                const sub = ctrls.getById(subID);
-                //const newNode = `<${prefix}:${ id } >${ text }</${id}>`;
+                const newNode = `<${prefix}:${id} >${text}</${id}>`;
                 const xmlParts = context.document.customXmlParts;
                 let customPart = xmlParts.getByNamespace(nameSpace).getOnlyItemOrNullObject();
                 customPart.load('isNullObject');
                 await context.sync();
-                if (!customPart)
-                    return console.log('customXmlPart not found');
+                if (customPart.isNullObject) {
+                    // Create new XML part with root node
+                    const newXml = `<${root} xmlns:${prefix}="${nameSpace}">${newNode}</${root}>`;
+                    customPart = xmlParts.add(newXml);
+                    await context.sync();
+                    console.log("Created new custom XML part.");
+                }
+                else {
+                    // Append new node to existing part
+                    const xmlText = customPart.getXml();
+                    await context.sync();
+                    const xmlDoc = getXmlRootNode(xmlText);
+                    const rootNode = xmlDoc.getElementsByName(root)[0];
+                    if (!rootNode)
+                        return console.warn("Root node not found.");
+                    const newElement = xmlDoc.createElementNS(nameSpace, `${prefix}:${id}`);
+                    newElement.textContent = text;
+                    rootNode.appendChild(newElement);
+                    await updateCustomXml(context, xmlParts, xmlDoc, customPart);
+                }
             });
         }
     }
@@ -707,8 +715,8 @@ export class EditContract extends WordContentCtrls {
                         continue;
                     }
                     ;
-                    if (ctrl?.hasLabel?.tag !== RTSiTag) {
-                        await promptForSelection(subOptions(ctrl), context); //When a 'RTSelect' ContentControl  does not have a lable (which is a 'RTSi' ContentControl) it means that this ContentControl is a mere wraper for sub 'RTSelect' ContentControls, each representing an option from which the user must choose. Hence, we do not need to prompt the user to decide whether to keep or delete this select section 
+                    if (!ctrl?.hasLabel) {
+                        await promptForSelection(subOptions(ctrl), context); //When a 'RTSelect' ContentControl  does not have a lable (which is a 'RTSi' or 'RTSection' ContentControl) it means that this ContentControl is a mere wraper for sub 'RTSelect' ContentControls, each representing an option from which the user must choose. Hence, we do not need to prompt the user to decide whether to keep or delete this select section 
                         continue;
                     }
                     const label = await labelRange(ctrl.hasLabel.id, context);
@@ -988,8 +996,8 @@ export class EditContract extends WordContentCtrls {
     async promptConfirm(question, fun) {
         if (!question)
             question = 'No question was provided !!!';
-        const container = element('div', 'promptContainer', '', USERFORM);
-        const prompt = element('div', 'prompt', '', container);
+        const { modal, window } = getModalContainer(USERFORM, 'Confirm Deletion');
+        const prompt = element('div', 'prompt', '', window);
         element('p', 'ask', question, prompt);
         const btns = element('div', 'btns', '', prompt);
         const btnOK = element('button', 'btnOK', 'OK', btns);
@@ -999,7 +1007,7 @@ export class EditContract extends WordContentCtrls {
             btnNo.onclick = () => resolve(confirm(false));
         });
         function confirm(confirm) {
-            container.remove();
+            modal.remove();
             if (fun)
                 fun(confirm);
             return confirm;
