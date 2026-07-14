@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.14.8";
+const version = "v11.14.9";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'];
 Office.onReady((info) => {
@@ -755,7 +755,7 @@ export class EditContract extends WordContentCtrls {
                     return await insertClones(ctrl); //reprompting the user
                 }
                 else if (answer < 1)
-                    return isNotSelected(subOptions(ctrl));
+                    return isNotSelected(ctrl);
                 original.title = `${getCtrlTitle(ctrl.tag, ctrl.id)}-Cloned ${answer} times`; //We give it a unique title by which we will retrieve the colnes that we will create.
                 const Ooxml = original.getOoxml();
                 const range = original.getRange();
@@ -790,23 +790,13 @@ export class EditContract extends WordContentCtrls {
             }
             ;
         }
-        async function isSelected(subOptions, context) {
-            await promptForSelection(subOptions, context);
+        async function isSelected(ctrl, context) {
+            await promptForSelection(subOptions(ctrl), context);
         }
         ;
-        /**
-         *
-         * @param subOptions This is an array of all the contentControl children of the main control, including the main control itself
-         * @param context
-         */
-        function isNotSelected(subOptions) {
-            subOptions
-                .forEach(c => {
-                if (!c)
-                    return;
-                c.delete = true;
-                c.processed = true;
-            }); //We are adding the "keep" prefix to the ids of the subOptions ctrls on purpose. This is because the parent ctrl will be deleted given that its id is added without the prefix. Hence all its children will (i.e., the subOptions) will be deleted as well with the parent ctrl. Adding the ids of each children, we will unnecesarily burden the list with a great number of ids, that will in all cases be deleted. 
+        function isNotSelected(ctrl) {
+            ctrl.delete = true;
+            subOptions(ctrl).forEach(c => c.processed = true);
         }
         ;
         async function deleteUnselected(context) {
@@ -929,11 +919,10 @@ export class EditContract extends WordContentCtrls {
                     .map(block => [block.ctrl, block.checkBox.checked]);
                 blocks.forEach(block => block.wraper.remove()); //We remove all the containers from the DOM
                 for (const [ctrl, checked] of checkBoxes) {
-                    const options = subOptions(ctrl);
                     if (checked)
-                        await isSelected(options, context);
+                        await isSelected(ctrl, context);
                     else
-                        isNotSelected(options);
+                        isNotSelected(ctrl);
                 }
                 return true;
             }
