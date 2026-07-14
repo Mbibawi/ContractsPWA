@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.15.4";
+const version = "v11.15.5";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'];
 Office.onReady((info) => {
@@ -768,9 +768,9 @@ export class EditContract extends WordContentCtrls {
                     await context.sync();
                     if (!clones?.items.length)
                         throw new Error('Failed to retrieve the clones');
-                    const clonesProps = (await fetchSelectCtrls(context, clones)).entries();
-                    for (const [index, clone] of clonesProps)
-                        await processClone(clone, label.text, index + 1);
+                    const clonesProps = await fetchSelectCtrls(context, clones);
+                    for (const clone of clonesProps)
+                        await processClone(clone, label.text, clonesProps.indexOf(clone) + 1);
                 }
                 catch (error) {
                     showNotification(`Error from processClone() = ${error}`);
