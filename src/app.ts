@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.15.3";
+const version = "v11.15.4";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'] as Btn;
@@ -99,15 +99,12 @@ class WordContentCtrls {
     protected readonly StylePrefix = 'Contrat_';
     protected readonly RTFieldTag = 'RTField';
     protected readonly RTDropDownTag = 'RTList';
-    protected readonly RTDropDownColor = '#991c63';
     protected readonly RTCloneTag = 'RTRepeat';
     protected readonly RTSectionTag = 'RTSection';//This tag is a contentcontrol which contains a text to be displayed (like a lable or a title) other than for choosing a specifc case (RTSi)
     protected readonly RTSelectTag = 'RTSelect';
-    protected readonly RTOrTag = 'RTOr';
     protected readonly RTObsTag = 'RTObs';
     protected readonly RTDescriptionTag = 'RTDesc';
     protected readonly RTSiTag = 'RTSi';
-    protected readonly RTDeleteTag = '>>>> DeleteCtrl >>>>';
     //Stylesreadonly 
     protected readonly RTSectionStyle = `${this.StylePrefix}${this.RTSectionTag}`;
     protected readonly RTObsStyle = `${this.StylePrefix}${this.RTObsTag}`;
@@ -197,23 +194,29 @@ class WordContentCtrls {
     }
 
     protected async wrapSelectionWithContentControl(title: string, tag: string, type: ContentControlType, style: string | null, cannotEdit: boolean, cannotDelete: boolean) {
-        const range = await this.getSelectionRange(['paragraphs', 'paragraphs/style']);
+        const range = await this.getSelectionRange();
         if (!range) return;
         if (!style && this.RTSiStyles.includes(range.style)) style = range.style || null;
 
         const ctrl = await this.insertContentControl(range, title, tag, 0, type, style, cannotEdit, cannotDelete);
         if (!ctrl) return;
         if (tag === this.RTCloneTag) {
-            const style = this.RTSectionStyle
-            const p = range.paragraphs.items.find(p => p.style === style);
-            if (!p) return showAlert('The Repeat ContentControl must have a RTSection ContentControl, we did not have any such styled paragraphs within the selected range.');
+            const style = this.RTSectionStyle;
+            tag = this.RTSectionTag;
             await Word.run(range, async (context) => {
-                const range = ctrl?.getRange('Content');
-                range.load(['paragraphs', 'paragraphs/style']);
+                const ctrlRange = ctrl.getRange('Content');
+                ctrlRange.load(['paragraphs', 'paragraphs/style']);
                 await context.sync();
-                const p = range.paragraphs.items.find(p => p.style === style);
-                if (p) await this.insertContentControl(p, this.RTSectionTag, this.RTSectionTag, 1, this.richText, null, true, true)
-            });
+                const p = ctrlRange.paragraphs.items.find(p => p.style === style);
+                if (!p) {
+                    ctrl.cannotDelete = false;
+                    ctrl.delete(true);
+                    await context.sync();
+                    return showAlert('The Repeat ContentControl must have a RTSection ContentControl, we did not have any such styled paragraphs within the selected range.');
+                }
+                await this.insertContentControl(p, tag, tag, 1, this.richText, null, true, true)
+            })
+
         }
     }
 
@@ -269,11 +272,9 @@ class WordContentCtrls {
         const tags = [
             this.RTFieldTag,
             this.RTDropDownTag,
-            this.RTDropDownColor,
             this.RTCloneTag,
             this.RTSectionTag,
             this.RTSelectTag,
-            this.RTOrTag,
             this.RTObsTag,
             this.RTDescriptionTag,
             this.RTSiTag];
@@ -372,7 +373,6 @@ export class EditContract extends WordContentCtrls {
         const descStyle = this.RTDescriptionStyle,
             siStyle = this.RTSiStyles,
             sectionStyle = this.RTSectionStyle,
-            dropDownColor = this.RTDropDownColor,
             dropDownList = this.dropDownList;
 
 
@@ -569,6 +569,8 @@ export class EditContract extends WordContentCtrls {
             });
         }
         async function insertDropDownList(range: Word.Range | void, index: number = 0) {
+            const dropDownColor = '#991c63';
+
             if (!range) range = await getSelectionRange();
             if (!range) return;
             range.load(["text", 'parentContentControlOrNullObject']);
@@ -694,6 +696,7 @@ export class EditContract extends WordContentCtrls {
         const promptForInput = this.promptForInput.bind(this),
             getCtrlTitle = this.getCtrlTitle.bind(this),
             prepareTemplate = this.prepareTemplate.bind(this),
+            finalizeContract = this.finalizeContract,
             promptConfirm = this.promptConfirm;
 
         const selectCtrls: selectCtrl[] = [];
@@ -708,14 +711,15 @@ export class EditContract extends WordContentCtrls {
                         await promptForSelection([ctrl], context);
 
                     USERFORM.innerHTML = '';
-                    const btn = element<HTMLButtonElement>('button', '', 'Delete all the unselected cases ?', USERFORM, 'deleteAll', false);
-                    btn.onclick = async () => {
-                        await Word.run(async (context) => {
-                            await deleteUnselected(context);
-                            btn.disabled = true;
-                            btn.textContent = 'Deleted';
-                        });
-                    }
+
+                    if (!await promptConfirm('Do you want to delete the unselected contentcontrols?\nWARNING: If you click NO, all the excluded options will be lost and you will have to start over again')) return;
+
+                    await deleteUnselected(context);
+
+
+                    if (await promptConfirm('Finihsed deleting the unselected options.\nDo you want to finalize the contract by removing the other ContentControls like RTSi, RTDescription ?'))
+                        await finalizeContract();
+
 
                 } catch (error) {
                     showNotification(`Error from promptForSelection() = ${error}`)
@@ -807,7 +811,6 @@ export class EditContract extends WordContentCtrls {
                     original.title = `${getCtrlTitle(ctrl.tag, ctrl.id)}-Cloned ${answer} times`;//We give it a unique title by which we will retrieve the colnes that we will create.
                     const range = original.getRange();
                     const Ooxml = original.getOoxml();
-                    Ooxml.load(['value']);
                     await context.sync();
                     for (let i = 1; i < answer; i++)
                         range.insertOoxml(Ooxml.value, after);
@@ -1022,34 +1025,27 @@ export class EditContract extends WordContentCtrls {
     }
 
     private async finalizeContract() {
-        const toDelte = this.RTDeleteTag;
-        const remove = [this.RTSiTag, this.RTDescriptionTag, this.RTObsTag, this.RTSectionTag, toDelte];//The contentcontrol and its content will be deleted.
+        const remove = [this.RTSiTag, this.RTDescriptionTag, this.RTObsTag, this.RTSectionTag];//The contentcontrol and its content will be deleted.
         const content = [this.RTSelectTag, this.RTCloneTag];//We will delete the contentControl but keep its content
         const styles = [...this.RTSiStyles, this.RTSectionStyle, this.RTObsStyle, this.RTDescriptionStyle];
         await Word.run(async (context) => {
             const allCtrls = context.document.getContentControls();
             allCtrls.load(['tag', 'title']);
+            const body = context.document.body.getRange();
+            body.load(['paragraphs', 'paragraphs/style']);
             await context.sync();
+
             for (const ctrl of allCtrls.items) {
                 ctrl.cannotDelete = false;//!We must remove the cannotDelete from all ctrls because this will prevent deleting the line on which there is a hidden contentcontrol
-                if (!ctrl?.tag) continue;
-                if (remove.includes(ctrl.tag) || ctrl.title === toDelte)
+                if (remove.includes(ctrl?.tag))
                     ctrl.delete(false)
-                else if (content.includes(ctrl.tag))
+                else if (content.includes(ctrl?.tag))
                     ctrl.delete(true)
                 else
                     ctrl.appearance = Word.ContentControlAppearance.hidden;
             }
 
-            await context.sync();
-
-            const body = context.document.body.getRange();
-            body.load('paragraphs');
-            await context.sync();
-            const parags = body.paragraphs;
-            parags.load('style');
-            await context.sync();
-            parags.items
+            body.paragraphs.items
                 .filter(p => styles.includes(p.style))
                 .forEach(p => p.style = `${this.StylePrefix}Normal`);
 
