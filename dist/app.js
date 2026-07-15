@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.15.8";
+const version = "v11.15.9";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'];
 Office.onReady((info) => {
@@ -768,10 +768,14 @@ export class EditContract extends WordContentCtrls {
                     if (!clones?.items.length)
                         throw new Error('Failed to retrieve the clones');
                     const ctrls = await fetchSelectCtrls(context, clones);
-                    const children = (ctrls) => ctrls.map(c => children(c.children)).flat();
-                    [...ctrls, ...children(ctrls)]
-                        .filter(ctrl => !selectCtrls.has(ctrl))
-                        .forEach(ctrl => selectCtrls.add(ctrl)); //!The newly inserted clones and their nested contentControls are not inlcuded in selectCtrls, which means that subOptions() will never be able to retrieve them. So we need to add them to selectCtrls[]; 
+                    for (const clone of clones.items) {
+                        //!The newly inserted clones and their nested contentControls are not inlcuded in selectCtrls, which means that subOptions() will never be able to retrieve them. So we need to add them to selectCtrls[]; 
+                        const children = clone.getContentControls();
+                        const ctrls = await fetchSelectCtrls(context, children);
+                        ctrls.filter(c => !selectCtrls.has(c))
+                            .forEach(c => selectCtrls.add(c));
+                    }
+                    ;
                     for (const clone of ctrls)
                         await processClone(clone, label.text, ctrls.indexOf(clone) + 1);
                 }
@@ -780,7 +784,9 @@ export class EditContract extends WordContentCtrls {
                 }
             }
             async function processClone(clone, text, i) {
-                clone.processed = true; //!IMPORTANT - the newly inserted clones have never went through promptForSelection(). Their 'processed' prop has never been set to true. Yet, they have been pushed into selectCtrls[] so they will be processed again and passed to promptForSelection() although they have already been processed here. We need to set their processed prop to true in order to avoid this.
+                if (!selectCtrls.has(clone))
+                    selectCtrls.add(clone); //!IMPORTANT - the newly inserted clones are not in the selectCtrls[]. We need to push them to selectCtrls[], otherwise deleteUnselected() will not be able to retrieve and delete those who might need to be deleted. 
+                clone.processed = true; //!IMPORTANT The newly inserted clones have never went through promptForSelection(). Their 'processed' prop has never been set to true. They will be processed again when passed to promptForSelection() although they have already been processed here. We need to set their processed prop to true in order to avoid this.
                 if (clone.hasLabel?.tag !== RTSectionTag)
                     return showAlert('The clone does not have an RTSection label !'); //Normally this should never occur.
                 const label = await labelRange(clone.hasLabel.id, context);
@@ -881,7 +887,7 @@ export class EditContract extends WordContentCtrls {
             function getChildren(ctrl) {
                 //This is to cover the case of newly inserted clones, where the suboptions of the new clone is not already in the selectCtrls[];
                 return getSelectCtrls(directChildren(ctrl))
-                    .map(child => selectCtrl(child));
+                    .map(c => { return { id: c.id, tag: c.tag }; });
             }
             function hasLabel(ctrl) {
                 const label = directChildren(ctrl)
