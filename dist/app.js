@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.16.0";
+const version = "v11.16.1";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'];
 Office.onReady((info) => {
@@ -770,15 +770,17 @@ export class EditContract extends WordContentCtrls {
                     const selectCtrlItems = (await fetchSelectCtrls(context, clones));
                     //!The newly inserted clones and their nested contentControls are not inlcuded in selectCtrls[], which means that subOptions() will never be able to retrieve them, and they will not be deleted or manipulated through the selectCtrls[]. So we need to add them to selectCtrls[]; 
                     const index = selectCtrls.indexOf(ctrl) + 1;
-                    for (const selectCtrl of selectCtrlItems.reverse()) {
+                    selectCtrlItems.reverse(); //We reverse it in order to insert the newClones right after the existing one in the right order
+                    for (const selectCtrl of selectCtrlItems) {
                         if (selectCtrl.id === ctrl.id)
                             continue; //We escape the original block since it is already in selectCtrls[];
-                        const cloneChildren = clones.items.find(c => c.id === selectCtrl.id).getContentControls();
-                        const childrenSelectCtrls = await fetchSelectCtrls(context, cloneChildren); //we get the selectCtrl representation of their nested contentControls
-                        childrenSelectCtrls.unshift(selectCtrl);
-                        selectCtrls.splice(index, 0, ...childrenSelectCtrls);
+                        const nested = clones.items.find(c => c.id === selectCtrl.id).getContentControls();
+                        const nestedSelectCtrls = await fetchSelectCtrls(context, nested); //we get the selectCtrl representation of their nested contentControls
+                        nestedSelectCtrls.unshift(selectCtrl);
+                        selectCtrls.splice(index, 0, ...nestedSelectCtrls);
                     }
                     ;
+                    selectCtrlItems.reverse(); //We must reverse the array again
                     for (const clone of selectCtrlItems)
                         await processClone(clone, label.text, selectCtrlItems.indexOf(clone) + 1);
                 }
@@ -831,17 +833,17 @@ export class EditContract extends WordContentCtrls {
                 const ctrls = context.document.contentControls;
                 ctrls.load(['id', 'parentContentControlOrNullObject']);
                 await context.sync();
-                await context.sync();
-                const _delete = Array.from(selectCtrls).filter(c => c.delete);
-                const toDelete = ctrls.items.filter(ctrl => _delete.find(c => c.id === ctrl.id));
+                const isTrue = selectCtrls.filter(c => c.delete);
+                const toDelete = ctrls.items.filter(ctrl => isTrue.find(c => c.id === ctrl.id));
                 console.log(`toDelete ids = ${toDelete.map(ctrl => ctrl.id)}`);
                 for (const ctrl of toDelete) {
                     try {
                         //if (ctrl.tag === RTDuplicateTag) continue;
-                        const sub = ctrl.getContentControls();
-                        sub.load('id');
+                        const nested = ctrl.getContentControls();
+                        nested.load('id');
                         await context.sync();
-                        sub.items.forEach(c => c.cannotDelete = false);
+                        nested.items.forEach(c => c.cannotDelete = false);
+                        ctrl.cannotDelete = false;
                         ctrl.delete(false);
                         await context.sync();
                     }
@@ -853,8 +855,8 @@ export class EditContract extends WordContentCtrls {
             ;
         }
         function subOptions(ctrl) {
-            return ctrl.children
-                .map(child => Array.from(selectCtrls).find(c => c.id === child.id)) //We get the full properties of each of ctrl children (children elements only contain the id and the tag)
+            return ctrl.nested
+                .map(child => selectCtrls.find(c => c.id === child.id)) //We get the full properties of each of ctrl children (children elements only contain the id and the tag)
                 .filter(c => c !== undefined); //we remove undefined elements
         }
         async function fetchSelectCtrls(context, allRT) {
@@ -874,7 +876,7 @@ export class EditContract extends WordContentCtrls {
                     tag: ctrl.tag,
                     title: ctrl.title,
                     parent: ctrl.parentContentControlOrNullObject.id,
-                    children: getChildren(ctrl),
+                    nested: getNested(ctrl),
                     hasLabel: hasLabel(ctrl),
                     processed: false,
                     delete: false,
@@ -885,7 +887,7 @@ export class EditContract extends WordContentCtrls {
                 return ctrl.contentControls.items
                     .filter(child => child.parentContentControl.id === ctrl.id); /*!we keep only one level of children*/
             }
-            function getChildren(ctrl) {
+            function getNested(ctrl) {
                 //This is to cover the case of newly inserted clones, where the suboptions of the new clone is not already in the selectCtrls[];
                 return getSelectCtrls(directChildren(ctrl))
                     .map(c => { return { id: c.id, tag: c.tag }; });
