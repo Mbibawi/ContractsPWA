@@ -19,12 +19,6 @@ type selectCtrl = {
     parent: number | undefined;
     processed: boolean;
     delete: boolean;
-    children: {
-        id: number;
-        tag: string;
-    }[],
-    hasLabel: {
-        id: number,
-        tag: string
-    } | undefined
+    children: selectCtrl[],
+    hasLabel: { id: number, tag: string } | undefined
 }

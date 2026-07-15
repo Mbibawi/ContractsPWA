@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.15.7";
+const version = "v11.15.8";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'];
 Office.onReady((info) => {
@@ -651,13 +651,13 @@ export class EditContract extends WordContentCtrls {
     async customizeContract(showNested = false) {
         const RTClone = this.RTCloneTag, RTSiTag = this.RTSiTag, RTSectionTag = this.RTSectionTag, RTSelect = this.RTSelectTag;
         const promptForInput = this.promptForInput.bind(this), getCtrlTitle = this.getCtrlTitle.bind(this), prepareTemplate = this.prepareTemplate.bind(this), finalizeContract = this.finalizeContract, promptConfirm = this.promptConfirm;
-        const selectCtrls = [];
+        const selectCtrls = new Set();
         await loopSelectCtrls();
         async function loopSelectCtrls() {
             await Word.run(async (context) => {
                 if (showNested)
                     return await showNestedOptionsTree(context); //!This must come before selectCtrls is populated. Will populate it from the selection
-                selectCtrls.push(...await fetchSelectCtrls(context));
+                (await fetchSelectCtrls(context)).forEach(ctrl => selectCtrls.add(ctrl));
                 try {
                     for (const ctrl of selectCtrls)
                         await promptForSelection([ctrl], context);
@@ -767,21 +767,25 @@ export class EditContract extends WordContentCtrls {
                     await context.sync();
                     if (!clones?.items.length)
                         throw new Error('Failed to retrieve the clones');
-                    const clonesProps = await fetchSelectCtrls(context, clones);
-                    selectCtrls.push(...clonesProps.filter(c => c.id !== ctrl.id)); //!WARNING: the newly inserted clones ARE NOT in selectCtrls[]. We need to ADD THEM otherwise subOptions() will not be able to find them in selectCtrls[], and will return an empty array
-                    for (const clone of clonesProps)
-                        await processClone(clone, label.text, clonesProps.indexOf(clone) + 1);
+                    const ctrls = await fetchSelectCtrls(context, clones);
+                    const children = (ctrls) => ctrls.map(c => children(c.children)).flat();
+                    [...ctrls, ...children(ctrls)]
+                        .filter(ctrl => !selectCtrls.has(ctrl))
+                        .forEach(ctrl => selectCtrls.add(ctrl)); //!The newly inserted clones and their nested contentControls are not inlcuded in selectCtrls, which means that subOptions() will never be able to retrieve them. So we need to add them to selectCtrls[]; 
+                    for (const clone of ctrls)
+                        await processClone(clone, label.text, ctrls.indexOf(clone) + 1);
                 }
                 catch (error) {
                     showNotification(`Error from processClone() = ${error}`);
                 }
             }
             async function processClone(clone, text, i) {
+                clone.processed = true; //!IMPORTANT - the newly inserted clones have never went through promptForSelection(). Their 'processed' prop has never been set to true. Yet, they have been pushed into selectCtrls[] so they will be processed again and passed to promptForSelection() although they have already been processed here. We need to set their processed prop to true in order to avoid this.
                 if (clone.hasLabel?.tag !== RTSectionTag)
-                    return showAlert('The clone does not have an RTSection label !');
+                    return showAlert('The clone does not have an RTSection label !'); //Normally this should never occur.
                 const label = await labelRange(clone.hasLabel.id, context);
                 if (!label)
-                    throw new Error('Failed to retrive the label of the Clone');
+                    throw new Error('Failed to retrive the label of the Clone'); //This should never occur.
                 text = `${text}-${i}`;
                 label.cannotEdit = false; //!WARNING, we must set cannotEdit to false before modifing the text, otherwise we will get an error.
                 label.insertText(text, Word.InsertLocation.replace);
@@ -792,7 +796,7 @@ export class EditContract extends WordContentCtrls {
                 await context.sync();
                 USERFORM.innerHTML = ''; //!We need to clear the userform html here because promptForselection() will not do it.
                 element('div', '', text, USERFORM, '', true);
-                await promptForSelection(subOptions(clone), context, false); //!We MUST not clear the USERFORM (clear = false)
+                await promptForSelection(subOptions(clone), context, false);
             }
             ;
         }
@@ -818,16 +822,19 @@ export class EditContract extends WordContentCtrls {
             }
             async function process() {
                 const ctrls = context.document.contentControls;
-                ctrls.load(['id', 'cannotDelete']);
+                ctrls.load(['id', 'parentContentControlOrNullObject']);
                 await context.sync();
-                ctrls.items.forEach(ctrl => ctrl.cannotDelete = false);
                 await context.sync();
-                const _delete = selectCtrls.filter(c => c.delete);
+                const _delete = Array.from(selectCtrls).filter(c => c.delete);
                 const toDelete = ctrls.items.filter(ctrl => _delete.find(c => c.id === ctrl.id));
                 console.log(`toDelete ids = ${toDelete.map(ctrl => ctrl.id)}`);
                 for (const ctrl of toDelete) {
                     try {
                         //if (ctrl.tag === RTDuplicateTag) continue;
+                        const sub = ctrl.getContentControls();
+                        sub.load('id');
+                        await context.sync();
+                        sub.items.forEach(c => c.cannotDelete = false);
                         ctrl.delete(false);
                         await context.sync();
                     }
@@ -840,7 +847,7 @@ export class EditContract extends WordContentCtrls {
         }
         function subOptions(ctrl) {
             return ctrl.children
-                .map(child => selectCtrls.find(c => c.id === child.id)) //We get the full properties of each of ctrl children (children elements only contain the id and the tag)
+                .map(child => Array.from(selectCtrls).find(c => c.id === child.id)) //We get the full properties of each of ctrl children (children elements only contain the id and the tag)
                 .filter(c => c !== undefined); //we remove undefined elements
         }
         async function fetchSelectCtrls(context, allRT) {
@@ -850,41 +857,39 @@ export class EditContract extends WordContentCtrls {
                 allRT = context.document.getContentControls();
             allRT.load(props);
             await context.sync();
-            const selectCtrls = getSelectCtrls(allRT.items);
-            const ctrls = selectCtrls.map(select => {
-                const isDirect = (id) => id === select.id;
-                const hasLabel = () => {
-                    const label = select.contentControls.items
-                        .find(child => labelTags.includes(child.tag)
-                        && isDirect(child.parentContentControl.id));
-                    if (!label)
-                        return undefined;
-                    return {
-                        id: label.id,
-                        tag: label.tag
-                    };
-                };
-                const children = getSelectCtrls(select.contentControls.items)
-                    .filter(child => isDirect(child.parentContentControl.id)) /*!we keep only one level of children*/
-                    .map(child => {
-                    return {
-                        id: child.id,
-                        tag: child.tag
-                    };
-                });
+            const ctrls = getSelectCtrls(allRT.items)
+                .map(ctrl => selectCtrl(ctrl));
+            console.log(ctrls);
+            return ctrls;
+            function selectCtrl(ctrl) {
                 return {
-                    id: select.id,
-                    tag: select.tag,
-                    title: select.title,
-                    parent: select.parentContentControlOrNullObject.id,
-                    children: children,
-                    hasLabel: hasLabel(),
+                    id: ctrl.id,
+                    tag: ctrl.tag,
+                    title: ctrl.title,
+                    parent: ctrl.parentContentControlOrNullObject.id,
+                    children: getChildren(ctrl),
+                    hasLabel: hasLabel(ctrl),
                     processed: false,
                     delete: false,
                 };
-            });
-            console.log(ctrls);
-            return ctrls;
+            }
+            ;
+            function directChildren(ctrl) {
+                return ctrl.contentControls.items
+                    .filter(child => child.parentContentControl.id === ctrl.id); /*!we keep only one level of children*/
+            }
+            function getChildren(ctrl) {
+                //This is to cover the case of newly inserted clones, where the suboptions of the new clone is not already in the selectCtrls[];
+                return getSelectCtrls(directChildren(ctrl))
+                    .map(child => selectCtrl(child));
+            }
+            function hasLabel(ctrl) {
+                const label = directChildren(ctrl)
+                    .find(child => labelTags.includes(child.tag));
+                if (!label)
+                    return undefined;
+                return { id: label.id, tag: label.tag };
+            }
             function getSelectCtrls(ctrls) {
                 return ctrls.filter(ctrl => [RTSelect, RTClone].includes(ctrl.tag));
             }
@@ -940,8 +945,8 @@ export class EditContract extends WordContentCtrls {
         async function showNestedOptionsTree(context) {
             const ctrls = context.document.getSelection().contentControls;
             await context.sync();
-            selectCtrls.length = 0;
-            selectCtrls.push(...await fetchSelectCtrls(context, ctrls));
+            selectCtrls.clear();
+            (await fetchSelectCtrls(context, ctrls)).forEach(ctrl => selectCtrls.add(ctrl));
             if (!ctrls.items.length)
                 return showAlert('You must select a range containing the RTSelect ContentContrls you want to show its tree'); //!This MUST COME AFTER selectCtrls.push() because ctrls.items are not available until fetchSelectCtrls() loads their properties.
             for (const ctrl of selectCtrls)
