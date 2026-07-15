@@ -714,7 +714,7 @@ export class EditContract extends WordContentCtrls {
                     if (!label)
                         return showAlert("The Label ContentControl could not be found");
                     const isLast = ctrls.indexOf(ctrl) === ctrls.length - 1; //We check if this is the last contentcontrol in the array
-                    const block = promptSelectBlock(ctrl, isLast, label.text || 'Label text could not be retrived');
+                    const block = insertPromptBlock(ctrl, isLast, label.text || 'Label text could not be retrived');
                     if (!block)
                         continue;
                     blocks.push(block);
@@ -883,10 +883,6 @@ export class EditContract extends WordContentCtrls {
                 };
             }
             ;
-            function directChildren(ctrl) {
-                return ctrl.contentControls.items
-                    .filter(child => child.parentContentControl.id === ctrl.id); /*!we keep only one level of children*/
-            }
             function getNested(ctrl) {
                 //This is to cover the case of newly inserted clones, where the suboptions of the new clone is not already in the selectCtrls[];
                 return getSelectCtrls(directChildren(ctrl))
@@ -899,37 +895,27 @@ export class EditContract extends WordContentCtrls {
                     return undefined;
                 return { id: label.id, tag: label.tag };
             }
+            function directChildren(ctrl) {
+                return ctrl.contentControls.items
+                    .filter(nested => nested.parentContentControl.id === ctrl.id); /*!we keep only one level of children*/
+            }
             function getSelectCtrls(ctrls) {
                 return ctrls.filter(ctrl => [RTSelect, RTClone].includes(ctrl.tag));
             }
         }
         ;
-        /**
-         *
-         * @param id The id of the contentControl containig the options
-         * @param isLast If true, a button will be appended at the end
-         * @returns
-         */
-        function promptSelectBlock(ctrl, isLast, text) {
-            try {
-                return appendHTMLElements(); //The checkBox will have as id the title of the "select" contentcontrol}
-            }
-            catch (error) {
-                return showNotification(`Error from insertPromptBlock() = ${error}`);
-            }
-            function appendHTMLElements() {
-                const wraper = element('div', 'promptContainer', '', USERFORM);
-                const option = element('div', 'select', '', wraper);
-                const checkBox = element('input', 'checkBox', '', option); //!We must give the checkBox the id of the selectCtrl because the id will be later used to retrieve the selectCtrl and process its children
-                checkBox.type = 'checkbox';
-                element('label', 'label', text, option);
-                if (!isLast)
-                    return { wraper, checkBox, ctrl };
-                return { wraper, checkBox, ctrl, btnNext: btn() };
-                function btn() {
-                    const btns = element('div', 'btns', '', wraper);
-                    return element('button', 'btnOK', 'Next', btns);
-                }
+        function insertPromptBlock(ctrl, isLast, text) {
+            const wraper = element('div', 'promptContainer', '', USERFORM);
+            const option = element('div', 'select', '', wraper);
+            const checkBox = element('input', 'checkBox', '', option); //!We must give the checkBox the id of the selectCtrl because the id will be later used to retrieve the selectCtrl and process its children
+            checkBox.type = 'checkbox';
+            element('label', 'label', text, option);
+            if (!isLast)
+                return { wraper, checkBox, ctrl };
+            return { wraper, checkBox, ctrl, btnNext: btn() };
+            function btn() {
+                const btns = element('div', 'btns', '', wraper);
+                return element('button', 'btnOK', 'Next', btns);
             }
         }
         function btnOnClick(blocks, context) {
@@ -967,27 +953,36 @@ export class EditContract extends WordContentCtrls {
     }
     async finalizeContract() {
         const remove = [this.RTSiTag, this.RTDescriptionTag, this.RTObsTag, this.RTSectionTag]; //The contentcontrol and its content will be deleted.
-        const content = [this.RTSelectTag, this.RTCloneTag]; //We will delete the contentControl but keep its content
+        const keepContent = [this.RTSelectTag, this.RTCloneTag]; //We will delete the contentControl but keep its content
         const styles = [...this.RTSiStyles, this.RTSectionStyle, this.RTObsStyle, this.RTDescriptionStyle];
+        const hide = await this.promptConfirm('Do you want to hide the ContentControls that will not be deleted?');
         await Word.run(async (context) => {
             const allCtrls = context.document.getContentControls();
-            allCtrls.load(['tag', 'title']);
+            allCtrls.load(['id', 'tag', 'title']);
             const body = context.document.body.getRange();
             body.load(['paragraphs', 'paragraphs/style']);
             await context.sync();
-            for (const ctrl of allCtrls.items) {
-                ctrl.cannotDelete = false; //!We must remove the cannotDelete from all ctrls because this will prevent deleting the line on which there is a hidden contentcontrol
-                if (remove.includes(ctrl?.tag))
-                    ctrl.delete(false);
-                else if (content.includes(ctrl?.tag))
-                    ctrl.delete(true);
-                else
-                    ctrl.appearance = Word.ContentControlAppearance.hidden;
+            try {
+                for (const ctrl of allCtrls.items) {
+                    ctrl.cannotDelete = false; //!We must remove the cannotDelete from all ctrls because this will prevent deleting the line on which there is a hidden contentcontrol
+                    if (remove.includes(ctrl?.tag))
+                        ctrl.delete(false);
+                    else if (keepContent.includes(ctrl?.tag))
+                        ctrl.delete(true);
+                    else if (hide)
+                        ctrl.appearance = Word.ContentControlAppearance.hidden;
+                }
+                body.paragraphs.items
+                    .filter(p => styles.includes(p.style))
+                    .forEach(p => {
+                    p.style = `${this.StylePrefix}Normal`;
+                    p.delete();
+                });
+                await context.sync();
             }
-            body.paragraphs.items
-                .filter(p => styles.includes(p.style))
-                .forEach(p => p.style = `${this.StylePrefix}Normal`);
-            await context.sync();
+            catch (error) {
+                showAlert(`Error while deleting contentcontrol:\n Error: ${error.debugInfo}`);
+            }
         });
     }
     async searchString(search, context, matchWildcards, replaceWith) {

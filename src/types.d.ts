@@ -5,7 +5,7 @@ type ContentControlType = Word.ContentControlType.richText | Word.ContentControl
 
 type Btn = [Function, string, string | undefined];
 
-type selectBlock = {
+type promptBlock = {
     wraper: HTMLDivElement,
     checkBox: HTMLInputElement,
     ctrl: selectCtrl,

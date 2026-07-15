@@ -754,7 +754,7 @@ export class EditContract extends WordContentCtrls {
 
             async function processCtrls() {
                 if (clear) USERFORM.innerHTML = '';//We clear the form before populating it
-                const blocks: selectBlock[] = [];
+                const blocks: promptBlock[] = [];
 
                 for (const ctrl of ctrls) {
 
@@ -769,7 +769,7 @@ export class EditContract extends WordContentCtrls {
                     const label = await labelRange(ctrl.hasLabel.id, context);
                     if (!label) return showAlert("The Label ContentControl could not be found");
                     const isLast = ctrls.indexOf(ctrl) === ctrls.length - 1;//We check if this is the last contentcontrol in the array
-                    const block = promptSelectBlock(ctrl, isLast, label.text || 'Label text could not be retrived');
+                    const block = insertPromptBlock(ctrl, isLast, label.text || 'Label text could not be retrived');
                     if (!block) continue;
                     blocks.push(block);
                     if (block.btnNext) await btnOnClick(blocks, context);//This is the case where btnNext was added because we reached the end of ctrls[] (isLast = true). We then need to await the user to click the button in order to process all the already displayed html elements/options of ctrls[].
@@ -961,12 +961,6 @@ export class EditContract extends WordContentCtrls {
             };
 
 
-            function directChildren(ctrl: ContentControl) {
-                return ctrl.contentControls.items
-                    .filter(child => child.parentContentControl.id === ctrl.id)/*!we keep only one level of children*/
-            }
-
-
             function getNested(ctrl: ContentControl) {
                 //This is to cover the case of newly inserted clones, where the suboptions of the new clone is not already in the selectCtrls[];
                 return getSelectCtrls(directChildren(ctrl))
@@ -980,6 +974,11 @@ export class EditContract extends WordContentCtrls {
                 return { id: label.id, tag: label.tag };
             }
 
+            function directChildren(ctrl: ContentControl) {
+                return ctrl.contentControls.items
+                    .filter(nested => nested.parentContentControl.id === ctrl.id)/*!we keep only one level of children*/
+            }
+
 
             function getSelectCtrls<T extends ContentControl | selectCtrl>(ctrls: T[]): T[] {
                 return ctrls.filter(ctrl => [RTSelect, RTClone].includes(ctrl.tag));
@@ -987,37 +986,24 @@ export class EditContract extends WordContentCtrls {
 
         };
 
-        /**
-         * 
-         * @param id The id of the contentControl containig the options
-         * @param isLast If true, a button will be appended at the end
-         * @returns 
-         */
-        function promptSelectBlock(ctrl: selectCtrl, isLast: boolean, text: string): selectBlock | void {
-            try {
-                return appendHTMLElements() as selectBlock;//The checkBox will have as id the title of the "select" contentcontrol}
-            } catch (error) {
-                return showNotification(`Error from insertPromptBlock() = ${error}`)
-            }
 
-            function appendHTMLElements(): selectBlock {
-                const wraper = element<HTMLDivElement>('div', 'promptContainer', '', USERFORM);
-                const option = element('div', 'select', '', wraper);
-                const checkBox = element<HTMLInputElement>('input', 'checkBox', '', option);//!We must give the checkBox the id of the selectCtrl because the id will be later used to retrieve the selectCtrl and process its children
-                checkBox.type = 'checkbox';
-                element<HTMLLabelElement>('label', 'label', text, option);
-                if (!isLast) return { wraper, checkBox, ctrl };
-                return { wraper, checkBox, ctrl, btnNext: btn() };
+        function insertPromptBlock(ctrl: selectCtrl, isLast: boolean, text: string): promptBlock | void {
+            const wraper = element<HTMLDivElement>('div', 'promptContainer', '', USERFORM);
+            const option = element('div', 'select', '', wraper);
+            const checkBox = element<HTMLInputElement>('input', 'checkBox', '', option);//!We must give the checkBox the id of the selectCtrl because the id will be later used to retrieve the selectCtrl and process its children
+            checkBox.type = 'checkbox';
+            element<HTMLLabelElement>('label', 'label', text, option);
+            if (!isLast) return { wraper, checkBox, ctrl };
+            return { wraper, checkBox, ctrl, btnNext: btn() };
 
-                function btn() {
-                    const btns = element('div', 'btns', '', wraper);
-                    return element<HTMLButtonElement>('button', 'btnOK', 'Next', btns);
-                }
+            function btn() {
+                const btns = element('div', 'btns', '', wraper);
+                return element<HTMLButtonElement>('button', 'btnOK', 'Next', btns);
             }
         }
 
 
-        function btnOnClick(blocks: selectBlock[], context: Word.RequestContext): Promise<boolean> {
+        function btnOnClick(blocks: promptBlock[], context: Word.RequestContext): Promise<boolean> {
             return new Promise((resolve) => {
                 const btn = blocks.find(block => block.btnNext)?.btnNext;
                 btn!.onclick = async () => resolve(await processBlocks());
@@ -1057,30 +1043,39 @@ export class EditContract extends WordContentCtrls {
 
     private async finalizeContract() {
         const remove = [this.RTSiTag, this.RTDescriptionTag, this.RTObsTag, this.RTSectionTag];//The contentcontrol and its content will be deleted.
-        const content = [this.RTSelectTag, this.RTCloneTag];//We will delete the contentControl but keep its content
+        const keepContent = [this.RTSelectTag, this.RTCloneTag];//We will delete the contentControl but keep its content
         const styles = [...this.RTSiStyles, this.RTSectionStyle, this.RTObsStyle, this.RTDescriptionStyle];
+        const hide = await this.promptConfirm('Do you want to hide the ContentControls that will not be deleted?');
         await Word.run(async (context) => {
             const allCtrls = context.document.getContentControls();
-            allCtrls.load(['tag', 'title']);
+            allCtrls.load(['id', 'tag', 'title']);
             const body = context.document.body.getRange();
             body.load(['paragraphs', 'paragraphs/style']);
             await context.sync();
 
-            for (const ctrl of allCtrls.items) {
-                ctrl.cannotDelete = false;//!We must remove the cannotDelete from all ctrls because this will prevent deleting the line on which there is a hidden contentcontrol
-                if (remove.includes(ctrl?.tag))
-                    ctrl.delete(false)
-                else if (content.includes(ctrl?.tag))
-                    ctrl.delete(true)
-                else
-                    ctrl.appearance = Word.ContentControlAppearance.hidden;
+            try {
+                for (const ctrl of allCtrls.items) {
+                    ctrl.cannotDelete = false;//!We must remove the cannotDelete from all ctrls because this will prevent deleting the line on which there is a hidden contentcontrol
+
+                    if (remove.includes(ctrl?.tag))
+                        ctrl.delete(false)
+                    else if (keepContent.includes(ctrl?.tag))
+                        ctrl.delete(true)
+                    else if (hide)
+                        ctrl.appearance = Word.ContentControlAppearance.hidden;
+                }
+
+                body.paragraphs.items
+                    .filter(p => styles.includes(p.style))
+                    .forEach(p => {
+                        p.style = `${this.StylePrefix}Normal`;
+                        p.delete();
+                    });
+
+                await context.sync();
+            } catch (error: any) {
+                showAlert(`Error while deleting contentcontrol:\n Error: ${error.debugInfo}`);
             }
-
-            body.paragraphs.items
-                .filter(p => styles.includes(p.style))
-                .forEach(p => p.style = `${this.StylePrefix}Normal`);
-
-            await context.sync();
         });
 
     }
