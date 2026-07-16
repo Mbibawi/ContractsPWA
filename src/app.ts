@@ -765,7 +765,7 @@ export class EditContract extends WordContentCtrls {
                         await promptForSelection(subOptions(ctrl), context); //When a 'RTSelect' ContentControl  does not have a lable (which is a 'RTSi' or 'RTSection' ContentControl) it means that this ContentControl is a mere wraper for sub 'RTSelect' ContentControls, each representing an option from which the user must choose. Hence, we do not need to prompt the user to decide whether to keep or delete this select section 
 
 
-                    else if (ctrl.tag === RTSelect && ctrl.hasLabel.tag === RTSiTag) {
+                    else if (ctrl.tag === RTSelect && ctrl.hasLabel.tag === RTSectionTag) {
                         //When an RTSelect ContentControl has as label a 'RTSection' ContentControl, it means that  the RTSelect ContentControl is a wraper for sub 'RTSelect' ContentControls, but it has a lable that needs to be be displayed to the user to explain to him under which section the options are displayed.
                         await insertLabel(ctrl.hasLabel.id);
                         await promptForSelection(subOptions(ctrl), context, false);
