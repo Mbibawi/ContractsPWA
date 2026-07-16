@@ -709,7 +709,7 @@ export class EditContract extends WordContentCtrls {
                         await promptForSelection(subOptions(ctrl), context); //When a 'RTSelect' ContentControl  does not have a lable (which is a 'RTSi' or 'RTSection' ContentControl) it means that this ContentControl is a mere wraper for sub 'RTSelect' ContentControls, each representing an option from which the user must choose. Hence, we do not need to prompt the user to decide whether to keep or delete this select section 
                     else if (ctrl.tag === RTSelect && ctrl.hasLabel.tag === RTSiTag) {
                         //When an RTSelect ContentControl has as label a 'RTSection' ContentControl, it means that  the RTSelect ContentControl is a wraper for sub 'RTSelect' ContentControls, but it has a lable that needs to be be displayed to the user to explain to him under which section the options are displayed.
-                        insertLabel(ctrl.hasLabel.id);
+                        await insertLabel(ctrl.hasLabel.id);
                         await promptForSelection(subOptions(ctrl), context, false);
                     }
                     else
@@ -717,18 +717,18 @@ export class EditContract extends WordContentCtrls {
                 }
                 async function showPromptBlock(ctrl) {
                     const isLast = ctrls.indexOf(ctrl) === ctrls.length - 1; //We check if this is the last contentcontrol in the array
-                    const block = insertHtml(ctrl, isLast);
+                    const block = await insertHtml(ctrl, isLast);
                     if (!block)
                         return;
                     blocks.push(block);
                     if (block.btnNext)
                         await btnOnClick(blocks, context); //This is the case where btnNext was added because we reached the end of ctrls[] (isLast = true). We then need to await the user to click the button in order to process all the already displayed html elements/options of ctrls[].
-                    function insertHtml(ctrl, isLast) {
+                    async function insertHtml(ctrl, isLast) {
                         const wraper = insertWraper(USERFORM);
                         const option = element('div', 'select', '', wraper);
                         const checkBox = element('input', 'checkBox', '', option); //!We must give the checkBox the id of the selectCtrl because the id will be later used to retrieve the selectCtrl and process its children
                         checkBox.type = 'checkbox';
-                        const label = insertLabel(ctrl.hasLabel.id, option);
+                        const label = await insertLabel(ctrl.hasLabel.id, option);
                         if (!label)
                             return wraper.remove();
                         if (!isLast)
