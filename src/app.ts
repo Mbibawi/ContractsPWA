@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.16.1";
+const version = "v11.16.2";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'] as Btn;
@@ -761,20 +761,60 @@ export class EditContract extends WordContentCtrls {
                     if (ctrl.processed) continue;//!WE MUST escape the ctrls that have already been processed.
                     ctrl.processed = true;
 
-                    if (!ctrl?.hasLabel) {
+                    if (!ctrl?.hasLabel)
                         await promptForSelection(subOptions(ctrl), context); //When a 'RTSelect' ContentControl  does not have a lable (which is a 'RTSi' or 'RTSection' ContentControl) it means that this ContentControl is a mere wraper for sub 'RTSelect' ContentControls, each representing an option from which the user must choose. Hence, we do not need to prompt the user to decide whether to keep or delete this select section 
-                        continue
-                    };
 
-                    const label = await labelRange(ctrl.hasLabel.id, context);
-                    if (!label) return showAlert("The Label ContentControl could not be found");
+
+                    else if (ctrl.tag === RTSelect && ctrl.hasLabel.tag === RTSiTag) {
+                        //When an RTSelect ContentControl has as label a 'RTSection' ContentControl, it means that  the RTSelect ContentControl is a wraper for sub 'RTSelect' ContentControls, but it has a lable that needs to be be displayed to the user to explain to him under which section the options are displayed.
+                        insertLabel(ctrl.hasLabel.id);
+                        await promptForSelection(subOptions(ctrl), context, false);
+                    }
+
+
+                    else await showPromptBlock(ctrl)
+
+                }
+
+                async function showPromptBlock(ctrl: selectCtrl) {
                     const isLast = ctrls.indexOf(ctrl) === ctrls.length - 1;//We check if this is the last contentcontrol in the array
-                    const block = insertPromptBlock(ctrl, isLast, label.text || 'Label text could not be retrived');
-                    if (!block) continue;
+                    const block = insertHtml(ctrl, isLast);
+                    if (!block) return;
                     blocks.push(block);
                     if (block.btnNext) await btnOnClick(blocks, context);//This is the case where btnNext was added because we reached the end of ctrls[] (isLast = true). We then need to await the user to click the button in order to process all the already displayed html elements/options of ctrls[].
-                }
+
+                    function insertHtml(ctrl: selectCtrl, isLast: boolean): promptBlock | void {
+                        const wraper = insertWraper(USERFORM);
+                        const option = element('div', 'select', '', wraper);
+                        const checkBox = element<HTMLInputElement>('input', 'checkBox', '', option);//!We must give the checkBox the id of the selectCtrl because the id will be later used to retrieve the selectCtrl and process its children
+                        checkBox.type = 'checkbox';
+                        const label = insertLabel(ctrl.hasLabel!.id, option);
+                        if (!label) return wraper.remove();
+                        if (!isLast) return { wraper, checkBox, ctrl };
+                        return { wraper, checkBox, ctrl, btnNext: btn() };
+
+                        function btn() {
+                            const btns = element('div', 'btns', '', wraper);
+                            return element<HTMLButtonElement>('button', 'btnOK', 'Next', btns);
+                        }
+                    };
+
+                };
+
+                function insertWraper(parent: HTMLElement) {
+                    return element<HTMLDivElement>('div', 'promptContainer', '', parent);
+                };
+
+                async function insertLabel(id: number, wraper?: HTMLElement) {
+                    if (!wraper) wraper = insertWraper(USERFORM);
+                    const label = await labelRange(id, context);
+                    if (!label) return showAlert("The Label ContentControl could not be found");
+                    const text = label.text || 'Label text could not be retrived'
+                    return element<HTMLLabelElement>('label', 'label', text, wraper);
+                };
             }
+
+
         }
 
         /**
@@ -895,10 +935,10 @@ export class EditContract extends WordContentCtrls {
 
             async function process() {
                 const ctrls = context.document.contentControls;
-                ctrls.load(['id', 'parentContentControlOrNullObject']);
+                ctrls.load(['id']);
                 await context.sync();
-                const isTrue = selectCtrls.filter(c => c.delete);
-                const toDelete = ctrls.items.filter(ctrl => isTrue.find(c => c.id === ctrl.id));
+                const ids = selectCtrls.filter(c => c.delete).map(c => c.id);
+                const toDelete = ctrls.items.filter(ctrl => ids.includes(ctrl.id));
 
                 console.log(`toDelete ids = ${toDelete.map(ctrl => ctrl.id)}`);
 
@@ -918,7 +958,6 @@ export class EditContract extends WordContentCtrls {
                     }
                 }
             };
-
 
         }
 
@@ -986,21 +1025,6 @@ export class EditContract extends WordContentCtrls {
 
         };
 
-
-        function insertPromptBlock(ctrl: selectCtrl, isLast: boolean, text: string): promptBlock | void {
-            const wraper = element<HTMLDivElement>('div', 'promptContainer', '', USERFORM);
-            const option = element('div', 'select', '', wraper);
-            const checkBox = element<HTMLInputElement>('input', 'checkBox', '', option);//!We must give the checkBox the id of the selectCtrl because the id will be later used to retrieve the selectCtrl and process its children
-            checkBox.type = 'checkbox';
-            element<HTMLLabelElement>('label', 'label', text, option);
-            if (!isLast) return { wraper, checkBox, ctrl };
-            return { wraper, checkBox, ctrl, btnNext: btn() };
-
-            function btn() {
-                const btns = element('div', 'btns', '', wraper);
-                return element<HTMLButtonElement>('button', 'btnOK', 'Next', btns);
-            }
-        }
 
 
         function btnOnClick(blocks: promptBlock[], context: Word.RequestContext): Promise<boolean> {
