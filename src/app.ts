@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.16.4";
+const version = "v11.16.5";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'] as Btn;
@@ -641,33 +641,32 @@ export class EditContract extends WordContentCtrls {
 
 
         async function insertBlockAmountWithFILLINField() {
+            await Word.run(async (context) => {
+                try {
+                    const range = context.document.getSelection().getRange(Word.RangeLocation.start);
+                    const wraper = await insertContentControl(range, 'Block Amount Associated to FILLINField', 'BlockAmount', 0, richText, null, false, false);
+                    if (!wraper) throw new Error('Failed to insert a contentControl in the selected range');
+                    const wraperRange = wraper.getRange();
+                    const bookmarkName = (await promptForInput('Provide the name of th bookmark without spaces') as string).replaceAll(' ', '');
+                    if (!bookmarkName) throw new Error('The bookmark you entered is empty or not valid')
+                    const fillIN = await insertFILLINField(wraperRange.getRange(Word.RangeLocation.start));
+                    if (!fillIN) throw new Error('Failed to insert the FILLIN Field');
+                    getField(`SET ${bookmarkName} {${fillIN.code}}`, wraperRange); //SET field associated to a FILLIN field which prompts the user to provide the amount
+                    getField(`{REF ${bookmarkName}} \\h \\*cardText`, wraperRange); //amout as text
+                    wraperRange.insertText(' euros (', Word.InsertLocation.end);
+                    getField(`REF ${bookmarkName} \\h`, wraperRange); // amount in figures
+                    wraperRange.insertText(' €', Word.InsertLocation.end);
 
-            try {
-                const range = (await getSelectionRange());
-                if (!range) throw new Error('Failed to get the selection range');
-                const wraper = await insertContentControl(range, 'Block Amount Associated to FILLINField', 'BlockAmount', 0, richText, null, false, false);
-                if (!wraper) throw new Error('Failed to insert a contentControl in the selected range');
-                const wraperRange = wraper?.getRange(Word.RangeLocation.before);
-                const bookmarkName = (await promptForInput('Provide the name of th bookmark without spaces') as string).replaceAll(' ', '');
-                if (!bookmarkName) throw new Error('The bookmark you entered is empty or not valid')
-                const fillIN = await insertFILLINField(wraperRange);
-                if (!fillIN) throw new Error('Failed to insert the FILLIN Field');
-                getField(`SET ${bookmarkName} {${fillIN.code}}`, wraperRange); //SET field associated to a FILLIN field which prompts the user to provide the amount
-                getField(`{REF ${bookmarkName}} \\h \\*cardText`, wraperRange); //amout as text
-                wraperRange.insertText(' euros (', Word.InsertLocation.end);
-                getField(`REF ${bookmarkName} \\h`, wraperRange); // amount in figures
-                wraperRange.insertText(' €', Word.InsertLocation.end);
+                    fillIN.delete();
+                    await context.sync();
 
+                } catch (error: any) {
 
-                fillIN.untrack();
-                range.untrack();
-                fillIN.delete();
-                await range.context.sync();
+                    showAlert(`An error occured ${error.debugInfo || error}`)
+                }
 
-            } catch (error: any) {
+            })
 
-                showAlert(`An error occured ${error.debugInfo || error}`)
-            }
 
 
             function getField(code: string, range: Word.Range) {
