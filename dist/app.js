@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.16.3";
+const version = "v11.16.4";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'];
 Office.onReady((info) => {
@@ -389,7 +389,7 @@ export class EditContract extends WordContentCtrls {
     ;
     prepareTemplate() {
         USERFORM.innerHTML = '';
-        const searchString = this.searchString.bind(this), getSelectionRange = this.getSelectionRange.bind(this), insertContentControl = this.insertContentControl.bind(this), insertFields = this.insertFields.bind(this), setCtrlsColor = this.setCtrlsColor.bind(this), setCtrlsFontColor = this.setCtrlsFontColor.bind(this);
+        const searchString = this.searchString.bind(this), getSelectionRange = this.getSelectionRange.bind(this), insertContentControl = this.insertContentControl.bind(this), insertFields = this.insertFields.bind(this), setCtrlsColor = this.setCtrlsColor.bind(this), setCtrlsFontColor = this.setCtrlsFontColor.bind(this), insertFILLINField = this._fields.insertFILLINField.bind(this);
         const siTag = this.RTSiTag, selectTag = this.RTSelectTag, sectionTag = this.RTSectionTag, descTag = this.RTDescriptionTag, stylePrefix = this.StylePrefix, richText = this.richText, dorpDownTag = this.RTDropDownTag;
         const descStyle = this.RTDescriptionStyle, siStyle = this.RTSiStyles, sectionStyle = this.RTSectionStyle, dropDownList = this.dropDownList;
         const wrapRange = this.wrapSelectionWithContentControl.bind(this);
@@ -407,11 +407,11 @@ export class EditContract extends WordContentCtrls {
             wrap(this.RTSiTag, this.RTSiTag, this.richText, this.RTSiStyles[0], true, true, 'Insert Single RT Si', single(this.RTSiTag)),
             wrap(this.RTSelectTag, this.RTSelectTag, this.richText, null, false, true, 'Insert Single RT Select', single(this.RTSelectTag, 'Any such contentControl is a container. Each contentcontrol having the same tag within its range, will be considered as an option to select or to exclude')),
             [insertRTBlock_Select_Si, 'Insert RT Select & Si Block', 'Finds the first paragraph formatted with any of the RTSiStyles. Wraps this paragraph in a RTSi ContentControl, Then wraps the whol selected range in a RTSelect ContentControl.'],
-            [this._fields.insertBlockAmountWithFILLINField, 'Insert Amount Block', 'Inserts a ContentControl block containing a FILLIN field associated with a bookmark for the amount in figures and in text'],
+            [insertBlockAmountWithFILLINField, 'Insert Amount Block', 'Inserts a ContentControl block containing a FILLIN field associated with a bookmark for the amount in figures and in text'],
             [insertDropDownList, 'Insert a Dropdown List from selection', 'Creates a dropwdown list from the selected string. The options to choose from must be separated by "/"'],
             [() => insertRTDescription(true), 'Insert Single RT Description', single(this.RTDescriptionTag)],
             [this.insertSingleFiled, 'Insert ContentControl Field', single(this.RTFieldTag)],
-            [this._fields.insertFILLINField, 'Insert FILLIN Field', single(this.RTFieldTag)],
+            [insertFields, 'Insert FILLIN Field', single(this.RTFieldTag)],
             wrap(this.RTSectionTag, this.RTSectionTag, this.richText, this.RTSectionTag, true, true, 'Insert Single RT Section', single(this.RTSectionTag)),
             //wrap(this.RTOrTag, this.RTOrTag, this.richText, null, false, true, 'Insert Single RT OR', single(this.RTOrTag, 'need to check what it does')),
             wrap(this.RTCloneTag, this.RTCloneTag, this.richText, null, false, true, 'Insert Single RT Dublicate Block', single(this.RTCloneTag, 'need to check what it does')),
@@ -602,6 +602,42 @@ export class EditContract extends WordContentCtrls {
             range.untrack();
             ctrl.untrack();
             await ctrl.context.sync();
+        }
+        async function insertBlockAmountWithFILLINField() {
+            try {
+                const range = (await getSelectionRange());
+                if (!range)
+                    throw new Error('Failed to get the selection range');
+                const wraper = await insertContentControl(range, 'Block Amount Associated to FILLINField', 'BlockAmount', 0, richText, null, false, false);
+                if (!wraper)
+                    throw new Error('Failed to insert a contentControl in the selected range');
+                const wraperRange = wraper?.getRange(Word.RangeLocation.before);
+                const bookmarkName = (await promptForInput('Provide the name of th bookmark without spaces')).replaceAll(' ', '');
+                if (!bookmarkName)
+                    throw new Error('The bookmark you entered is empty or not valid');
+                const fillIN = await insertFILLINField(wraperRange);
+                if (!fillIN)
+                    throw new Error('Failed to insert the FILLIN Field');
+                getField(`SET ${bookmarkName} {${fillIN.code}}`, wraperRange); //SET field associated to a FILLIN field which prompts the user to provide the amount
+                getField(`{REF ${bookmarkName}} \\h \\*cardText`, wraperRange); //amout as text
+                wraperRange.insertText(' euros (', Word.InsertLocation.end);
+                getField(`REF ${bookmarkName} \\h`, wraperRange); // amount in figures
+                wraperRange.insertText(' €', Word.InsertLocation.end);
+                fillIN.untrack();
+                range.untrack();
+                fillIN.delete();
+                await range.context.sync();
+            }
+            catch (error) {
+                showAlert(`An error occured ${error.debugInfo || error}`);
+            }
+            function getField(code, range) {
+                const field = range?.insertField(Word.InsertLocation.end, Word.FieldType.empty);
+                if (!field)
+                    throw new Error(`Failed to insert a field with field code = ${code}`);
+                field.code = code;
+            }
+            ;
         }
         /**
          * Wraps every occurrence of text formatted with a specific character style in a rich text content control.
@@ -1213,42 +1249,6 @@ export class WordFileds extends WordContentCtrls {
             }
             ;
         });
-    }
-    async insertBlockAmountWithFILLINField() {
-        try {
-            const range = (await this.getSelectionRange());
-            if (!range)
-                throw new Error('Failed to get the selection range');
-            const wraper = await this.insertContentControl(range, 'Block Amount Associated to FILLINField', 'BlockAmount', 0, this.richText, null, false, false);
-            if (!wraper)
-                throw new Error('Failed to insert a contentControl in the selected range');
-            const wraperRange = wraper?.getRange(Word.RangeLocation.before);
-            const bookmarkName = (await promptForInput('Provide the name of th bookmark without spaces')).replaceAll(' ', '');
-            if (!bookmarkName)
-                throw new Error('The bookmark you entered is empty or not valid');
-            const fillIN = await this.insertFILLINField(wraperRange);
-            if (!fillIN)
-                throw new Error('Failed to insert the FILLIN Field');
-            getField(`SET ${bookmarkName} {${fillIN.code}}`, wraperRange); //SET field associated to a FILLIN field which prompts the user to provide the amount
-            getField(`{REF ${bookmarkName}} \\h \\*cardText`, wraperRange); //amout as text
-            wraperRange.insertText(' euros (', Word.InsertLocation.end);
-            getField(`REF ${bookmarkName} \\h`, wraperRange); // amount in figures
-            wraperRange.insertText(' €', Word.InsertLocation.end);
-            fillIN.untrack();
-            range.untrack();
-            fillIN.delete();
-            await range.context.sync();
-        }
-        catch (error) {
-            showAlert(`An error occured ${error.debugInfo || error}`);
-        }
-        function getField(code, range) {
-            const field = range?.insertField(Word.InsertLocation.end, Word.FieldType.empty);
-            if (!field)
-                throw new Error(`Failed to insert a field with field code = ${code}`);
-            field.code = code;
-        }
-        ;
     }
     async insertFILLINField(range, code) {
         const create = element;
