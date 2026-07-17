@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.16.5";
+const version = "v11.16.6";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'] as Btn;
@@ -56,23 +56,28 @@ function element<T extends HTMLElement>(tag: string, css?: string, textContent?:
     return el
 }
 
-async function promptForInput(question: string, deflt?: string, fun?: Function, cancel: boolean = true): Promise<string | void> {
-    if (!question) return '';
-    const { modal, window } = getModalContainer(USERFORM);
-    const prompt = element('div', 'prompt', '', window);
-    const input = element('input', 'answer', '', prompt) as HTMLInputElement;
-    const btns = element('div', 'btns', '', prompt);
+async function promptForInput(questions: string[], deflt?: string, fun?: Function, parent?: HTMLElement): Promise<string[] | string | void> {
+    if (!questions?.length) return [];
+    const { modal, window } = getModalContainer(parent ?? USERFORM);
+    const inputs = questions.map(question => {
+        const div = element('div', '', '', window, undefined, true);
+        element('label', 'question', question, div, undefined, true);
+
+        const input = element<HTMLInputElement>('input', 'answer', deflt || '', div, undefined, true);
+        if (deflt) input.value = deflt;
+        return input
+    });
+    const btns = element('div', 'btns', '', window);
     const btnOK = element('button', 'btnOK', 'OK', btns);
     const btnCancel = element('button', 'btnCancel', 'Cancel', btns);
-    if (deflt) input.value = deflt;
     return new Promise((resolve, reject) => {
         btnCancel.onclick = () => reject(modal.remove());
         btnOK.onclick = () => {
-            const answer = input.value;
-            console.log('user answer = ', answer);
+            const answers = inputs.map(input => input.value || '');
+            console.log('user answers = ', answers.join('|'));
             modal.remove();
-            if (fun) fun(answer);
-            resolve(answer)
+            if (fun) fun(answers);
+            answers.length === 1 ? resolve(answers[0]) : resolve(answers)
         };
     });
 
@@ -404,7 +409,7 @@ export class EditContract extends WordContentCtrls {
             insertFields = this.insertFields.bind(this),
             setCtrlsColor = this.setCtrlsColor.bind(this),
             setCtrlsFontColor = this.setCtrlsFontColor.bind(this),
-            insertFILLINField = this._fields.insertFILLINField.bind(this);
+            insertAskField = this._fields.insertAskField.bind(this);
 
         const siTag = this.RTSiTag,
             selectTag = this.RTSelectTag,
@@ -647,17 +652,14 @@ export class EditContract extends WordContentCtrls {
                     const wraper = await insertContentControl(range, 'Block Amount Associated to FILLINField', 'BlockAmount', 0, richText, null, false, false);
                     if (!wraper) throw new Error('Failed to insert a contentControl in the selected range');
                     const wraperRange = wraper.getRange();
-                    const bookmarkName = (await promptForInput('Provide the name of th bookmark without spaces') as string).replaceAll(' ', '');
-                    if (!bookmarkName) throw new Error('The bookmark you entered is empty or not valid')
-                    const fillIN = await insertFILLINField(wraperRange.getRange(Word.RangeLocation.start));
-                    if (!fillIN) throw new Error('Failed to insert the FILLIN Field');
-                    getField(`SET ${bookmarkName} {${fillIN.code}}`, wraperRange); //SET field associated to a FILLIN field which prompts the user to provide the amount
-                    getField(`{REF ${bookmarkName}} \\h \\*cardText`, wraperRange); //amout as text
+                    wraperRange.insertText('[*]', Word.RangeLocation.start);
+                    const bookmarkName = await insertAskField(wraperRange.getRange(Word.RangeLocation.start));
+                    if (!bookmarkName) throw new Error('The bookmark name returned after trying to insert the ASK field is undefined');
+                    getField(`{REF ${bookmarkName}} \\h \\*cardText`, wraper); //amout as text
                     wraperRange.insertText(' euros (', Word.InsertLocation.end);
-                    getField(`REF ${bookmarkName} \\h`, wraperRange); // amount in figures
+                    getField(`REF ${bookmarkName} \\h`, wraper); // amount in figures
                     wraperRange.insertText(' €', Word.InsertLocation.end);
 
-                    fillIN.delete();
                     await context.sync();
 
                 } catch (error: any) {
@@ -669,11 +671,11 @@ export class EditContract extends WordContentCtrls {
 
 
 
-            function getField(code: string, range: Word.Range) {
-                const field = range?.insertField(Word.InsertLocation.end, Word.FieldType.empty);
+            function getField(code: string, ctrl: ContentControl) {
+                const field = ctrl.getRange().insertField(Word.InsertLocation.end, Word.FieldType.empty);
                 if (!field) throw new Error(`Failed to insert a field with field code = ${code}`);
                 field.code = code;
-
+                return field
             };
 
         }
@@ -730,10 +732,10 @@ export class EditContract extends WordContentCtrls {
 
             async function searchs() {
                 const separator = '_&_';
-                const search = (await promptForInput(`Provide the search string. You can provide more than one string to search by separated by ${separator} witohout space`, separator))?.split(separator) as string[];
+                const search = (await promptForInput([`Provide the search string. You can provide more than one string to search by separated by ${separator} witohout space`], separator) as string)?.split(separator) as string[];
                 const matchWildcards = await promptConfirm('Match Wild Cards');
 
-                if (!styles) styles = (await promptForInput(`Provide the styles that that need to be matched separated by ","`))?.split(',').map(style => style.trim()) || [];
+                if (!styles) styles = (await promptForInput([`Provide the styles that that need to be matched separated by ","`]) as string)?.split(',').map(style => style.trim()) || [];
                 return { search, matchWildcards }
             }
         }
@@ -918,7 +920,7 @@ export class EditContract extends WordContentCtrls {
                 const label = await labelRange(ctrl.hasLabel.id, context);
                 if (!label?.text) return showAlert("InsertClones() failed: The ContentControl to be replicated/cloned, must have a direct ContentControl child having as tag 'RTSection'. No such tag was found");
                 const message = `Combien de ${label.text} y'a-t-il ?`;
-                let answer = Number(await promptForInput(message, '1'));
+                let answer = Number(await promptForInput([message], '1') as string);
                 if (isNaN(answer)) {
                     showAlert(`The provided text cannot be converted into a number: ${answer}`);
                     return await insertClones(ctrl);//reprompting the user
@@ -1315,7 +1317,7 @@ export class WordFileds extends WordContentCtrls {
     private showButtons() {
         USERFORM.innerHTML = '';
         insertBtn([async () => await this.showInputs(), 'Edit The FILLIN Fields', 'Shows the interface to edit the FILLIN fiels in the document'], true);
-        insertBtn([() => this.insertFILLINField(), 'Insert new FILLIN filed', 'Inserts a new FILLIN field in the selected range. It replaces the selected text with the FILLIN field'], true);
+        insertBtn([() => this.insertFIllINField(), 'Insert new FILLIN filed', 'Inserts a new FILLIN field in the selected range. It replaces the selected text with the FILLIN field'], true);
         insertBtn(goHome);
     }
 
@@ -1373,38 +1375,83 @@ export class WordFileds extends WordContentCtrls {
     }
 
 
-    async insertFILLINField(range?: Word.Range, code?: string) {
+    async insertAskField(range?: Word.Range) {
+
+        try {
+            const type = 'ASK'
+
+            const labels: [string, string] = ['Provide the name of the bookmark without spaces', 'Provide the user prompt'];
+
+            const values = await this.insertField(labels, type, range);
+            if (!values) throw new Error(`insretField() failed`);
+            const { field, answers } = values;
+            if (!field) throw new Error('The field is undefined');
+            const bookmarkName = answers[0]?.replaceAll(' ', '') || undefined;
+            if (!bookmarkName) throw new Error('The bookmark name returned is not valid !')
+            field.code = `${type} "${bookmarkName}"`;
+            field.updateResult();
+            return { askField: field, bookmarkName };
+
+        } catch (error: any) {
+            showAlert(`insertAskField() failed with error: ${error.debugInfo || error}`)
+        }
+    };
+
+    async insertFIllINField(range?: Word.Range) {
+
+        try {
+            const type = 'FILLIN'
+
+            const labels: [string, string] = ['Provide the FILLIN user prompt', 'Provide the FILLIN default value'];
+
+            const values = (await this.insertField(labels, type, range));
+            if (!values) throw new Error('Failed to insert the field');
+            const { field, answers } = values;
+            const prompt = answers[0];
+            if (!field) throw new Error('insertField() failed. No field object was returned');
+            field.code = `${type} "${prompt}"  \\d ${answers[1] || '[*]'}  \\* MERGEFORMAT`
+            field.updateResult();
+            return field
+
+        } catch (error: any) {
+            showAlert(`insertFILLINField() failed with error: ${error.debugInfo || error}`)
+
+        }
+    };
+
+    async insertField(labels: string[], type: string, range?: Word.Range) {
         const create = element
         const { modal, window } = getModalContainer(USERFORM, '', 'newField', false);
+
         return await showDialogue();
 
+        async function showDialogue(): Promise<{ field: Word.Field | undefined, answers: string[] } | undefined> {
 
-        function showDialogue(): Promise<Word.Field> {
-            const labels = ['Provide the FILLIN field prompt', 'Provide the FILLIN default value'];
+            const answers = await promptForInput(labels, undefined, undefined, window) as string[];
+            const btn = create('button', '', `Insert ${type} Field`, window, 'ok', true);
+            return new Promise((resolve) => btn.onclick = () => resolve(onClick(answers)));
 
-            const inputs = labels.map(label => {
-                create('label', '', label, window, undefined, true);
-                return create('input', '', '', window, '', true) as HTMLInputElement;
-            });
-
-            const btn = create('button', '', 'Insert FILLIN Field', window, 'ok', true);
-
-            return new Promise((resolve) => btn.onclick = () => resolve(onClick(inputs)));
         }
 
-        async function onClick(inputs: HTMLInputElement[]): Promise<Word.Field> {
-            const type = Word.FieldType.empty;//!We chose the empty field on purpose
+        async function onClick(answers: string[]): Promise<{ field: Word.Field | undefined, answers: string[] } | undefined> {
+            if (answers?.length) return undefined;
+            const [answer1, answer2] = answers;
+            if (!answer1 || !answer2) return undefined;
             return await Word.run(async (context) => {
-                if (!range) range = context.document.getSelection().getRange(Word.RangeLocation.whole);
-                const field = range.insertField(Word.InsertLocation.replace, type);
-                field.code = code || `FILLIN "${inputs[0].value}"  \\d ${inputs[1].value || '[*]'}  \\* MERGEFORMAT`;
-                field.updateResult();
-                modal.remove();
-                field.track();
-                await context.sync();
-                return field
+                try {
+                    if (!range) range = context.document.getSelection().getRange(Word.RangeLocation.whole);
+                    const field = range.insertField(Word.InsertLocation.start, Word.FieldType.empty);
+                    modal.remove();
+                    field.track();
+                    await context.sync();
+                    return { field, answers }
+
+                } catch (error: any) {
+                    console.log(error.debugInfo || error)
+                }
             });
         };
-    };
+
+    }
 
 }
