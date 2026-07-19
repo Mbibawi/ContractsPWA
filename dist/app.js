@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.16.6";
+const version = "v11.16.7";
 let USERFORM, NOTIFICATION;
 const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'];
 Office.onReady((info) => {
@@ -415,7 +415,7 @@ export class EditContract extends WordContentCtrls {
             [insertDropDownList, 'Insert a Dropdown List from selection', 'Creates a dropwdown list from the selected string. The options to choose from must be separated by "/"'],
             [() => insertRTDescription(true), 'Insert Single RT Description', single(this.RTDescriptionTag)],
             [this.insertSingleFiled, 'Insert ContentControl Field', single(this.RTFieldTag)],
-            [insertFields, 'Insert FILLIN Field', single(this.RTFieldTag)],
+            [this._fields.insertFIllINField, 'Insert FILLIN Field', single(this.RTFieldTag)],
             wrap(this.RTSectionTag, this.RTSectionTag, this.richText, this.RTSectionTag, true, true, 'Insert Single RT Section', single(this.RTSectionTag)),
             //wrap(this.RTOrTag, this.RTOrTag, this.richText, null, false, true, 'Insert Single RT OR', single(this.RTOrTag, 'need to check what it does')),
             wrap(this.RTCloneTag, this.RTCloneTag, this.richText, null, false, true, 'Insert Single RT Dublicate Block', single(this.RTCloneTag, 'need to check what it does')),
@@ -1279,9 +1279,9 @@ export class WordFileds extends WordContentCtrls {
             if (!values)
                 throw new Error('Failed to insert the field');
             const { field, answers } = values;
-            const prompt = answers[0];
             if (!field)
                 throw new Error('insertField() failed. No field object was returned');
+            const prompt = answers[0];
             field.code = `${type} "${prompt}"  \\d ${answers[1] || '[*]'}  \\* MERGEFORMAT`;
             field.updateResult();
             return field;
