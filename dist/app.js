@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.16.8";
+const version = "v11.16.8.1";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -1162,7 +1162,7 @@ export class EditContract extends WordContentCtrls {
             const ctrls = context.document.getSelection().getContentControls();
             ctrls.load(['id', 'tag']);
             await context.sync();
-            if (ctrls.items.length)
+            if (!ctrls.items.length)
                 return showAlert('There are no selected contentControls');
             for (const ctrl of ctrls.items) {
                 ctrl.cannotEdit = false;
