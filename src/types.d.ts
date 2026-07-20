@@ -3,7 +3,7 @@
 type ContentControl = Word.ContentControl;
 type ContentControlType = Word.ContentControlType.richText | Word.ContentControlType.comboBox | Word.ContentControlType.checkBox | Word.ContentControlType.dropDownList | Word.ContentControlType.comboBox
 
-type Btn = [Function, string, string | undefined];
+type Btn = { fun: Function, label: string, hint: string | undefined };
 
 type promptBlock = {
     wraper: HTMLDivElement,

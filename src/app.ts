@@ -1,9 +1,9 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.16.7";
+const version = "v11.16.8";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
-const goHome = [() => mainUI(false), 'Home', 'Return to the main menu of the app'] as Btn;
+const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
 
 
 Office.onReady((info) => {
@@ -112,27 +112,22 @@ function getModalContainer(parent: HTMLElement, textContent?: string, id?: strin
     return { modal, window }
 }
 
-function insertBtn([fun, label, hint]: Btn, append: boolean = true, on: string = 'click') {
+function insertBtn({ fun, label, hint }: Btn, append: boolean = true, on: string = 'click') {
     if (!USERFORM) return;
-    const wrapper = document.createElement('div');
-    wrapper.style.position = 'relative';
-    wrapper.style.display = 'inline-block';
-    const htmlBtn = document.createElement('button');
-    wrapper.appendChild(htmlBtn)
-    append ? USERFORM.appendChild(wrapper) : USERFORM.prepend(wrapper);
-    htmlBtn.innerText = label;
+    const wraper = element('div', '', '', USERFORM, '', append);
+    wraper.style.position = 'relative';
+    wraper.style.display = 'inline-block';
+    const htmlBtn = element('button', '', label, wraper, '', true);
+
     htmlBtn.addEventListener(on, () => fun());
-    addHint();
-    return htmlBtn
+    const hintBox = addHint();
+    return { htmlBtn, wraper, hintBox }
     function addHint() {
         if (!hint) return
-        const hintBox = document.createElement('div');
-        hintBox.innerText = hint;
-        hintBox.classList = 'hintBox';
-        wrapper.appendChild(hintBox);
-
+        const hintBox = element('div', 'hintBox', hint, wraper, '', true);
         htmlBtn.onmouseover = (e) => hideElement(hintBox, false, e);
         htmlBtn.onmouseout = (e) => hideElement(hintBox, true, e);
+        return hintBox
     }
 }
 
@@ -322,10 +317,10 @@ class WordContentCtrls {
             this.RTFieldTag,
             this.RTDropDownTag,
             this.RTCloneTag,
-            this.RTSectionTag,
             this.RTSelectTag,
             this.RTObsTag,
             this.RTDescriptionTag,
+            this.RTSectionTag,
             this.RTSiTag];
 
         await Word.run(async (context) => {
@@ -371,31 +366,39 @@ export class EditContract extends WordContentCtrls {
     get stylesList() { return document.getElementById(this._stylesListId) }
     private readonly main: Btn[] =
         [
-            [this.customizeContract, 'Customize Contract', 'Selecting and editing a contract template'],
-            [this.prepareTemplate, 'Prepare Template', 'Creates a contract template'],
-            [this.finalizeContract, 'Finalize Contract', 'Removing all the unwanted contentcontrols and issues the final versiofn of the contract'],
-            [this.lockUnlockAll, 'Remove Cannot Delete For All', 'Toggels the cannot be deleted setting of all the contentcontrols in the document'],
+            {
+                fun: this.customizeContract,
+                label: 'Customize Contract',
+                hint: 'Selecting and editing a contract template'
+            },
+            { fun: this.prepareTemplate, label: 'Prepare Template', hint: 'Creates a contract template' },
+            { fun: this.finalizeContract, label: 'Finalize Contract', hint: 'Removing all the unwanted contentcontrols and issues the final versiofn of the contract' },
+            { fun: this.lockUnlockAll, label: 'Remove Cannot Delete For All', hint: 'Toggels the cannot be deleted setting of all the contentcontrols in the document' },
             goHome,
         ];
 
-    private readonly goBack = [() => {
-        USERFORM.innerHTML = '';
-        this.stylesList?.remove();
-        this.showBtns(this.main)
-    }, 'Go Back', 'Return to the previous menu'] as Btn;
+    private readonly goBack = {
+        fun: () => {
+            USERFORM.innerHTML = '';
+            this.stylesList?.remove();
+            this.showBtns(this.main)
+        }, label: 'Go Back', hint: 'Return to the previous menu'
+    } as Btn;
 
     showMainBtn() {
-        insertBtn([() => this.showBtns(this.main), 'Edit Contracts', undefined], false);
+        insertBtn({ fun: () => this.showBtns(this.main), label: 'Edit Contracts', hint: undefined }, false);
     }
 
     private showBtns(btns: Btn[] = this.main, append = true, on: string = 'click') {
         USERFORM.innerHTML = '';
-        const htmlBtns = btns.map(([fun, label, hint]) => insertBtn([fun.bind(this), label, hint], append, on));
+        const htmlBtns = btns
+            .map(({ fun, label, hint }) => insertBtn({ fun: fun.bind(this), label, hint }, append, on))
+            .filter(btn => btn !== undefined);
 
         if (btns === this.main) {
             htmlBtns
-                .slice(0, -1)//We exclude the goHome htmBtn
-                .forEach(btn => btn?.addEventListener('click', () =>
+                .filter(({ htmlBtn }) => htmlBtn.textContent !== goHome.label)//We exclude the goHome htmBtn
+                .forEach(({ htmlBtn }) => htmlBtn.addEventListener('click', () =>
                     [this.goBack, goHome].forEach(btn => insertBtn(btn, false))));
         }
         return htmlBtns
@@ -427,11 +430,11 @@ export class EditContract extends WordContentCtrls {
         const wrapRange = this.wrapSelectionWithContentControl.bind(this);
 
         function wrap(title: string, tag: string, type: ContentControlType, style: string | null, cannotEdit: boolean, cannotDelete: boolean, label: string, hint: string | undefined) {
-            return [
-                () => wrapRange(title, tag, type, style, cannotEdit, cannotDelete),
+            return {
+                fun: () => wrapRange(title, tag, type, style, cannotEdit, cannotDelete),
                 label,
                 hint
-            ] as Btn
+            } as Btn
         };
 
         const single = (tag: string, other?: string) => `Inserts a single ${tag} contentcontrol at the begining of the selected range. ${other}If no range is selected, it will return.`;
@@ -440,25 +443,30 @@ export class EditContract extends WordContentCtrls {
         const btns = [
             wrap(this.RTSiTag, this.RTSiTag, this.richText, this.RTSiStyles[0], true, true, 'Insert Single RT Si', single(this.RTSiTag)),
             wrap(this.RTSelectTag, this.RTSelectTag, this.richText, null, false, true, 'Insert Single RT Select', single(this.RTSelectTag, 'Any such contentControl is a container. Each contentcontrol having the same tag within its range, will be considered as an option to select or to exclude')),
-            [insertRTBlock_Select_Si, 'Insert RT Select & Si Block', 'Finds the first paragraph formatted with any of the RTSiStyles. Wraps this paragraph in a RTSi ContentControl, Then wraps the whol selected range in a RTSelect ContentControl.'],
-            [insertBlockAmountWithFILLINField, 'Insert Amount Block', 'Inserts a ContentControl block containing a FILLIN field associated with a bookmark for the amount in figures and in text'],
-            [insertDropDownList, 'Insert a Dropdown List from selection', 'Creates a dropwdown list from the selected string. The options to choose from must be separated by "/"'],
-            [() => insertRTDescription(true), 'Insert Single RT Description', single(this.RTDescriptionTag)],
-            [this.insertSingleFiled, 'Insert ContentControl Field', single(this.RTFieldTag)],
-            [this._fields.insertFIllINField, 'Insert FILLIN Field', single(this.RTFieldTag)],
+            { fun: insertRTBlock_Select_Si, label: 'Insert RT Select & Si Block', hint: 'Finds the first paragraph formatted with any of the RTSiStyles. Wraps this paragraph in a RTSi ContentControl, Then wraps the whol selected range in a RTSelect ContentControl.' },
+            { fun: insertBlockAmountWithFILLINField, label: 'Insert Amount Block', hint: 'Inserts a ContentControl block containing a FILLIN field associated with a bookmark for the amount in figures and in text' },
+            { fun: insertDropDownList, label: 'Insert a Dropdown List from selection', hint: 'Creates a dropwdown list from the selected string. The options to choose from must be separated by "/"' },
+            { fun: () => insertRTDescription(true), label: 'Insert Single RT Description', hint: single(this.RTDescriptionTag) },
+            { fun: this.insertSingleFiled, label: 'Insert ContentControl Field', hint: single(this.RTFieldTag) },
+            { fun: this._fields.insertFIllINField, label: 'Insert FILLIN Field', hint: single(this.RTFieldTag) },
             wrap(this.RTSectionTag, this.RTSectionTag, this.richText, this.RTSectionTag, true, true, 'Insert Single RT Section', single(this.RTSectionTag)),
             //wrap(this.RTOrTag, this.RTOrTag, this.richText, null, false, true, 'Insert Single RT OR', single(this.RTOrTag, 'need to check what it does')),
-            wrap(this.RTCloneTag, this.RTCloneTag, this.richText, null, false, true, 'Insert Single RT Dublicate Block', single(this.RTCloneTag, 'need to check what it does')),
+            wrap(this.RTCloneTag, this.RTCloneTag, this.richText, null, false, true, 'Insert RT Clone Block', single(this.RTCloneTag, 'need to check what it does')),
             wrap(this.RTObsTag, this.RTObsTag, this.richText, this.RTObsTag, true, true, 'Insert Single RT Obs', single(this.RTObsTag)),
-            [insertDropDownListAll, 'Insert DropDown List For All Matches', 'It will check the document for all the strings matching the "/" separated values of the selected range and will convert them into drowpdown lists. The matching strings do not need to include the "/" mark'],
-            [insertRTSiAll, 'Insert RT Si For All', all(this.RTSiStyles.join(' or '), this.RTSiTag)],
-            [insertRTSectionAll, 'Insert RT Section For All', all(this.RTSectionStyle, this.RTSectionTag)],
-            [insertRTDescription, 'Insert RT Description For All', all(this.RTDescriptionStyle, this.RTDescriptionTag)],
-            [() => this.customizeContract(true), 'Show Nested Options Tree', 'Lists all the selection options in the document'],
-            [this.updateAllContentControlIDs, 'Update ContentControl Titles', 'Updates the titles of all the ContentControls in the document'],
+            { fun: insertDropDownListAll, label: 'Insert DropDown List For All Matches', hint: 'It will check the document for all the strings matching the "/" separated values of the selected range and will convert them into drowpdown lists. The matching strings do not need to include the "/" mark' },
+            { fun: insertRTSiAll, label: 'Insert RT Si For All', hint: all(this.RTSiStyles.join(' or '), this.RTSiTag) },
+            { fun: insertRTSectionAll, label: 'Insert RT Section For All', hint: all(this.RTSectionStyle, this.RTSectionTag) },
+            { fun: insertRTDescription, label: 'Insert RT Description For All', hint: all(this.RTDescriptionStyle, this.RTDescriptionTag) },
+            { fun: this.unprotectSelectedCtrls, label: 'Unprotect Selected ContentControls', hint: 'Sets the "cannotEdit" and "cannotDelete" props of the contentControls in the selected range to false.' },
+            { fun: () => this.customizeContract(true), label: 'Show Nested Options Tree', hint: 'Lists all the selection options in the document' },
+            { fun: this.updateAllContentControlIDs, label: 'Update ContentControl Titles', hint: 'Updates the titles of all the ContentControls in the document' },
         ] as Btn[];
 
-        this.showBtns(btns);
+        this.showBtns(btns)
+            .forEach(({ wraper }) => {
+                wraper.addEventListener('click', () => USERFORM.prepend(wraper))//We promote the button to the top of the list when clicked, in order to make it easier for the user
+            });
+
         if (!this.stylesList) showStylesList(this._stylesListId);
 
         function showStylesList(id: string) {
@@ -1272,6 +1280,22 @@ export class EditContract extends WordContentCtrls {
         await wdDoc.context.sync();
     }
 
+    private async unprotectSelectedCtrls(tag: string = '', title: string = '', options: Word.ContentControl[] = []) {
+        await Word.run(async (context) => {
+            const ctrls = context.document.getSelection().getContentControls();
+            ctrls.load(['id', 'tag']);
+            await context.sync();
+            if (ctrls.items.length) return showAlert('There are no selected contentControls');
+            for (const ctrl of ctrls.items) {
+                ctrl.cannotEdit = false;
+                ctrl.cannotDelete = false
+            }
+
+            await context.sync();
+
+        })
+    }
+
     private async setCanBeEditedForAllSelectCtrls(edit: boolean = true) {
         await Word.run(async (context) => {
             const ctrls = context.document
@@ -1311,13 +1335,13 @@ export class WordFileds extends WordContentCtrls {
     private readonly _fillIn = Word.FieldType.fillIn;
 
     showMainBtn() {
-        insertBtn([() => this.showButtons(), 'Edit FILLIN Fields', 'Displays the user interface for editing the existing FILLIN fiels, or inserting new FILLIN fields'], true);
+        insertBtn({ fun: () => this.showButtons(), label: 'Edit FILLIN Fields', hint: 'Displays the user interface for editing the existing FILLIN fiels, or inserting new FILLIN fields' }, true);
     }
 
     private showButtons() {
         USERFORM.innerHTML = '';
-        insertBtn([async () => await this.showInputs(), 'Edit The FILLIN Fields', 'Shows the interface to edit the FILLIN fiels in the document'], true);
-        insertBtn([() => this.insertFIllINField(), 'Insert new FILLIN filed', 'Inserts a new FILLIN field in the selected range. It replaces the selected text with the FILLIN field'], true);
+        insertBtn({ fun: async () => await this.showInputs(), label: 'Edit The FILLIN Fields', hint: 'Shows the interface to edit the FILLIN fiels in the document' }, true);
+        insertBtn({ fun: () => this.insertFIllINField(), label: 'Insert new FILLIN filed', hint: 'Inserts a new FILLIN field in the selected range. It replaces the selected text with the FILLIN field' }, true);
         insertBtn(goHome);
     }
 
@@ -1366,8 +1390,8 @@ export class WordFileds extends WordContentCtrls {
                         resolve(showBtns());
                     };
 
-                    insertBtn([() => edit(false), 'Update All Fileds From Inputs', 'Parses the values of the inputs, and updates the corresponding fields'], true);
-                    insertBtn([() => edit(true), 'Cancel and go back', 'Cancels the editing session'], false);//We insert the goHome navigation button on top of all the inputs
+                    insertBtn({ fun: () => edit(false), label: 'Update All Fileds From Inputs', hint: 'Parses the values of the inputs, and updates the corresponding fields' }, true);
+                    insertBtn({ fun: () => edit(true), label: 'Cancel and go back', hint: 'Cancels the editing session' }, false);//We insert the goHome navigation button on top of all the inputs
                 })
             };
 
