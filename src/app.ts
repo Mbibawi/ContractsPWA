@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.16.8.1";
+const version = "v11.16.8.2";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -1280,15 +1280,15 @@ export class EditContract extends WordContentCtrls {
         await wdDoc.context.sync();
     }
 
-    private async unprotectSelectedCtrls(tag: string = '', title: string = '', options: Word.ContentControl[] = []) {
+    private async unprotectSelectedCtrls(ctrls?: Word.ContentControlCollection, protect: boolean = false) {
         await Word.run(async (context) => {
-            const ctrls = context.document.getSelection().getContentControls();
+            if (!ctrls) ctrls = context.document.getSelection().getContentControls();
             ctrls.load(['id', 'tag']);
             await context.sync();
-            if (!ctrls.items.length) return showAlert('There are no selected contentControls');
+            if (!ctrls?.items?.length) return showAlert('There are no selected contentControls');
             for (const ctrl of ctrls.items) {
-                ctrl.cannotEdit = false;
-                ctrl.cannotDelete = false
+                ctrl.cannotEdit = protect;
+                ctrl.cannotDelete = protect
             }
 
             await context.sync();
