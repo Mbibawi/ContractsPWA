@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.16.8.2";
+const version = "v11.16.9";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -411,25 +411,26 @@ export class EditContract extends WordContentCtrls {
         const single = (tag, other) => `Inserts a single ${tag} contentcontrol at the begining of the selected range. ${other}If no range is selected, it will return.`;
         const all = (style, tag) => `Wraps all the pragraphs having as style ${style}, in a ${tag} contrentcontrol}`;
         const btns = [
-            wrap(this.RTSiTag, this.RTSiTag, this.richText, this.RTSiStyles[0], true, true, 'Insert Single RT Si', single(this.RTSiTag)),
-            wrap(this.RTSelectTag, this.RTSelectTag, this.richText, null, false, true, 'Insert Single RT Select', single(this.RTSelectTag, 'Any such contentControl is a container. Each contentcontrol having the same tag within its range, will be considered as an option to select or to exclude')),
-            { fun: insertRTBlock_Select_Si, label: 'Insert RT Select & Si Block', hint: 'Finds the first paragraph formatted with any of the RTSiStyles. Wraps this paragraph in a RTSi ContentControl, Then wraps the whol selected range in a RTSelect ContentControl.' },
-            { fun: insertBlockAmountWithFILLINField, label: 'Insert Amount Block', hint: 'Inserts a ContentControl block containing a FILLIN field associated with a bookmark for the amount in figures and in text' },
-            { fun: insertDropDownList, label: 'Insert a Dropdown List from selection', hint: 'Creates a dropwdown list from the selected string. The options to choose from must be separated by "/"' },
-            { fun: () => insertRTDescription(true), label: 'Insert Single RT Description', hint: single(this.RTDescriptionTag) },
-            { fun: this.insertSingleFiled, label: 'Insert ContentControl Field', hint: single(this.RTFieldTag) },
-            { fun: this._fields.insertFIllINField, label: 'Insert FILLIN Field', hint: single(this.RTFieldTag) },
-            wrap(this.RTSectionTag, this.RTSectionTag, this.richText, this.RTSectionTag, true, true, 'Insert Single RT Section', single(this.RTSectionTag)),
+            wrap(this.RTSiTag, this.RTSiTag, this.richText, this.RTSiStyles[0], true, true, 'Si (Single)', single(this.RTSiTag)),
+            wrap(this.RTSelectTag, this.RTSelectTag, this.richText, null, false, true, 'Select (Single)', single(this.RTSelectTag, 'Any such contentControl is a container. Each contentcontrol having the same tag within its range, will be considered as an option to select or to exclude')),
+            { fun: insertRTBlock_Select_Si, label: 'Block Select & Si', hint: 'Finds the first paragraph formatted with any of the RTSiStyles. Wraps this paragraph in a RTSi ContentControl, Then wraps the whol selected range in a RTSelect ContentControl.' },
+            { fun: insertBlockAmountWithFILLINField, label: 'Block Amount', hint: 'Inserts a ContentControl block containing a FILLIN field associated with a bookmark for the amount in figures and in text' },
+            { fun: insertDropDownList, label: 'Dropdown List from selection', hint: 'Creates a dropwdown list from the selected string. The options to choose from must be separated by "/"' },
+            { fun: () => insertRTDescription(true), label: 'Description (Single)', hint: single(this.RTDescriptionTag) },
+            { fun: this.insertSingleFiled, label: 'ContentControl Field', hint: single(this.RTFieldTag) },
+            { fun: this._fields.insertFIllINField, label: 'FILLIN Field', hint: single(this.RTFieldTag) },
+            wrap(this.RTSectionTag, this.RTSectionTag, this.richText, this.RTSectionTag, true, true, 'Section (Single)', single(this.RTSectionTag)),
             //wrap(this.RTOrTag, this.RTOrTag, this.richText, null, false, true, 'Insert Single RT OR', single(this.RTOrTag, 'need to check what it does')),
-            wrap(this.RTCloneTag, this.RTCloneTag, this.richText, null, false, true, 'Insert RT Clone Block', single(this.RTCloneTag, 'need to check what it does')),
-            wrap(this.RTObsTag, this.RTObsTag, this.richText, this.RTObsTag, true, true, 'Insert Single RT Obs', single(this.RTObsTag)),
+            wrap(this.RTCloneTag, this.RTCloneTag, this.richText, null, false, true, 'Block Clone', single(this.RTCloneTag, 'need to check what it does')),
+            wrap(this.RTObsTag, this.RTObsTag, this.richText, this.RTObsTag, true, true, 'Observation (Single)', single(this.RTObsTag)),
             { fun: insertDropDownListAll, label: 'Insert DropDown List For All Matches', hint: 'It will check the document for all the strings matching the "/" separated values of the selected range and will convert them into drowpdown lists. The matching strings do not need to include the "/" mark' },
-            { fun: insertRTSiAll, label: 'Insert RT Si For All', hint: all(this.RTSiStyles.join(' or '), this.RTSiTag) },
-            { fun: insertRTSectionAll, label: 'Insert RT Section For All', hint: all(this.RTSectionStyle, this.RTSectionTag) },
-            { fun: insertRTDescription, label: 'Insert RT Description For All', hint: all(this.RTDescriptionStyle, this.RTDescriptionTag) },
+            { fun: insertRTSiAll, label: 'Si For All', hint: all(this.RTSiStyles.join(' or '), this.RTSiTag) },
+            { fun: insertRTSectionAll, label: 'Section For All', hint: all(this.RTSectionStyle, this.RTSectionTag) },
+            { fun: insertRTDescription, label: 'Description For All', hint: all(this.RTDescriptionStyle, this.RTDescriptionTag) },
             { fun: this.unprotectSelectedCtrls, label: 'Unprotect Selected ContentControls', hint: 'Sets the "cannotEdit" and "cannotDelete" props of the contentControls in the selected range to false.' },
             { fun: () => this.customizeContract(true), label: 'Show Nested Options Tree', hint: 'Lists all the selection options in the document' },
             { fun: this.updateAllContentControlIDs, label: 'Update ContentControl Titles', hint: 'Updates the titles of all the ContentControls in the document' },
+            { fun: insertSelectInSelection, label: 'Insert Select In Selectgion', hint: 'Wraps all the paragraphs with RTSi style in RTSelect ContentControls according to their levels' },
         ];
         this.showBtns(btns)
             .forEach(({ wraper }) => {
@@ -500,6 +501,47 @@ export class EditContract extends WordContentCtrls {
             xmlParts.add(updatedXml); // Add updated part
             await context.sync();
             console.log("Appended new node to existing XML part.");
+        }
+        async function insertSelectInSelection() {
+            const styles = [...siStyle, sectionStyle];
+            const levels = siStyle.map((s, i) => i);
+            const getLevel = (p) => Math.round(Math.floor(p.leftIndent) / 28); //1 cm = 28 something. 
+            await Word.run(async (context) => {
+                const range = context.document.getSelection();
+                range.load(['paragraphs/style', 'paragraphs/leftIndent']);
+                await context.sync();
+                //const outLiner = await insertContentControl(range, selectTag, selectTag, 0, richText, null, false, false, undefined, ['id', 'paragraphs/style', 'paragraphs/leftIndent']);
+                //if (!outLiner) return;
+                //const siParags = outLiner.paragraphs.items.filter(p => styles.includes(p.style));
+                const siParags = range.paragraphs.items.filter(p => styles.includes(p.style));
+                //
+                for (const level of levels) {
+                    const paragraphs = siParags.filter(p => getLevel(p) === level);
+                    await processSameLevel(paragraphs);
+                }
+                async function processSameLevel(paragraphs) {
+                    const selects = [];
+                    for (const parag of paragraphs) {
+                        const index = siParags.indexOf(parag);
+                        const range = parag.getRange(Word.RangeLocation.content);
+                        const si = await insertContentControl(range, siTag, siTag, index, richText, null, true, true);
+                        if (!si)
+                            continue;
+                        if (parag.style === sectionStyle)
+                            continue;
+                        const end = paragraphs[index + 1];
+                        if (!end)
+                            continue;
+                        const range2 = si.getRange(Word.RangeLocation.before).expandTo(end.getRange(Word.RangeLocation.start));
+                        const select = await insertContentControl(range2, selectTag, selectTag, undefined, richText, null, true, true);
+                        if (!select)
+                            continue;
+                        selects.push(select);
+                    }
+                    ;
+                    await context.sync();
+                }
+            });
         }
         async function insertRTBlock_Select_Si() {
             const range = await getSelectionRange();
