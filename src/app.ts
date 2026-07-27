@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.17.2";
+const version = "v11.17.2.1";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -1523,7 +1523,6 @@ export class WordFileds extends WordContentCtrls {
                 throw new Error('Invalid User Prompt')
             }
             field.code = `${type.toUpperCase()} "${prompt}"  \\d ${deflt || '[*]'}  \\* MERGEFORMAT`
-            field.updateResult();
             await field.context.sync();
             return field
 
