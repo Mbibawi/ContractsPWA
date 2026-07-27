@@ -1,5 +1,4 @@
 /* General Body and Typography */
-.promptContainer {}
 
 .select {
   display: inline-flex;
@@ -16,13 +15,11 @@
   /* Light border */
 }
 
-.prompt {}
 
 .ask {
   color: #991c63
 }
 
-.answer {}
 
 body {
   font-family: 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
@@ -149,32 +146,13 @@ button {
 button:hover {
   background-color: #2980b9;
   /* Darker blue on hover */
-  transform: translateY(-2px);
+  /*transform: translateY(-2px);*/
   /* Slight lift effect */
 }
 
 button:active {
-  transform: translateY(0);
+  /*transform: translateY(0);*/
   /* Return to original position on click */
-}
-
-/* Gemini Response Output Area */
-.output {
-  display: grid;
-  grid-column-gap: 4px;
-  background-color: #ecf0f1;
-  /* Light gray for output area */
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  padding: 15px;
-  margin-top: 15px;
-  min-height: 50px;
-  font-size: 1em;
-  color: #2c3e50;
-  white-space: pre-wrap;
-  /* Preserve whitespace and break lines */
-  word-wrap: break-word;
-  /* Break long words */
 }
 
 

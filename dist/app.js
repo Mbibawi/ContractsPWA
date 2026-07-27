@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.16.9";
+const version = "v11.17.0";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -57,7 +57,7 @@ async function promptForInput(questions, deflt, fun, parent) {
     const { modal, window } = getModalContainer(parent ?? USERFORM);
     const inputs = questions.map(question => {
         const div = element('div', '', '', window, undefined, true);
-        element('label', 'question', question, div, undefined, true);
+        element('label', 'ask', question, div, undefined, true);
         const input = element('input', 'answer', deflt || '', div, undefined, true);
         if (deflt)
             input.value = deflt;
@@ -396,7 +396,7 @@ export class EditContract extends WordContentCtrls {
     ;
     prepareTemplate() {
         USERFORM.innerHTML = '';
-        const searchString = this.searchString.bind(this), getSelectionRange = this.getSelectionRange.bind(this), insertContentControl = this.insertContentControl.bind(this), insertFields = this.insertFields.bind(this), setCtrlsColor = this.setCtrlsColor.bind(this), setCtrlsFontColor = this.setCtrlsFontColor.bind(this), insertAskField = this._fields.insertAskField.bind(this);
+        const searchString = this.searchString.bind(this), getSelectionRange = this.getSelectionRange.bind(this), insertContentControl = this.insertContentControl.bind(this), insertFields = this.insertFields.bind(this), setCtrlsColor = this.setCtrlsColor.bind(this), setCtrlsFontColor = this.setCtrlsFontColor.bind(this), insertAskField = this._fields.insertAskField.bind(this._fields), insertFILLINField = this._fields.insertField.bind(this._fields);
         const siTag = this.RTSiTag, selectTag = this.RTSelectTag, sectionTag = this.RTSectionTag, descTag = this.RTDescriptionTag, stylePrefix = this.StylePrefix, richText = this.richText, dorpDownTag = this.RTDropDownTag;
         const descStyle = this.RTDescriptionStyle, siStyle = this.RTSiStyles, sectionStyle = this.RTSectionStyle, dropDownList = this.dropDownList;
         const wrapRange = this.wrapSelectionWithContentControl.bind(this);
@@ -418,7 +418,7 @@ export class EditContract extends WordContentCtrls {
             { fun: insertDropDownList, label: 'Dropdown List from selection', hint: 'Creates a dropwdown list from the selected string. The options to choose from must be separated by "/"' },
             { fun: () => insertRTDescription(true), label: 'Description (Single)', hint: single(this.RTDescriptionTag) },
             { fun: this.insertSingleFiled, label: 'ContentControl Field', hint: single(this.RTFieldTag) },
-            { fun: this._fields.insertFIllINField, label: 'FILLIN Field', hint: single(this.RTFieldTag) },
+            { fun: insertFILLINField, label: 'FILLIN Field', hint: single(this.RTFieldTag) },
             wrap(this.RTSectionTag, this.RTSectionTag, this.richText, this.RTSectionTag, true, true, 'Section (Single)', single(this.RTSectionTag)),
             //wrap(this.RTOrTag, this.RTOrTag, this.richText, null, false, true, 'Insert Single RT OR', single(this.RTOrTag, 'need to check what it does')),
             wrap(this.RTCloneTag, this.RTCloneTag, this.richText, null, false, true, 'Block Clone', single(this.RTCloneTag, 'need to check what it does')),
@@ -505,10 +505,11 @@ export class EditContract extends WordContentCtrls {
         async function insertSelectInSelection() {
             const styles = [...siStyle, sectionStyle];
             const levels = siStyle.map((s, i) => i);
+            const props = ['paragraphs/style', 'paragraphs/leftIndent'];
             const getLevel = (p) => Math.round(Math.floor(p.leftIndent) / 28); //1 cm = 28 something. 
             await Word.run(async (context) => {
                 const range = context.document.getSelection();
-                range.load(['paragraphs/style', 'paragraphs/leftIndent']);
+                range.load(props);
                 await context.sync();
                 //const outLiner = await insertContentControl(range, selectTag, selectTag, 0, richText, null, false, false, undefined, ['id', 'paragraphs/style', 'paragraphs/leftIndent']);
                 //if (!outLiner) return;
@@ -517,17 +518,27 @@ export class EditContract extends WordContentCtrls {
                 //
                 for (const level of levels) {
                     const paragraphs = siParags.filter(p => getLevel(p) === level);
-                    await processSameLevel(paragraphs);
+                    const selects = await processSameLevel(paragraphs);
+                }
+                async function processRange(selects, level) {
+                    for (const select of selects) {
+                        const range = select.getRange();
+                        select.load(props);
+                        await context.sync();
+                        const selectParags = range.paragraphs.items
+                            .filter(p => styles.includes(p.style) && getLevel(p) === level);
+                        const _selects = await processSameLevel(selectParags);
+                    }
                 }
                 async function processSameLevel(paragraphs) {
                     const selects = [];
-                    for (const parag of paragraphs) {
-                        const index = siParags.indexOf(parag);
-                        const range = parag.getRange(Word.RangeLocation.content);
+                    for (const p of paragraphs) {
+                        const index = siParags.indexOf(p);
+                        const range = p.getRange(Word.RangeLocation.content);
                         const si = await insertContentControl(range, siTag, siTag, index, richText, null, true, true);
                         if (!si)
                             continue;
-                        if (parag.style === sectionStyle)
+                        if (p.style === sectionStyle)
                             continue;
                         const end = paragraphs[index + 1];
                         if (!end)
@@ -539,7 +550,7 @@ export class EditContract extends WordContentCtrls {
                         selects.push(select);
                     }
                     ;
-                    await context.sync();
+                    return selects;
                 }
             });
         }
