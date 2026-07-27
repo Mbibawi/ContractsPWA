@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.17.1";
+const version = "v11.17.2";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -1478,11 +1478,11 @@ export class WordFileds extends WordContentCtrls {
     async insertAskField(range?: Word.Range) {
 
         try {
-            const type = 'ASK'
+            const type = Word.FieldType.ask
 
             const labels: [string, string] = ['Provide the name of the bookmark without spaces', 'Provide the user prompt'];
 
-            const values = await this.insertField(labels, range);
+            const values = await this.insertField(labels, type, range);
             if (!values) throw new Error(`insretField() failed`);
             const { field, answers } = values;
             if (!field) throw new Error('The field is undefined');
@@ -1494,7 +1494,7 @@ export class WordFileds extends WordContentCtrls {
                 showAlert('Either The bookmark name or the user prompt returned is not valid !');
                 throw new Error('Invalid user prompt or bookmarkName');
             }
-            field.code = `${type} "${bookmarkName.replaceAll(' ', '')}" "${prompt}" \* MERGEFORMAT`;
+            field.code = `${type.toUpperCase()} "${bookmarkName.replaceAll(' ', '')}" "${prompt}" \* MERGEFORMAT`;
             field.updateResult();
             return { askField: field, bookmarkName };
 
@@ -1506,11 +1506,11 @@ export class WordFileds extends WordContentCtrls {
     async insertFIllINField(range?: Word.Range) {
 
         try {
-            const type = 'FILLIN'
+            const type = Word.FieldType.fillIn;
 
             const labels: [string, string] = ['Provide the FILLIN user prompt', 'Provide the FILLIN default value'];
 
-            const values = await this.insertField(labels, range);
+            const values = await this.insertField(labels, type, range);
             if (!values) throw new Error('Failed to insert the field');
             const { field, answers } = values;
             if (!field) throw new Error('insertField() failed. No field object was returned');
@@ -1522,8 +1522,9 @@ export class WordFileds extends WordContentCtrls {
                 showAlert('The user prompt returned is not valid');
                 throw new Error('Invalid User Prompt')
             }
-            field.code = `${type} "${prompt}"  \\d ${deflt || '[*]'}  \\* MERGEFORMAT`
+            field.code = `${type.toUpperCase()} "${prompt}"  \\d ${deflt || '[*]'}  \\* MERGEFORMAT`
             field.updateResult();
+            await field.context.sync();
             return field
 
         } catch (error: any) {
@@ -1532,14 +1533,14 @@ export class WordFileds extends WordContentCtrls {
         }
     };
 
-    async insertField(labels: string[], range?: Word.Range) {
+    async insertField(labels: string[], type: Word.FieldType, range?: Word.Range) {
 
         const answers = await promptForInput(labels, '[*]', undefined) as string[];
 
         return await Word.run(async (context) => {
             try {
                 if (!range) range = context.document.getSelection().getRange(Word.RangeLocation.whole);
-                const field = range.insertField(Word.InsertLocation.start, Word.FieldType.empty);
+                const field = range.insertField(Word.InsertLocation.start, type);
                 field.track();
                 await context.sync();
                 return { field, answers }
