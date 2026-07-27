@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.17.0";
+const version = "v11.17.1";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -56,7 +56,7 @@ async function promptForInput(questions, deflt, fun, parent) {
         return [];
     const { modal, window } = getModalContainer(parent ?? USERFORM);
     const inputs = questions.map(question => {
-        const div = element('div', '', '', window, undefined, true);
+        const div = element('div', '', undefined, window, undefined, true);
         element('label', 'ask', question, div, undefined, true);
         const input = element('input', 'answer', deflt || '', div, undefined, true);
         if (deflt)
@@ -396,7 +396,7 @@ export class EditContract extends WordContentCtrls {
     ;
     prepareTemplate() {
         USERFORM.innerHTML = '';
-        const searchString = this.searchString.bind(this), getSelectionRange = this.getSelectionRange.bind(this), insertContentControl = this.insertContentControl.bind(this), insertFields = this.insertFields.bind(this), setCtrlsColor = this.setCtrlsColor.bind(this), setCtrlsFontColor = this.setCtrlsFontColor.bind(this), insertAskField = this._fields.insertAskField.bind(this._fields), insertFILLINField = this._fields.insertField.bind(this._fields);
+        const searchString = this.searchString.bind(this), getSelectionRange = this.getSelectionRange.bind(this), insertContentControl = this.insertContentControl.bind(this), insertFields = this.insertFields.bind(this), setCtrlsColor = this.setCtrlsColor.bind(this), setCtrlsFontColor = this.setCtrlsFontColor.bind(this), insertAskField = this._fields.insertAskField.bind(this._fields), insertFILLINField = this._fields.insertFIllINField.bind(this._fields);
         const siTag = this.RTSiTag, selectTag = this.RTSelectTag, sectionTag = this.RTSectionTag, descTag = this.RTDescriptionTag, stylePrefix = this.StylePrefix, richText = this.richText, dorpDownTag = this.RTDropDownTag;
         const descStyle = this.RTDescriptionStyle, siStyle = this.RTSiStyles, sectionStyle = this.RTSectionStyle, dropDownList = this.dropDownList;
         const wrapRange = this.wrapSelectionWithContentControl.bind(this);
@@ -1268,6 +1268,7 @@ export class WordFileds extends WordContentCtrls {
         USERFORM.innerHTML = '';
         insertBtn({ fun: async () => await this.showInputs(), label: 'Edit The FILLIN Fields', hint: 'Shows the interface to edit the FILLIN fiels in the document' }, true);
         insertBtn({ fun: () => this.insertFIllINField(), label: 'Insert new FILLIN filed', hint: 'Inserts a new FILLIN field in the selected range. It replaces the selected text with the FILLIN field' }, true);
+        insertBtn({ fun: () => this.insertAskField(), label: 'Insert new ASK filed', hint: 'Inserts a new ASK field in the selected range. It replaces the selected text with the ASK field' }, true);
         insertBtn(goHome);
     }
     async showInputs() {
@@ -1328,16 +1329,21 @@ export class WordFileds extends WordContentCtrls {
         try {
             const type = 'ASK';
             const labels = ['Provide the name of the bookmark without spaces', 'Provide the user prompt'];
-            const values = await this.insertField(labels, type, range);
+            const values = await this.insertField(labels, range);
             if (!values)
                 throw new Error(`insretField() failed`);
             const { field, answers } = values;
             if (!field)
                 throw new Error('The field is undefined');
-            const bookmarkName = answers[0]?.replaceAll(' ', '') || undefined;
-            if (!bookmarkName)
-                throw new Error('The bookmark name returned is not valid !');
-            field.code = `${type} "${bookmarkName}"`;
+            const [bookmarkName, prompt] = answers;
+            if (!prompt || !bookmarkName) {
+                field.untrack();
+                field.delete();
+                await field.context.sync();
+                showAlert('Either The bookmark name or the user prompt returned is not valid !');
+                throw new Error('Invalid user prompt or bookmarkName');
+            }
+            field.code = `${type} "${bookmarkName.replaceAll(' ', '')}" "${prompt}" \* MERGEFORMAT`;
             field.updateResult();
             return { askField: field, bookmarkName };
         }
@@ -1350,14 +1356,21 @@ export class WordFileds extends WordContentCtrls {
         try {
             const type = 'FILLIN';
             const labels = ['Provide the FILLIN user prompt', 'Provide the FILLIN default value'];
-            const values = (await this.insertField(labels, type, range));
+            const values = await this.insertField(labels, range);
             if (!values)
                 throw new Error('Failed to insert the field');
             const { field, answers } = values;
             if (!field)
                 throw new Error('insertField() failed. No field object was returned');
-            const prompt = answers[0];
-            field.code = `${type} "${prompt}"  \\d ${answers[1] || '[*]'}  \\* MERGEFORMAT`;
+            const [prompt, deflt] = answers;
+            if (!prompt) {
+                field.untrack();
+                field.delete();
+                await field.context.sync();
+                showAlert('The user prompt returned is not valid');
+                throw new Error('Invalid User Prompt');
+            }
+            field.code = `${type} "${prompt}"  \\d ${deflt || '[*]'}  \\* MERGEFORMAT`;
             field.updateResult();
             return field;
         }
@@ -1366,37 +1379,21 @@ export class WordFileds extends WordContentCtrls {
         }
     }
     ;
-    async insertField(labels, type, range) {
-        const create = element;
-        const { modal, window } = getModalContainer(USERFORM, '', 'newField', false);
-        return await showDialogue();
-        async function showDialogue() {
-            const answers = await promptForInput(labels, undefined, undefined, window);
-            const btn = create('button', '', `Insert ${type} Field`, window, 'ok', true);
-            return new Promise((resolve) => btn.onclick = () => resolve(onClick(answers)));
-        }
-        async function onClick(answers) {
-            if (answers?.length)
-                return undefined;
-            const [answer1, answer2] = answers;
-            if (!answer1 || !answer2)
-                return undefined;
-            return await Word.run(async (context) => {
-                try {
-                    if (!range)
-                        range = context.document.getSelection().getRange(Word.RangeLocation.whole);
-                    const field = range.insertField(Word.InsertLocation.start, Word.FieldType.empty);
-                    modal.remove();
-                    field.track();
-                    await context.sync();
-                    return { field, answers };
-                }
-                catch (error) {
-                    console.log(error.debugInfo || error);
-                }
-            });
-        }
-        ;
+    async insertField(labels, range) {
+        const answers = await promptForInput(labels, '[*]', undefined);
+        return await Word.run(async (context) => {
+            try {
+                if (!range)
+                    range = context.document.getSelection().getRange(Word.RangeLocation.whole);
+                const field = range.insertField(Word.InsertLocation.start, Word.FieldType.empty);
+                field.track();
+                await context.sync();
+                return { field, answers };
+            }
+            catch (error) {
+                console.log(error.debugInfo || error);
+            }
+        });
     }
 }
 //# sourceMappingURL=app.js.map
