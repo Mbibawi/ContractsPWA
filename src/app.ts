@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.17.2.2";
+const version = "v11.17.3";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -1218,6 +1218,7 @@ export class EditContract extends WordContentCtrls {
         }
 
         async function showNestedOptionsTree(context: Word.RequestContext) {
+            const elements = Array.from(USERFORM.children);
             const ctrls = context.document.getSelection().contentControls;
             await context.sync();
             selectCtrls.length = 0;
@@ -1229,7 +1230,9 @@ export class EditContract extends WordContentCtrls {
 
             if (await promptConfirm('Do you want to delete the unselected contentcontrols?'))
                 await deleteUnselected(context);
-            prepareTemplate();
+
+            USERFORM.innerHTML = '';
+            elements.forEach(e => USERFORM.appendChild(e));
         }
     }
 
