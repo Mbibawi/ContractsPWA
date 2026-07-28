@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.17.4";
+const version = "v11.17.5";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -1457,6 +1457,15 @@ export class WordFileds extends WordContentCtrls {
                 element<HTMLBaseElement>('label', '', lable, div, '', true);
                 const input = element<HTMLInputElement>('input', '', '', div, `FILLIN_${index.toString()}`, true);
                 input.value = field.result.text;
+                input.onmouseenter = async () => {
+                    field.select();
+                    await context.sync();
+                };
+                input.onchange = async () => {
+                    field.result.insertText(input.value || '[*]', Word.InsertLocation.replace);
+                    await context.sync();
+                };
+
                 return [input, field] as [HTMLInputElement, Word.Field];
             }).filter(item => item !== undefined);
 
@@ -1470,10 +1479,10 @@ export class WordFileds extends WordContentCtrls {
                         for (const [input, field] of inputs) {
                             if (!input.value) continue;
                             if (!field) return console.log('field not found');
-                            field.result.insertText(input.value, Word.InsertLocation.replace);
+                            //field.result.insertText(input.value, Word.InsertLocation.replace);
                             console.log('Modified field = ' + field.code);
                         }
-                        await context.sync();
+                        //await context.sync();
                         resolve(showBtns());
                     };
 

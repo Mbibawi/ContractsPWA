@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.17.4";
+const version = "v11.17.5";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -1307,6 +1307,14 @@ export class WordFileds extends WordContentCtrls {
                 element('label', '', lable, div, '', true);
                 const input = element('input', '', '', div, `FILLIN_${index.toString()}`, true);
                 input.value = field.result.text;
+                input.onmouseenter = async () => {
+                    field.select();
+                    await context.sync();
+                };
+                input.onchange = async () => {
+                    field.result.insertText(input.value || '[*]', Word.InsertLocation.replace);
+                    await context.sync();
+                };
                 return [input, field];
             }).filter(item => item !== undefined);
             const showBtns = this.showButtons.bind(this);
@@ -1321,10 +1329,10 @@ export class WordFileds extends WordContentCtrls {
                                 continue;
                             if (!field)
                                 return console.log('field not found');
-                            field.result.insertText(input.value, Word.InsertLocation.replace);
+                            //field.result.insertText(input.value, Word.InsertLocation.replace);
                             console.log('Modified field = ' + field.code);
                         }
-                        await context.sync();
+                        //await context.sync();
                         resolve(showBtns());
                     };
                     insertBtn({ fun: () => edit(false), label: 'Update All Fileds From Inputs', hint: 'Parses the values of the inputs, and updates the corresponding fields' }, true);
