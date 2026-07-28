@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.17.3";
+const version = "v11.17.4";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -1090,8 +1090,16 @@ export class EditContract extends WordContentCtrls {
 
         function isNotSelected(ctrl: selectCtrl) {
             ctrl.delete = true;
-            subOptions(ctrl).forEach(c => c.processed = true);
+            setProcessed(ctrl);
         };
+
+        function setProcessed(ctrl: selectCtrl) {
+            subOptions(ctrl)
+                .forEach(nested => {
+                    nested.processed = true;
+                    setProcessed(nested)
+                });
+        }
 
         async function deleteUnselected(context: Word.RequestContext) {
             try {

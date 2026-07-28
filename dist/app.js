@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.17.3";
+const version = "v11.17.4";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -993,9 +993,16 @@ export class EditContract extends WordContentCtrls {
         ;
         function isNotSelected(ctrl) {
             ctrl.delete = true;
-            subOptions(ctrl).forEach(c => c.processed = true);
+            setProcessed(ctrl);
         }
         ;
+        function setProcessed(ctrl) {
+            subOptions(ctrl)
+                .forEach(nested => {
+                nested.processed = true;
+                setProcessed(nested);
+            });
+        }
         async function deleteUnselected(context) {
             try {
                 await process();
