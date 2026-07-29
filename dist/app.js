@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.17.5";
+const version = "v11.17.6";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -430,7 +430,7 @@ export class EditContract extends WordContentCtrls {
             { fun: this.unprotectSelectedCtrls, label: 'Unprotect Selected ContentControls', hint: 'Sets the "cannotEdit" and "cannotDelete" props of the contentControls in the selected range to false.' },
             { fun: () => this.customizeContract(true), label: 'Show Nested Options Tree', hint: 'Lists all the selection options in the document' },
             { fun: this.updateAllContentControlIDs, label: 'Update ContentControl Titles', hint: 'Updates the titles of all the ContentControls in the document' },
-            { fun: insertSelectInSelection, label: 'Insert Select In Selectgion', hint: 'Wraps all the paragraphs with RTSi style in RTSelect ContentControls according to their levels' },
+            { fun: automaticallyInsertSelectWrapers, label: 'Insert Select In Selectgion', hint: 'Wraps all the paragraphs with RTSi style in RTSelect ContentControls according to their levels' },
         ];
         this.showBtns(btns)
             .forEach(({ wraper }) => {
@@ -502,64 +502,68 @@ export class EditContract extends WordContentCtrls {
             await context.sync();
             console.log("Appended new node to existing XML part.");
         }
-        async function insertSelectInSelection() {
+        async function automaticallyInsertSelectWrapers() {
             const styles = [...siStyle, sectionStyle];
             const levels = siStyle.map((s, i) => i);
             const props = ['paragraphs/style', 'paragraphs/leftIndent'];
             const getLevel = (p) => Math.round(Math.floor(p.leftIndent) / 28); //1 cm = 28 something. 
+            const getRange = (r) => r.getRange(Word.RangeLocation.content);
+            const insertSelect = (range) => insertContentControl(range, selectTag, selectTag, 0, richText, null, false, false);
+            const insertSi = (p) => insertContentControl(getRange(p), siTag, siTag, undefined, richText, null, true, true);
             await Word.run(async (context) => {
-                const range = context.document.getSelection();
-                range.load(props);
-                await context.sync();
-                //const outLiner = await insertContentControl(range, selectTag, selectTag, 0, richText, null, false, false, undefined, ['id', 'paragraphs/style', 'paragraphs/leftIndent']);
-                //if (!outLiner) return;
-                //const siParags = outLiner.paragraphs.items.filter(p => styles.includes(p.style));
-                const siParags = range.paragraphs.items.filter(p => styles.includes(p.style));
-                //
-                for (const level of levels) {
-                    const paragraphs = siParags.filter(p => getLevel(p) === level);
-                    const selects = await processSameLevel(paragraphs);
-                }
-                async function processRange(selects, level) {
-                    for (const select of selects) {
-                        const range = select.getRange();
-                        select.load(props);
-                        await context.sync();
-                        const selectParags = range.paragraphs.items
-                            .filter(p => styles.includes(p.style) && getLevel(p) === level);
-                        const _selects = await processSameLevel(selectParags);
+                const range = getRange(context.document.getSelection());
+                const select = await insertSelect(range);
+                if (!select)
+                    return showNotification('The select wraper id was not retrieved');
+                await insertNested(select.id);
+                async function insertNested(id) {
+                    const RTSelect = context.document.contentControls.getById(id);
+                    RTSelect.load(props);
+                    await context.sync();
+                    if (!RTSelect.paragraphs.items.length)
+                        return showNotification('There are no paragraphs within the RTSelect wraper range');
+                    const siParags = RTSelect.paragraphs.items.filter(p => siStyle.includes(p.style));
+                    for (const si of siParags) {
+                        const range = getRange(si);
+                        const level = getLevel(si);
+                        const sameLevel = siParags.filter(p => siParags.indexOf(p) > siParags.indexOf(si)).filter(p => getLevel(p) === level);
+                        //const sameLevel = siParags.filter(p => siParags.indexOf(p) > siParags.indexOf(si)).filter(p => getLevel(p) === level);
+                        if (!sameLevel.length) {
+                            const last = RTSelect.paragraphs.items.pop();
+                            const p = last.insertParagraph('', Word.InsertLocation.after);
+                            range.expandTo(last.getRange(Word.RangeLocation.end));
+                            range.select();
+                            const id = await insertRTBlock_Select_Si(range);
+                            if (!id)
+                                continue;
+                            p.delete();
+                            await insertSi(si);
+                            await insertNested(id);
+                        }
+                        else {
+                            for (const same of sameLevel) {
+                                const p = same.insertParagraph('', Word.InsertLocation.before);
+                                range.expandTo(same.getRange(Word.RangeLocation.end));
+                                range.select();
+                                const id = await insertRTBlock_Select_Si(range);
+                                if (!id)
+                                    continue;
+                                p.delete();
+                                await insertSi(si);
+                                await insertNested(id);
+                            }
+                        }
                     }
-                }
-                async function processSameLevel(paragraphs) {
-                    const selects = [];
-                    for (const p of paragraphs) {
-                        const index = siParags.indexOf(p);
-                        const range = p.getRange(Word.RangeLocation.content);
-                        const si = await insertContentControl(range, siTag, siTag, index, richText, null, true, true);
-                        if (!si)
-                            continue;
-                        if (p.style === sectionStyle)
-                            continue;
-                        const end = paragraphs[index + 1];
-                        if (!end)
-                            continue;
-                        const range2 = si.getRange(Word.RangeLocation.before).expandTo(end.getRange(Word.RangeLocation.start));
-                        const select = await insertContentControl(range2, selectTag, selectTag, undefined, richText, null, true, true);
-                        if (!select)
-                            continue;
-                        selects.push(select);
-                    }
-                    ;
-                    return selects;
                 }
             });
         }
-        async function insertRTBlock_Select_Si() {
-            const range = await getSelectionRange();
+        async function insertRTBlock_Select_Si(range) {
+            if (!range)
+                range = await getSelectionRange();
             if (!range)
                 return;
             try {
-                await Word.run(range, async (context) => {
+                return await Word.run(range, async (context) => {
                     //Wraping the range with ContentControl "RTSelect"
                     const _ctrl = await insertContentControl(range, selectTag, selectTag, undefined, richText, null, false, false, undefined, ['id']);
                     if (!_ctrl)
@@ -574,6 +578,7 @@ export class EditContract extends WordContentCtrls {
                     await insertContentControl(si, siTag, siTag, undefined, richText, si.style, true, true);
                     [range, ctrl, si].forEach(obj => obj.untrack());
                     await context.sync();
+                    return ctrl.id;
                 });
             }
             catch (error) {
@@ -671,19 +676,27 @@ export class EditContract extends WordContentCtrls {
             await Word.run(async (context) => {
                 try {
                     const range = context.document.getSelection().getRange(Word.RangeLocation.start);
-                    const wraper = await insertContentControl(range, 'Block Amount Associated to FILLINField', 'BlockAmount', 0, richText, null, false, false);
+                    const wraper = await insertContentControl(range, 'Block Amount Associated to AskField', 'BlockAmount', 0, richText, null, false, false);
                     if (!wraper)
                         throw new Error('Failed to insert a contentControl in the selected range');
-                    const wraperRange = wraper.getRange();
-                    wraperRange.insertText('[*]', Word.RangeLocation.start);
-                    const bookmarkName = await insertAskField(wraperRange.getRange(Word.RangeLocation.start));
-                    if (!bookmarkName)
-                        throw new Error('The bookmark name returned after trying to insert the ASK field is undefined');
-                    getField(`{REF ${bookmarkName}} \\h \\*cardText`, wraper); //amout as text
-                    wraperRange.insertText(' euros (', Word.InsertLocation.end);
-                    getField(`REF ${bookmarkName} \\h`, wraper); // amount in figures
-                    wraperRange.insertText(' €', Word.InsertLocation.end);
+                    wraper.insertText('cardText euros (amount €)', Word.InsertLocation.end);
+                    const content = wraper.getRange(Word.RangeLocation.content);
+                    const placeholder = await fun('cardText');
+                    if (!placeholder)
+                        return;
+                    const bookmarkName = await insertAskField(placeholder);
+                    await fun('amount', `REF ${bookmarkName} \\h \\*MERGEFORMAT `);
+                    await fun('cardText', `REF ${bookmarkName} \\h \\*cardText MERGEFORMAT `);
                     await context.sync();
+                    async function fun(key, code) {
+                        const placeholder = content.getRange(Word.RangeLocation.content).search(key).getFirst();
+                        if (!placeholder)
+                            return showNotification(`Could not find the placeholder ${key}`);
+                        if (!code)
+                            return placeholder;
+                        const field = placeholder.insertField(Word.InsertLocation.replace, Word.FieldType.empty);
+                        field.code = code;
+                    }
                 }
                 catch (error) {
                     showAlert(`An error occured ${error.debugInfo || error}`);
@@ -1335,8 +1348,9 @@ export class WordFileds extends WordContentCtrls {
                         //await context.sync();
                         resolve(showBtns());
                     };
-                    insertBtn({ fun: () => edit(false), label: 'Update All Fileds From Inputs', hint: 'Parses the values of the inputs, and updates the corresponding fields' }, true);
-                    insertBtn({ fun: () => edit(true), label: 'Cancel and go back', hint: 'Cancels the editing session' }, false); //We insert the goHome navigation button on top of all the inputs
+                    //insertBtn({ fun: () => edit(false), label: 'Update All Fileds From Inputs', hint: 'Parses the values of the inputs, and updates the corresponding fields' }, true);
+                    //insertBtn({ fun: () => edit(true), label: 'Cancel and go back', hint: 'Cancels the editing session' }, false);//We insert the goHome navigation button on top of all the inputs
+                    insertBtn({ fun: () => edit(true), label: 'Finish', hint: 'Terminates the editing session and returns to the main menue' }, true); //We insert the goHome navigation button on top of all the inputs
                 });
             }
             ;
@@ -1346,7 +1360,7 @@ export class WordFileds extends WordContentCtrls {
         try {
             const fieldCode = (answers) => {
                 const [bookmarkName, prompt] = answers;
-                return `"${bookmarkName.replaceAll(' ', '')}"  "${prompt}" \\* MERGEFORMAT`;
+                return `"${bookmarkName.replaceAll(' ', '')}"  "${prompt}" \\d [*] \\* MERGEFORMAT`;
             };
             const labels = ['Provide the name of the bookmark without spaces', 'Provide the user prompt'];
             const values = await this.insertField(labels, Word.FieldType.ask, range, fieldCode);
