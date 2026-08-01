@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.17.7.2";
+const version = "v11.17.7.3";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -212,27 +212,25 @@ class WordContentCtrls {
     async insertContentControl(range, title, tag, index = 1, type, style, cannotEdit = true, cannotDelete = true, placeHolder, props = []) {
         try {
             props = Array.from(new Set(['id', ...props]));
-            await Word.run(range, async (context) => {
-                const ctrl = range.insertContentControl(type);
-                ctrl.load(props);
-                ctrl.select();
-                await context.sync();
-                ctrl.title = this.getCtrlTitle(title, ctrl.id);
-                ctrl.tag = tag;
-                ctrl.appearance = Word.ContentControlAppearance.boundingBox;
-                if (placeHolder)
-                    ctrl.placeholderText = placeHolder;
-                if (style)
-                    ctrl.getRange().style = style;
-                ctrl.cannotDelete = cannotDelete;
-                ctrl.cannotEdit = cannotEdit; //!This must come at the end after the style has been set.
-                ctrl.track(); //!We must track the object before range.context.sync() is called otherwise it will be lost.
-                await context.sync();
-                console.log(`the newly created ContentControl id = ${ctrl.id} `);
-                // Set properties for the new content control.
-                logNotification(`Wrapped text in range ${index} with a content control.`);
-                return ctrl;
-            });
+            const ctrl = range.insertContentControl(type);
+            ctrl.load(props);
+            ctrl.select();
+            await range.context.sync();
+            ctrl.title = this.getCtrlTitle(title, ctrl.id);
+            ctrl.tag = tag;
+            ctrl.appearance = Word.ContentControlAppearance.boundingBox;
+            if (placeHolder)
+                ctrl.placeholderText = placeHolder;
+            if (style)
+                ctrl.getRange().style = style;
+            ctrl.cannotDelete = cannotDelete;
+            ctrl.cannotEdit = cannotEdit; //!This must come at the end after the style has been set.
+            ctrl.track(); //!We must track the object before range.context.sync() is called otherwise it will be lost.
+            await range.context.sync();
+            console.log(`the newly created ContentControl id = ${ctrl.id} `);
+            // Set properties for the new content control.
+            logNotification(`Wrapped text in range ${index} with a content control.`);
+            return ctrl;
         }
         catch (error) {
             logNotification(`There was an error while setting the properties of the newly crated contentcontrol by insertContentControl(): ${error.debugInfo || error}.`);
