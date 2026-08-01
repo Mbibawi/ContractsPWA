@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.17.7.3";
+const version = "v11.17.7.4";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -545,7 +545,7 @@ export class EditContract extends WordContentCtrls {
 
 
         async function automaticallyInsertSelectWrapers(): Promise<void> {
-            const props = ['paragraphs/style', 'paragraphs/leftIndent', 'parentContentControlOrNullObject/id'];
+            const props = ['paragraphs/style', 'paragraphs/leftIndent', 'paragraphs/parentContentControlOrNullObject/id'];
             const getLevel = (p: Word.Paragraph) => Math.round(Math.floor(p.leftIndent) / 28) //1 cm = 28 something. 
             const content = (range: Word.Paragraph | Word.Range) => range.getRange(Word.RangeLocation.content)
 

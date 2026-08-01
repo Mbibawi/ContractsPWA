@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.17.7.3";
+const version = "v11.17.7.4";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -504,7 +504,7 @@ export class EditContract extends WordContentCtrls {
             console.log("Appended new node to existing XML part.");
         }
         async function automaticallyInsertSelectWrapers() {
-            const props = ['paragraphs/style', 'paragraphs/leftIndent', 'parentContentControlOrNullObject/id'];
+            const props = ['paragraphs/style', 'paragraphs/leftIndent', 'paragraphs/parentContentControlOrNullObject/id'];
             const getLevel = (p) => Math.round(Math.floor(p.leftIndent) / 28); //1 cm = 28 something. 
             const content = (range) => range.getRange(Word.RangeLocation.content);
             await Word.run(async (context) => {
