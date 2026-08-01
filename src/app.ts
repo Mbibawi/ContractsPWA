@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.17.7.5";
+const version = "v11.17.7.6";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -214,7 +214,6 @@ class WordContentCtrls {
 
         try {
             props = Array.from(new Set(['id', ...props]));
-
             const ctrl = range.insertContentControl(type);
             ctrl.load(props);
             ctrl.select();
@@ -582,9 +581,9 @@ export class EditContract extends WordContentCtrls {
                             .find(p => getLevel(p) === getLevel(si));
 
                         if (!sameLevel) {
+                            if (!select.paragraphs.items.length) return;
                             const last = select.paragraphs.items.pop();
-                            if (!last) return;
-                            const p = last.insertParagraph('', Word.InsertLocation.after);
+                            const p = last!.insertParagraph('', Word.InsertLocation.after);
                             await insertBlock(range, p);
                         } else {
                             const p = sameLevel.insertParagraph('', Word.InsertLocation.before);
@@ -612,22 +611,23 @@ export class EditContract extends WordContentCtrls {
         }
 
         async function insertRTBlock_Select_Si(range?: Word.Range, props: string[] = []) {
-            if (!range) range = await getSelectionRange();
-            if (!range) return;
             props = Array.from(new Set(['id', 'paragraphs/style', ...props]));
 
             try {
-                //Wraping the range with ContentControl "RTSelect"
-                const select = await insertContentControl(range, selectTag, selectTag, undefined, richText, null, false, false, undefined, props);
-                if (!select?.id) return showAlert('Failed to insert the RTSelect ContentControl');
+                return await Word.run(async (context) => {
+                    if (!range) range = context.document.getSelection().getRange(Word.RangeLocation.content);
+                    //Wraping the range with ContentControl "RTSelect"
+                    const select = await insertContentControl(range, selectTag, selectTag, undefined, richText, null, false, false, undefined, props);
+                    if (!select?.id) return showAlert('Failed to insert the RTSelect ContentControl');
 
-                const si = select.paragraphs.items.find(p => siStyle.includes(p.style));
-                if (!si) return showAlert('No paragraph styled with on of the "RTSi" styles was found in the selected range');
-                //Wraping the paragraph with ContentControl "RTSi"
-                await insertContentControl(si, siTag, siTag, undefined, richText, si.style, true, true);
-                [range, select, si].forEach(obj => obj.untrack());
-                await range.context.sync();
-                return select
+                    const si = select.paragraphs.items.find(p => siStyle.includes(p.style));
+                    if (!si) return showAlert('No paragraph styled with on of the "RTSi" styles was found in the selected range');
+                    //Wraping the paragraph with ContentControl "RTSi"
+                    await insertContentControl(si, siTag, siTag, undefined, richText, si.style, true, true);
+                    [range, select, si].forEach(obj => obj.untrack());
+                    await context.sync();
+                    return select
+                })
 
             } catch (error: any) {
                 console.log(error.debugInfo || error)

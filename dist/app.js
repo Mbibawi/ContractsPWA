@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.17.7.5";
+const version = "v11.17.7.6";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -539,9 +539,9 @@ export class EditContract extends WordContentCtrls {
                             .filter(p => siParags.indexOf(p) > siParags.indexOf(si))
                             .find(p => getLevel(p) === getLevel(si));
                         if (!sameLevel) {
-                            const last = select.paragraphs.items.pop();
-                            if (!last)
+                            if (!select.paragraphs.items.length)
                                 return;
+                            const last = select.paragraphs.items.pop();
                             const p = last.insertParagraph('', Word.InsertLocation.after);
                             await insertBlock(range, p);
                         }
@@ -565,24 +565,24 @@ export class EditContract extends WordContentCtrls {
             });
         }
         async function insertRTBlock_Select_Si(range, props = []) {
-            if (!range)
-                range = await getSelectionRange();
-            if (!range)
-                return;
             props = Array.from(new Set(['id', 'paragraphs/style', ...props]));
             try {
-                //Wraping the range with ContentControl "RTSelect"
-                const select = await insertContentControl(range, selectTag, selectTag, undefined, richText, null, false, false, undefined, props);
-                if (!select?.id)
-                    return showAlert('Failed to insert the RTSelect ContentControl');
-                const si = select.paragraphs.items.find(p => siStyle.includes(p.style));
-                if (!si)
-                    return showAlert('No paragraph styled with on of the "RTSi" styles was found in the selected range');
-                //Wraping the paragraph with ContentControl "RTSi"
-                await insertContentControl(si, siTag, siTag, undefined, richText, si.style, true, true);
-                [range, select, si].forEach(obj => obj.untrack());
-                await range.context.sync();
-                return select;
+                return await Word.run(async (context) => {
+                    if (!range)
+                        range = context.document.getSelection().getRange(Word.RangeLocation.content);
+                    //Wraping the range with ContentControl "RTSelect"
+                    const select = await insertContentControl(range, selectTag, selectTag, undefined, richText, null, false, false, undefined, props);
+                    if (!select?.id)
+                        return showAlert('Failed to insert the RTSelect ContentControl');
+                    const si = select.paragraphs.items.find(p => siStyle.includes(p.style));
+                    if (!si)
+                        return showAlert('No paragraph styled with on of the "RTSi" styles was found in the selected range');
+                    //Wraping the paragraph with ContentControl "RTSi"
+                    await insertContentControl(si, siTag, siTag, undefined, richText, si.style, true, true);
+                    [range, select, si].forEach(obj => obj.untrack());
+                    await context.sync();
+                    return select;
+                });
             }
             catch (error) {
                 console.log(error.debugInfo || error);
