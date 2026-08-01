@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.17.7.4";
+const version = "v11.17.7.5";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -512,8 +512,13 @@ export class EditContract extends WordContentCtrls {
                 const main = await insertContentControl(range, selectTag, selectTag, 0, richText, null, false, false, undefined, props);
                 if (!main?.id)
                     return logNotification('The select wraper id was not retrieved');
-                await processSelectWraper(main);
-                await context.sync();
+                try {
+                    await processSelectWraper(main);
+                    await context.sync();
+                }
+                catch (error) {
+                    console.log(error.debugInfo ?? error);
+                }
                 async function processSelectWraper(select) {
                     if (!select)
                         return;
@@ -523,19 +528,6 @@ export class EditContract extends WordContentCtrls {
                         .filter(p => siStyle.includes(p.style))
                         .filter(p => p.parentContentControlOrNullObject.id === select.id); //We exclude the Si-styled paragraphs already who are not direct children of select. We do this in order to make sure that if a si-styled paragraph is already wraped in a RTSi contentControl, we will escape it since it means it has already been porecessed.
                     await process(siParags);
-                    /*
-                    'si1'
-                        'si2'
-                        'si2'
-                    'si1'
-                        'si2'
-                            'si3'
-                            'si3'
-                        'si2'
-                        'si2'
-                    'si1'
-                        'si2'
-                    */
                     async function process(siParags) {
                         if (!siParags.length)
                             return;
@@ -579,20 +571,18 @@ export class EditContract extends WordContentCtrls {
                 return;
             props = Array.from(new Set(['id', 'paragraphs/style', ...props]));
             try {
-                return await Word.run(range, async (context) => {
-                    //Wraping the range with ContentControl "RTSelect"
-                    const select = await insertContentControl(range, selectTag, selectTag, undefined, richText, null, false, false, undefined, props);
-                    if (!select?.id)
-                        return showAlert('Failed to insert the RTSelect ContentControl');
-                    const si = select.paragraphs.items.find(p => siStyle.includes(p.style));
-                    if (!si)
-                        return showAlert('No paragraph styled with on of the "RTSi" styles was found in the selected range');
-                    //Wraping the paragraph with ContentControl "RTSi"
-                    await insertContentControl(si, siTag, siTag, undefined, richText, si.style, true, true);
-                    [range, select, si].forEach(obj => obj.untrack());
-                    await context.sync();
-                    return select;
-                });
+                //Wraping the range with ContentControl "RTSelect"
+                const select = await insertContentControl(range, selectTag, selectTag, undefined, richText, null, false, false, undefined, props);
+                if (!select?.id)
+                    return showAlert('Failed to insert the RTSelect ContentControl');
+                const si = select.paragraphs.items.find(p => siStyle.includes(p.style));
+                if (!si)
+                    return showAlert('No paragraph styled with on of the "RTSi" styles was found in the selected range');
+                //Wraping the paragraph with ContentControl "RTSi"
+                await insertContentControl(si, siTag, siTag, undefined, richText, si.style, true, true);
+                [range, select, si].forEach(obj => obj.untrack());
+                await range.context.sync();
+                return select;
             }
             catch (error) {
                 console.log(error.debugInfo || error);
