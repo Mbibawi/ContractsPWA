@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.17.7.1";
+const version = "v11.17.7.2";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -216,7 +216,6 @@ class WordContentCtrls {
             props = Array.from(new Set(['id', ...props]));
 
             await Word.run(range, async (context) => {
-                range.select();
                 const ctrl = range.insertContentControl(type);
                 ctrl.load(props);
                 ctrl.select();
@@ -549,7 +548,7 @@ export class EditContract extends WordContentCtrls {
         async function automaticallyInsertSelectWrapers(): Promise<void> {
             const props = ['paragraphs/style', 'paragraphs/leftIndent', 'parentContentControlOrNullObject/id'];
             const getLevel = (p: Word.Paragraph) => Math.round(Math.floor(p.leftIndent) / 28) //1 cm = 28 something. 
-            const content = (r: Word.Paragraph | Word.Range) => r.getRange(Word.RangeLocation.content)
+            const content = (range: Word.Paragraph | Word.Range) => range.getRange(Word.RangeLocation.content)
 
 
             await Word.run(async (context) => {
@@ -673,7 +672,7 @@ export class EditContract extends WordContentCtrls {
                         await context.sync();
                         if (parent.tag === tag) continue;//We escape paragraphs already wraped in a contentcontrol with the same tag
                         console.log(`range style: ${parag.style} & text = ${parag.text}`);
-                        await insertContentControl(parag.getRange('Content'),
+                        await insertContentControl(parag.getRange(Word.RangeLocation.content),
                             tag, tag, parags.indexOf(parag), richText, style);
                     } catch (error) {
                         console.log(`Error from insertForAllParags() when trying to wrap the paragraph : ${parag.text}. Error :\n${error}`);

@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.17.7.1";
+const version = "v11.17.7.2";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -213,7 +213,6 @@ class WordContentCtrls {
         try {
             props = Array.from(new Set(['id', ...props]));
             await Word.run(range, async (context) => {
-                range.select();
                 const ctrl = range.insertContentControl(type);
                 ctrl.load(props);
                 ctrl.select();
@@ -509,7 +508,7 @@ export class EditContract extends WordContentCtrls {
         async function automaticallyInsertSelectWrapers() {
             const props = ['paragraphs/style', 'paragraphs/leftIndent', 'parentContentControlOrNullObject/id'];
             const getLevel = (p) => Math.round(Math.floor(p.leftIndent) / 28); //1 cm = 28 something. 
-            const content = (r) => r.getRange(Word.RangeLocation.content);
+            const content = (range) => range.getRange(Word.RangeLocation.content);
             await Word.run(async (context) => {
                 const range = content(context.document.getSelection());
                 const main = await insertContentControl(range, selectTag, selectTag, 0, richText, null, false, false, undefined, props);
@@ -625,7 +624,7 @@ export class EditContract extends WordContentCtrls {
                         if (parent.tag === tag)
                             continue; //We escape paragraphs already wraped in a contentcontrol with the same tag
                         console.log(`range style: ${parag.style} & text = ${parag.text}`);
-                        await insertContentControl(parag.getRange('Content'), tag, tag, parags.indexOf(parag), richText, style);
+                        await insertContentControl(parag.getRange(Word.RangeLocation.content), tag, tag, parags.indexOf(parag), richText, style);
                     }
                     catch (error) {
                         console.log(`Error from insertForAllParags() when trying to wrap the paragraph : ${parag.text}. Error :\n${error}`);
