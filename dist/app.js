@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.17.6";
+const version = "v11.17.7";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -26,13 +26,13 @@ function mainUI(showVersion = true) {
         USERFORM.insertAdjacentElement('beforebegin', p);
     }
 }
-function showNotification(message, clear = false) {
+function logNotification(message, clear = false) {
     if (clear)
         NOTIFICATION.innerHTML = '';
     element('p', 'notification', message, NOTIFICATION, '', true);
 }
 function showAlert(message) {
-    showNotification(`Displayed Alert: ${message}`);
+    logNotification(`Displayed Alert: ${message}`);
     const { modal, window } = getModalContainer(USERFORM, 'Alert', 'alert', false);
     element('p', '', message, window, '', true);
     const btn = element('button', '', 'OK', window, '', true);
@@ -175,7 +175,7 @@ class WordContentCtrls {
                 await ctrl.context.sync();
             }
             catch (error) {
-                showNotification(`Error inserting field: ctrl.id = ${ctrl?.id}, error: ${error}`);
+                logNotification(`Error inserting field: ctrl.id = ${ctrl?.id}, error: ${error}`);
                 continue;
             }
         }
@@ -211,29 +211,31 @@ class WordContentCtrls {
      */
     async insertContentControl(range, title, tag, index = 1, type, style, cannotEdit = true, cannotDelete = true, placeHolder, props = []) {
         try {
-            range.select();
-            const ctrl = range.insertContentControl(type);
-            ctrl.load(['id', ...props.filter(prop => prop !== 'id')]);
-            range.context.trackedObjects.add(ctrl); //!We must track the object before range.context.sync() is called otherwise it will be lost.
-            await range.context.sync();
-            console.log(`the newly created ContentControl id = ${ctrl.id} `);
-            // Set properties for the new content control.
-            ctrl.title = this.getCtrlTitle(title, ctrl.id);
-            ctrl.tag = tag;
-            ctrl.appearance = Word.ContentControlAppearance.boundingBox;
-            if (placeHolder)
-                ctrl.placeholderText = placeHolder;
-            if (style)
-                ctrl.getRange().style = style;
-            ctrl.cannotDelete = cannotDelete;
-            ctrl.cannotEdit = cannotEdit; //!This must come at the end after the style has been set.
-            ctrl.select();
-            await range.context.sync();
-            showNotification(`Wrapped text in range ${index} with a content control.`);
-            return ctrl;
+            props = Array.from(new Set(['id', ...props]));
+            await Word.run(range, async (context) => {
+                range.select();
+                const ctrl = range.insertContentControl(type);
+                ctrl.select();
+                ctrl.load(props);
+                ctrl.title = this.getCtrlTitle(title, ctrl.id);
+                ctrl.tag = tag;
+                ctrl.appearance = Word.ContentControlAppearance.boundingBox;
+                if (placeHolder)
+                    ctrl.placeholderText = placeHolder;
+                if (style)
+                    ctrl.getRange().style = style;
+                ctrl.cannotDelete = cannotDelete;
+                ctrl.cannotEdit = cannotEdit; //!This must come at the end after the style has been set.
+                ctrl.track(); //!We must track the object before range.context.sync() is called otherwise it will be lost.
+                await context.sync();
+                console.log(`the newly created ContentControl id = ${ctrl.id} `);
+                // Set properties for the new content control.
+                logNotification(`Wrapped text in range ${index} with a content control.`);
+                return ctrl;
+            });
         }
         catch (error) {
-            showNotification(`There was an error while setting the properties of the newly crated contentcontrol by insertContentControl(): ${error.debugInfo || error}.`);
+            logNotification(`There was an error while setting the properties of the newly crated contentcontrol by insertContentControl(): ${error.debugInfo || error}.`);
             return undefined;
         }
     }
@@ -268,7 +270,7 @@ class WordContentCtrls {
         return await Word.run(async (context) => {
             const range = context.document
                 .getSelection()
-                .getRange('Content');
+                .getRange(Word.RangeLocation.content);
             range.load(['style', 'isEmpty', ...props]);
             range.track();
             await context.sync();
@@ -428,6 +430,7 @@ export class EditContract extends WordContentCtrls {
             { fun: insertRTSectionAll, label: 'Section For All', hint: all(this.RTSectionStyle, this.RTSectionTag) },
             { fun: insertRTDescription, label: 'Description For All', hint: all(this.RTDescriptionStyle, this.RTDescriptionTag) },
             { fun: this.unprotectSelectedCtrls, label: 'Unprotect Selected ContentControls', hint: 'Sets the "cannotEdit" and "cannotDelete" props of the contentControls in the selected range to false.' },
+            { fun: () => this.unprotectSelectedCtrls(undefined, true), label: 'Protect Selected ContentControls', hint: 'Sets the "cannotEdit" and "cannotDelete" props of the contentControls in the selected range to false.' },
             { fun: () => this.customizeContract(true), label: 'Show Nested Options Tree', hint: 'Lists all the selection options in the document' },
             { fun: this.updateAllContentControlIDs, label: 'Update ContentControl Titles', hint: 'Updates the titles of all the ContentControls in the document' },
             { fun: automaticallyInsertSelectWrapers, label: 'Insert Select In Selectgion', hint: 'Wraps all the paragraphs with RTSi style in RTSelect ContentControls according to their levels' },
@@ -503,82 +506,94 @@ export class EditContract extends WordContentCtrls {
             console.log("Appended new node to existing XML part.");
         }
         async function automaticallyInsertSelectWrapers() {
-            const styles = [...siStyle, sectionStyle];
-            const levels = siStyle.map((s, i) => i);
-            const props = ['paragraphs/style', 'paragraphs/leftIndent'];
+            const props = ['paragraphs/style', 'paragraphs/leftIndent', 'parentContentControlOrNullObject/id'];
             const getLevel = (p) => Math.round(Math.floor(p.leftIndent) / 28); //1 cm = 28 something. 
-            const getRange = (r) => r.getRange(Word.RangeLocation.content);
-            const insertSelect = (range) => insertContentControl(range, selectTag, selectTag, 0, richText, null, false, false);
-            const insertSi = (p) => insertContentControl(getRange(p), siTag, siTag, undefined, richText, null, true, true);
+            const content = (r) => r.getRange(Word.RangeLocation.content);
             await Word.run(async (context) => {
-                const range = getRange(context.document.getSelection());
-                const select = await insertSelect(range);
-                if (!select)
-                    return showNotification('The select wraper id was not retrieved');
-                await insertNested(select.id);
-                async function insertNested(id) {
-                    const RTSelect = context.document.contentControls.getById(id);
-                    RTSelect.load(props);
-                    await context.sync();
-                    if (!RTSelect.paragraphs.items.length)
-                        return showNotification('There are no paragraphs within the RTSelect wraper range');
-                    const siParags = RTSelect.paragraphs.items.filter(p => siStyle.includes(p.style));
-                    for (const si of siParags) {
-                        const range = getRange(si);
-                        const level = getLevel(si);
-                        const sameLevel = siParags.filter(p => siParags.indexOf(p) > siParags.indexOf(si)).filter(p => getLevel(p) === level);
-                        //const sameLevel = siParags.filter(p => siParags.indexOf(p) > siParags.indexOf(si)).filter(p => getLevel(p) === level);
-                        if (!sameLevel.length) {
-                            const last = RTSelect.paragraphs.items.pop();
+                const range = content(context.document.getSelection());
+                const main = await insertContentControl(range, selectTag, selectTag, 0, richText, null, false, false, undefined, props);
+                if (!main?.id)
+                    return logNotification('The select wraper id was not retrieved');
+                await processSelectWraper(main);
+                await context.sync();
+                async function processSelectWraper(select) {
+                    if (!select)
+                        return;
+                    if (!select.paragraphs.items.length)
+                        return logNotification('There are no paragraphs within the RTSelect wraper range');
+                    let siParags = select.paragraphs.items
+                        .filter(p => siStyle.includes(p.style))
+                        .filter(p => p.parentContentControlOrNullObject.id === select.id); //We exclude the Si-styled paragraphs already who are not direct children of select. We do this in order to make sure that if a si-styled paragraph is already wraped in a RTSi contentControl, we will escape it since it means it has already been porecessed.
+                    await process(siParags);
+                    /*
+                    'si1'
+                        'si2'
+                        'si2'
+                    'si1'
+                        'si2'
+                            'si3'
+                            'si3'
+                        'si2'
+                        'si2'
+                    'si1'
+                        'si2'
+                    */
+                    async function process(siParags) {
+                        if (!siParags.length)
+                            return;
+                        const si = siParags.shift();
+                        if (!si)
+                            return;
+                        const range = content(si);
+                        const sameLevel = siParags
+                            .filter(p => siParags.indexOf(p) > siParags.indexOf(si))
+                            .find(p => getLevel(p) === getLevel(si));
+                        if (!sameLevel) {
+                            const last = select.paragraphs.items.pop();
+                            if (!last)
+                                return;
                             const p = last.insertParagraph('', Word.InsertLocation.after);
-                            range.expandTo(last.getRange(Word.RangeLocation.end));
-                            range.select();
-                            const id = await insertRTBlock_Select_Si(range);
-                            if (!id)
-                                continue;
-                            p.delete();
-                            await insertSi(si);
-                            await insertNested(id);
+                            await insertBlock(range, p);
                         }
                         else {
-                            for (const same of sameLevel) {
-                                const p = same.insertParagraph('', Word.InsertLocation.before);
-                                range.expandTo(same.getRange(Word.RangeLocation.end));
-                                range.select();
-                                const id = await insertRTBlock_Select_Si(range);
-                                if (!id)
-                                    continue;
-                                p.delete();
-                                await insertSi(si);
-                                await insertNested(id);
-                            }
+                            const p = sameLevel.insertParagraph('', Word.InsertLocation.before);
+                            await insertBlock(range, p);
+                            siParags = siParags.filter(p => siParags.indexOf(p) >= siParags.indexOf(sameLevel));
+                            await process(siParags);
                         }
                     }
                 }
+                async function insertBlock(range, p) {
+                    range.expandTo(content(p));
+                    range.select();
+                    const select = await insertRTBlock_Select_Si(range, props);
+                    p.delete();
+                    if (!select)
+                        return;
+                    await processSelectWraper(select);
+                }
             });
         }
-        async function insertRTBlock_Select_Si(range) {
+        async function insertRTBlock_Select_Si(range, props = []) {
             if (!range)
                 range = await getSelectionRange();
             if (!range)
                 return;
+            props = Array.from(new Set(['id', 'paragraphs/style', ...props]));
             try {
                 return await Word.run(range, async (context) => {
                     //Wraping the range with ContentControl "RTSelect"
-                    const _ctrl = await insertContentControl(range, selectTag, selectTag, undefined, richText, null, false, false, undefined, ['id']);
-                    if (!_ctrl)
+                    const select = await insertContentControl(range, selectTag, selectTag, undefined, richText, null, false, false, undefined, props);
+                    if (!select?.id)
                         return showAlert('Failed to insert the RTSelect ContentControl');
-                    const ctrl = context.document.contentControls.getById(_ctrl.id);
-                    ctrl.load(['paragraphs', 'paragraphs/style']);
-                    await context.sync();
-                    const si = ctrl.paragraphs.items.find(p => siStyle.includes(p.style));
+                    const si = select.paragraphs.items.find(p => siStyle.includes(p.style));
                     if (!si)
                         return showAlert('No paragraph styled with on of the "RTSi" styles was found in the selected range');
                     //Wraping the paragraph with ContentControl "RTSi"
                     await insertContentControl(si, siTag, siTag, undefined, richText, si.style, true, true);
-                    [range, ctrl, si].forEach(obj => obj.untrack());
+                    [range, select, si].forEach(obj => obj.untrack());
                     await context.sync();
-                    return ctrl.id;
+                    return select;
                 });
             }
             catch (error) {
@@ -640,7 +655,7 @@ export class EditContract extends WordContentCtrls {
                     await context.sync();
                 }
                 catch (error) {
-                    showNotification(`Error from insertDropDownList = ${error}`);
+                    logNotification(`Error from insertDropDownList = ${error}`);
                 }
             });
         }
@@ -659,8 +674,8 @@ export class EditContract extends WordContentCtrls {
                 return;
             const options = range.text.split("/");
             if (!options.length)
-                return showNotification("No options");
-            showNotification(options.join());
+                return logNotification("No options");
+            logNotification(options.join());
             const ctrl = await insertContentControl(range, dorpDownTag, dorpDownTag, index, dropDownList, null, false, true, undefined, ['id']);
             if (!ctrl)
                 return;
@@ -691,7 +706,7 @@ export class EditContract extends WordContentCtrls {
                     async function fun(key, code) {
                         const placeholder = content.getRange(Word.RangeLocation.content).search(key).getFirst();
                         if (!placeholder)
-                            return showNotification(`Could not find the placeholder ${key}`);
+                            return logNotification(`Could not find the placeholder ${key}`);
                         if (!code)
                             return placeholder;
                         const field = placeholder.insertField(Word.InsertLocation.replace, Word.FieldType.empty);
@@ -724,9 +739,9 @@ export class EditContract extends WordContentCtrls {
         async function findTextAndWrapItWithContentControl(styles, title, tag, cannotEdit, cannotDelete) {
             const { search, matchWildcards } = await searchs();
             if (!styles?.length)
-                return showNotification(`The styles[] has 0 length, no styles are included, the function will return`);
+                return logNotification(`The styles[] has 0 length, no styles are included, the function will return`);
             if (!search?.length)
-                return showNotification('The provided search string is not valid');
+                return logNotification('The provided search string is not valid');
             return await Word.run(async (context) => {
                 const ctrls = [];
                 for (const find of search) {
@@ -736,7 +751,7 @@ export class EditContract extends WordContentCtrls {
                     matches.load(['style', 'text', 'parentContentControlOrNullObject']);
                     await context.sync();
                     const ranges = matches.items.filter(range => styles.includes(range.style));
-                    showNotification(`Found ${ranges.length} ranges matching the search string. First range text = ${ranges[0].text}`);
+                    logNotification(`Found ${ranges.length} ranges matching the search string. First range text = ${ranges[0].text}`);
                     ctrls.push(...await insertCtrls(ranges, context));
                 }
                 ;
@@ -756,7 +771,7 @@ export class EditContract extends WordContentCtrls {
                             ctrls.push(ctrl);
                     }
                     catch (error) {
-                        showNotification(`Error from insertCtrls() while inserting the contentControl() in the matching range. Error = ${error}`);
+                        logNotification(`Error from insertCtrls() while inserting the contentControl() in the matching range. Error = ${error}`);
                     }
                 }
                 return ctrls;
@@ -822,7 +837,7 @@ export class EditContract extends WordContentCtrls {
                         await finalizeContract();
                 }
                 catch (error) {
-                    showNotification(`Error from promptForSelection() = ${error}`);
+                    logNotification(`Error from promptForSelection() = ${error}`);
                 }
                 ;
             });
@@ -848,7 +863,7 @@ export class EditContract extends WordContentCtrls {
                 await processCtrls();
             }
             catch (error) {
-                return showNotification(`Error from showSelectPrompt() = ${error}`);
+                return logNotification(`Error from showSelectPrompt() = ${error}`);
             }
             async function processCtrls() {
                 if (clear)
@@ -921,7 +936,7 @@ export class EditContract extends WordContentCtrls {
                 await insertClones(ctrl);
             }
             catch (error) {
-                showNotification(`${error}`);
+                logNotification(`${error}`);
             }
             async function insertClones(ctrl) {
                 if (ctrl?.hasLabel?.tag !== RTSectionTag)
@@ -973,7 +988,7 @@ export class EditContract extends WordContentCtrls {
                         await processClone(clone, label.text, selectCtrlItems.indexOf(clone) + 1);
                 }
                 catch (error) {
-                    showNotification(`Error from processClone() = ${error}`);
+                    logNotification(`Error from processClone() = ${error}`);
                 }
             }
             async function processClone(clone, text, i) {
@@ -1022,7 +1037,7 @@ export class EditContract extends WordContentCtrls {
                 //await createNewDoc();
             }
             catch (error) {
-                showNotification(`${error}`);
+                logNotification(`${error}`);
             }
             async function process() {
                 const ctrls = context.document.contentControls;
@@ -1213,7 +1228,7 @@ export class EditContract extends WordContentCtrls {
                         file.closeAsync(() => resolve(base64String));
                     }
                     catch (error) {
-                        showNotification(`${error}, succeeded = ${sliceResult.status}, loaded = ${slices.length}`);
+                        logNotification(`${error}, succeeded = ${sliceResult.status}, loaded = ${slices.length}`);
                     }
                 }
             }
@@ -1282,61 +1297,82 @@ export class WordFileds extends WordContentCtrls {
     constructor() {
         super(...arguments);
         this._fillIn = Word.FieldType.fillIn;
+        this._ask = Word.FieldType.ask;
     }
     showMainBtn() {
         insertBtn({ fun: () => this.showButtons(), label: 'Edit FILLIN Fields', hint: 'Displays the user interface for editing the existing FILLIN fiels, or inserting new FILLIN fields' }, true);
     }
     showButtons() {
         USERFORM.innerHTML = '';
-        insertBtn({ fun: async () => await this.showInputs(), label: 'Edit The FILLIN Fields', hint: 'Shows the interface to edit the FILLIN fiels in the document' }, true);
+        insertBtn({ fun: async () => await this.editExistingFields(), label: 'Edit The FILLIN Fields', hint: 'Shows the interface to edit the FILLIN fiels in the document' }, true);
         insertBtn({ fun: () => this.insertFIllINField(), label: 'Insert new FILLIN filed', hint: 'Inserts a new FILLIN field in the selected range. It replaces the selected text with the FILLIN field' }, true);
         insertBtn({ fun: () => this.insertAskField(), label: 'Insert new ASK filed', hint: 'Inserts a new ASK field in the selected range. It replaces the selected text with the ASK field' }, true);
         insertBtn(goHome);
     }
-    async showInputs() {
+    async editExistingFields() {
         USERFORM.innerHTML = '';
+        const showBtns = this.showButtons.bind(this);
+        const types = [this._fillIn, this._ask];
+        const siTag = this.RTSiTag, secTag = this.RTSectionTag;
         await Word.run(async (context) => {
-            const fields = context.document.body.fields;
-            fields.load(['code', 'result', 'type']);
+            const props = ['id', 'fields/code', 'fields/result', 'fields/type'];
+            const selects = context.document.contentControls.getByTag(this.RTSelectTag);
+            selects.load(props);
+            const clone = context.document.contentControls.getByTag(this.RTCloneTag);
+            clone.load(props);
             await context.sync();
-            const fillIn = fields.items.filter(field => field.type === this._fillIn);
-            if (!fillIn.length)
-                return console.log("no FILLIN fields were found");
-            fillIn.forEach(field => field.result.load('text'));
-            await context.sync();
-            const inputs = fillIn.map((field, index) => {
-                const code = field.code;
-                console.log("field code = " + code);
-                const match = code.match(/(?:FILLIN|ASK)\s+"([^"]+)"/i);
-                if (!match || !match.length)
-                    return undefined;
-                const lable = match[1];
-                if (!lable) {
-                    console.log('could not extract label from code = ' + code);
-                    return undefined;
+            const ctrls = [selects.items, clone.items].flat();
+            for (const ctrl of ctrls) {
+                await process(ctrl);
+                showBtns();
+            }
+            async function process(ctrl) {
+                ctrl.select(Word.SelectionMode.select);
+                const fields = ctrl.fields.items.filter(field => types.includes(field.type));
+                if (!fields.length)
+                    return console.log("no FILLIN or ASK fields were found");
+                fields.forEach(field => field.result.load(['text']));
+                const si = ctrl.contentControls.getByTag(siTag).getFirst();
+                if (si) {
+                    si.font.hidden = false;
+                    si.load(['text']);
+                    si.font.hidden = true;
                 }
                 ;
-                const div = element('div', '', '', USERFORM, '', true);
-                element('label', '', lable, div, '', true);
-                const input = element('input', '', '', div, `FILLIN_${index.toString()}`, true);
-                input.value = field.result.text;
-                input.onmouseenter = async () => {
-                    field.select();
-                    await context.sync();
-                };
-                input.onchange = async () => {
-                    field.result.insertText(input.value || '[*]', Word.InsertLocation.replace);
-                    await context.sync();
-                };
-                return [input, field];
-            }).filter(item => item !== undefined);
-            const showBtns = this.showButtons.bind(this);
-            await awaitPromise();
-            async function awaitPromise() {
+                await context.sync();
+                if (si.text)
+                    element('div', undefined, si.text, USERFORM, undefined, true);
+                const inputs = fields.map((field, index) => {
+                    const code = field.code;
+                    console.log("field code = " + code);
+                    const label = code.match(/"([^"]+)"/i)?.[1];
+                    if (!label) {
+                        console.log('could not extract label from code = ' + code);
+                        return undefined;
+                    }
+                    ;
+                    const div = element('div', '', '', USERFORM, '', true);
+                    element('label', '', label, div, '', true);
+                    const input = element('input', '', '', div, `FILLIN_${index.toString()}`, true);
+                    input.value = field.result.text;
+                    input.onmouseenter = async () => {
+                        field.select();
+                        await context.sync();
+                    };
+                    input.onchange = async () => {
+                        field.result.insertText(input.value || '[*]', Word.InsertLocation.replace);
+                        await context.sync();
+                    };
+                    return [input, field];
+                }).filter(item => item !== undefined);
+                await awaitPromise(inputs);
+                USERFORM.innerHTML = '';
+            }
+            async function awaitPromise(inputs) {
                 return new Promise((resolve) => {
                     const edit = async (cancel = false) => {
                         if (cancel)
-                            return resolve(showBtns());
+                            return resolve(undefined);
                         for (const [input, field] of inputs) {
                             if (!input.value)
                                 continue;
@@ -1348,8 +1384,6 @@ export class WordFileds extends WordContentCtrls {
                         //await context.sync();
                         resolve(showBtns());
                     };
-                    //insertBtn({ fun: () => edit(false), label: 'Update All Fileds From Inputs', hint: 'Parses the values of the inputs, and updates the corresponding fields' }, true);
-                    //insertBtn({ fun: () => edit(true), label: 'Cancel and go back', hint: 'Cancels the editing session' }, false);//We insert the goHome navigation button on top of all the inputs
                     insertBtn({ fun: () => edit(true), label: 'Finish', hint: 'Terminates the editing session and returns to the main menue' }, true); //We insert the goHome navigation button on top of all the inputs
                 });
             }
@@ -1360,7 +1394,7 @@ export class WordFileds extends WordContentCtrls {
         try {
             const fieldCode = (answers) => {
                 const [bookmarkName, prompt] = answers;
-                return `"${bookmarkName.replaceAll(' ', '')}"  "${prompt}" \\d [*] \\* MERGEFORMAT`;
+                return `${bookmarkName.replaceAll(' ', '')}  "${prompt}" \\d [*] \\* MERGEFORMAT`;
             };
             const labels = ['Provide the name of the bookmark without spaces', 'Provide the user prompt'];
             const values = await this.insertField(labels, Word.FieldType.ask, range, fieldCode);
