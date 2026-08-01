@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.17.7.6";
+const version = "v11.17.7.7";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -465,7 +465,7 @@ export class EditContract extends WordContentCtrls {
             { fun: () => this.unprotectSelectedCtrls(undefined, true), label: 'Protect Selected ContentControls', hint: 'Sets the "cannotEdit" and "cannotDelete" props of the contentControls in the selected range to false.' },
             { fun: () => this.customizeContract(true), label: 'Show Nested Options Tree', hint: 'Lists all the selection options in the document' },
             { fun: this.updateAllContentControlIDs, label: 'Update ContentControl Titles', hint: 'Updates the titles of all the ContentControls in the document' },
-            { fun: automaticallyInsertSelectWrapers, label: 'Insert Select In Selectgion', hint: 'Wraps all the paragraphs with RTSi style in RTSelect ContentControls according to their levels' },
+            { fun: automaticallyInsertSelectWrapers, label: 'Insert Selects & Si in Selection', hint: 'Wraps all the paragraphs with RTSi style in RTSelect ContentControls according to their levels' },
         ] as Btn[];
 
         this.showBtns(btns)
@@ -583,10 +583,10 @@ export class EditContract extends WordContentCtrls {
                         if (!sameLevel) {
                             if (!select.paragraphs.items.length) return;
                             const last = select.paragraphs.items.pop();
-                            const p = last!.insertParagraph('', Word.InsertLocation.after);
+                            const p = last!.insertParagraph('temporary', Word.InsertLocation.after);
                             await insertBlock(range, p);
                         } else {
-                            const p = sameLevel.insertParagraph('', Word.InsertLocation.before);
+                            const p = sameLevel.insertParagraph('temporary', Word.InsertLocation.before);
                             await insertBlock(range, p);
                             siParags = siParags.filter(p => siParags.indexOf(p) >= siParags.indexOf(sameLevel));
                             await process(siParags);
