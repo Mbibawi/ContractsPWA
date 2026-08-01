@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.17.7";
+const version = "v11.17.7.1";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -215,8 +215,9 @@ class WordContentCtrls {
             await Word.run(range, async (context) => {
                 range.select();
                 const ctrl = range.insertContentControl(type);
-                ctrl.select();
                 ctrl.load(props);
+                ctrl.select();
+                await context.sync();
                 ctrl.title = this.getCtrlTitle(title, ctrl.id);
                 ctrl.tag = tag;
                 ctrl.appearance = Word.ContentControlAppearance.boundingBox;
