@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.17.7.7";
+const version = "v11.17.7.8";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -191,7 +191,6 @@ class WordContentCtrls {
         const field = await this.insertContentControl(range, this.RTFieldTag, this.RTFieldTag, i, this.richText, style, false, false, '[*]', ['id']);
         if (!field)
             return;
-        // field.onExited.add(() => updateAllFields(field));
         field.font.bold = true;
         return field;
     }
@@ -653,12 +652,9 @@ export class EditContract extends WordContentCtrls {
                 range = await getSelectionRange();
             if (!range)
                 return;
-            range.load(["text", 'parentContentControlOrNullObject']);
+            range.load(["text", 'parentContentControlOrNullObject/tag']);
             await range.context.sync();
-            const parent = range.parentContentControlOrNullObject;
-            parent.load('tag');
-            await range.context.sync();
-            if (parent.tag === dorpDownTag)
+            if (range.parentContentControlOrNullObject.tag === dorpDownTag)
                 return;
             const options = range.text.split("/");
             if (!options.length)
@@ -671,6 +667,7 @@ export class EditContract extends WordContentCtrls {
             options.forEach(option => ctrl.dropDownListContentControl.addListItem(option));
             setCtrlsFontColor([ctrl], dropDownColor);
             setCtrlsColor([ctrl], dropDownColor);
+            ctrl.getRange().insertText('[*]', Word.InsertLocation.before);
             range.untrack();
             ctrl.untrack();
             await ctrl.context.sync();
@@ -1243,7 +1240,9 @@ export class EditContract extends WordContentCtrls {
             await context.sync();
             if (!ctrls?.items?.length)
                 return showAlert('There are no selected contentControls');
-            for (const ctrl of ctrls.items) {
+            const tags = [this.RTSiTag, this.RTDescriptionTag, this.RTSectionTag, this.RTObsTag];
+            const filtered = ctrls.items.filter(c => tags.includes(c.tag));
+            for (const ctrl of filtered) {
                 ctrl.cannotEdit = protect;
                 ctrl.cannotDelete = protect;
             }
