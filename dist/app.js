@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.17.7.8";
+const version = "v11.17.8";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -214,6 +214,7 @@ class WordContentCtrls {
             const ctrl = range.insertContentControl(type);
             ctrl.load(props);
             ctrl.select();
+            ctrl.track(); //!We must track the object before range.context.sync() is called otherwise it will be lost.
             await range.context.sync();
             ctrl.title = this.getCtrlTitle(title, ctrl.id);
             ctrl.tag = tag;
@@ -224,7 +225,6 @@ class WordContentCtrls {
                 ctrl.getRange().style = style;
             ctrl.cannotDelete = cannotDelete;
             ctrl.cannotEdit = cannotEdit; //!This must come at the end after the style has been set.
-            ctrl.track(); //!We must track the object before range.context.sync() is called otherwise it will be lost.
             await range.context.sync();
             console.log(`the newly created ContentControl id = ${ctrl.id} `);
             // Set properties for the new content control.
@@ -486,8 +486,12 @@ export class EditContract extends WordContentCtrls {
                 ctrls = await findTextAndWrapItWithContentControl([descStyle], descTag, descTag, true, true);
             if (!ctrls?.length)
                 return;
-            //const ids = ctrls.map(c => c?.id || 0);
-            await insertFields(ctrls.filter(ctrl => ctrl !== undefined));
+            for (const ctrl of ctrls) {
+                ctrl?.getRange().insertText('[*]', Word.InsertLocation.before);
+                ctrl?.untrack();
+                await ctrl?.context.sync();
+            }
+            //await insertFields(ctrls.filter(ctrl => ctrl !== undefined));
         }
         function getXmlRootNode(xmlText) {
             const parser = new DOMParser();
@@ -667,7 +671,6 @@ export class EditContract extends WordContentCtrls {
             options.forEach(option => ctrl.dropDownListContentControl.addListItem(option));
             setCtrlsFontColor([ctrl], dropDownColor);
             setCtrlsColor([ctrl], dropDownColor);
-            ctrl.getRange().insertText('[*]', Word.InsertLocation.before);
             range.untrack();
             ctrl.untrack();
             await ctrl.context.sync();
@@ -733,22 +736,19 @@ export class EditContract extends WordContentCtrls {
                     const matches = await searchString(find, context, matchWildcards);
                     if (!matches?.items.length)
                         continue;
-                    matches.load(['style', 'text', 'parentContentControlOrNullObject']);
+                    matches.load(['style', 'text', 'parentContentControlOrNullObject/tag']);
                     await context.sync();
                     const ranges = matches.items.filter(range => styles.includes(range.style));
                     logNotification(`Found ${ranges.length} ranges matching the search string. First range text = ${ranges[0].text}`);
-                    ctrls.push(...await insertCtrls(ranges, context));
+                    ctrls.push(...await insertCtrls(ranges));
                 }
                 ;
                 return ctrls;
             });
-            async function insertCtrls(ranges, context) {
+            async function insertCtrls(ranges) {
                 const ctrls = [];
                 for (const range of ranges) {
-                    const parent = range.parentContentControlOrNullObject;
-                    parent.load('tag');
-                    await context.sync();
-                    if (parent.tag === tag)
+                    if (range.parentContentControlOrNullObject.tag === tag)
                         continue;
                     try {
                         const ctrl = await insertContentControl(range, title, tag, ranges.indexOf(range), richText, range.style, cannotEdit, cannotDelete, undefined, ['id']);
