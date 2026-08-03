@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.17.9";
+const version = "v11.18.0";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -137,7 +137,7 @@ class WordContentCtrls {
         //ContentControl tags
         this.StylePrefix = 'Contrat_';
         this.RTFieldTag = 'RTField';
-        this.RTDropDownTag = 'RTList';
+        this.RTComboBoxTag = 'RTList';
         this.RTCloneTag = 'RTRepeat';
         this.RTSectionTag = 'RTSection'; //This tag is a contentcontrol which contains a text to be displayed (like a lable or a title) other than for choosing a specifc case (RTSi)
         this.RTSelectTag = 'RTSelect';
@@ -311,7 +311,7 @@ class WordContentCtrls {
     async updateAllContentControlIDs() {
         const tags = [
             this.RTFieldTag,
-            this.RTDropDownTag,
+            this.RTComboBoxTag,
             this.RTCloneTag,
             this.RTSelectTag,
             this.RTObsTag,
@@ -395,8 +395,8 @@ export class EditContract extends WordContentCtrls {
     ;
     prepareTemplate() {
         USERFORM.innerHTML = '';
-        const searchString = this.searchString.bind(this), getSelectionRange = this.getSelectionRange.bind(this), insertContentControl = this.insertContentControl.bind(this), insertFields = this.insertFields.bind(this), setCtrlsColor = this.setCtrlsColor.bind(this), setCtrlsFontColor = this.setCtrlsFontColor.bind(this), insertAskField = this._fields.insertAskField.bind(this._fields), insertFILLINField = this._fields.insertFIllINField.bind(this._fields);
-        const siTag = this.RTSiTag, selectTag = this.RTSelectTag, sectionTag = this.RTSectionTag, descTag = this.RTDescriptionTag, stylePrefix = this.StylePrefix, richText = this.richText, dorpDownTag = this.RTDropDownTag;
+        const searchString = this.searchString.bind(this), getSelectionRange = this.getSelectionRange.bind(this), insertContentControl = this.insertContentControl.bind(this), setCtrlsColor = this.setCtrlsColor.bind(this), setCtrlsFontColor = this.setCtrlsFontColor.bind(this), insertAskField = this._fields.insertAskField.bind(this._fields), insertFILLINField = this._fields.insertFIllINField.bind(this._fields);
+        const siTag = this.RTSiTag, selectTag = this.RTSelectTag, sectionTag = this.RTSectionTag, descTag = this.RTDescriptionTag, stylePrefix = this.StylePrefix, richText = this.richText, comboTag = this.RTComboBoxTag;
         const descStyle = this.RTDescriptionStyle, siStyle = this.RTSiStyles, sectionStyle = this.RTSectionStyle, comboBox = this.comboBox;
         const wrapRange = this.wrapSelectionWithContentControl.bind(this);
         function wrap(title, tag, type, style, cannotEdit, cannotDelete, label, hint) {
@@ -651,26 +651,26 @@ export class EditContract extends WordContentCtrls {
             });
         }
         async function insertDropDownList(range, index = 0) {
-            const dropDownColor = '#991c63';
+            const comboBoxColor = '#991c63';
             if (!range)
                 range = await getSelectionRange();
             if (!range)
                 return;
             range.load(["text", 'parentContentControlOrNullObject/tag']);
             await range.context.sync();
-            if (range.parentContentControlOrNullObject.tag === dorpDownTag)
+            if (range.parentContentControlOrNullObject.tag === comboTag)
                 return;
             const options = range.text.split("/");
             if (!options.length)
                 return logNotification("No options");
             logNotification(options.join());
-            const ctrl = await insertContentControl(range, dorpDownTag, dorpDownTag, index, comboBox, null, false, true, undefined, ['id']);
+            const ctrl = await insertContentControl(range, comboTag, comboTag, index, comboBox, null, false, true, undefined, ['id']);
             if (!ctrl)
                 return;
             ctrl.dropDownListContentControl.deleteAllListItems();
-            options.forEach(option => ctrl.dropDownListContentControl.addListItem(option));
-            setCtrlsFontColor([ctrl], dropDownColor);
-            setCtrlsColor([ctrl], dropDownColor);
+            options.forEach(option => ctrl.comboBoxContentControl.addListItem(option));
+            setCtrlsFontColor([ctrl], comboBoxColor);
+            setCtrlsColor([ctrl], comboBoxColor);
             range.untrack();
             ctrl.untrack();
             await ctrl.context.sync();

@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.17.9";
+const version = "v11.18.0";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -142,7 +142,7 @@ class WordContentCtrls {
     //ContentControl tags
     protected readonly StylePrefix = 'Contrat_';
     protected readonly RTFieldTag = 'RTField';
-    protected readonly RTDropDownTag = 'RTList';
+    protected readonly RTComboBoxTag = 'RTList';
     protected readonly RTCloneTag = 'RTRepeat';
     protected readonly RTSectionTag = 'RTSection';//This tag is a contentcontrol which contains a text to be displayed (like a lable or a title) other than for choosing a specifc case (RTSi)
     protected readonly RTSelectTag = 'RTSelect';
@@ -316,7 +316,7 @@ class WordContentCtrls {
     protected async updateAllContentControlIDs() {
         const tags = [
             this.RTFieldTag,
-            this.RTDropDownTag,
+            this.RTComboBoxTag,
             this.RTCloneTag,
             this.RTSelectTag,
             this.RTObsTag,
@@ -410,7 +410,6 @@ export class EditContract extends WordContentCtrls {
         const searchString = this.searchString.bind(this),
             getSelectionRange = this.getSelectionRange.bind(this),
             insertContentControl = this.insertContentControl.bind(this),
-            insertFields = this.insertFields.bind(this),
             setCtrlsColor = this.setCtrlsColor.bind(this),
             setCtrlsFontColor = this.setCtrlsFontColor.bind(this),
             insertAskField = this._fields.insertAskField.bind(this._fields),
@@ -422,7 +421,7 @@ export class EditContract extends WordContentCtrls {
             descTag = this.RTDescriptionTag,
             stylePrefix = this.StylePrefix,
             richText = this.richText,
-            dorpDownTag = this.RTDropDownTag;
+            comboTag = this.RTComboBoxTag;
         const descStyle = this.RTDescriptionStyle,
             siStyle = this.RTSiStyles,
             sectionStyle = this.RTSectionStyle,
@@ -700,24 +699,24 @@ export class EditContract extends WordContentCtrls {
             });
         }
         async function insertDropDownList(range: Word.Range | void, index: number = 0) {
-            const dropDownColor = '#991c63';
+            const comboBoxColor = '#991c63';
 
             if (!range) range = await getSelectionRange();
             if (!range) return;
             range.load(["text", 'parentContentControlOrNullObject/tag']);
             await range.context.sync();
-            if (range.parentContentControlOrNullObject.tag === dorpDownTag) return;
+            if (range.parentContentControlOrNullObject.tag === comboTag) return;
 
             const options = range.text.split("/");
             if (!options.length) return logNotification("No options");
             logNotification(options.join());
 
-            const ctrl = await insertContentControl(range, dorpDownTag, dorpDownTag, index, comboBox, null, false, true, undefined, ['id']);
+            const ctrl = await insertContentControl(range, comboTag, comboTag, index, comboBox, null, false, true, undefined, ['id']);
             if (!ctrl) return;
             ctrl.dropDownListContentControl.deleteAllListItems();
-            options.forEach(option => ctrl.dropDownListContentControl.addListItem(option));
-            setCtrlsFontColor([ctrl], dropDownColor);
-            setCtrlsColor([ctrl], dropDownColor);
+            options.forEach(option => ctrl.comboBoxContentControl.addListItem(option));
+            setCtrlsFontColor([ctrl], comboBoxColor);
+            setCtrlsColor([ctrl], comboBoxColor);
             range.untrack();
             ctrl.untrack();
             await ctrl.context.sync();
