@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.18.0";
+const version = "v11.18.1";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -414,7 +414,7 @@ export class EditContract extends WordContentCtrls {
             wrap(this.RTSelectTag, this.RTSelectTag, this.richText, null, false, true, 'Select (Single)', single(this.RTSelectTag, 'Any such contentControl is a container. Each contentcontrol having the same tag within its range, will be considered as an option to select or to exclude')),
             { fun: insertRTBlock_Select_Si, label: 'Block Select & Si', hint: 'Finds the first paragraph formatted with any of the RTSiStyles. Wraps this paragraph in a RTSi ContentControl, Then wraps the whol selected range in a RTSelect ContentControl.' },
             { fun: insertBlockAmountWithFILLINField, label: 'Block Amount', hint: 'Inserts a ContentControl block containing a FILLIN field associated with a bookmark for the amount in figures and in text' },
-            { fun: insertDropDownList, label: 'Dropdown List from selection', hint: 'Creates a dropwdown list from the selected string. The options to choose from must be separated by "/"' },
+            { fun: insertComboBox, label: 'Dropdown List from selection', hint: 'Creates a dropwdown list from the selected string. The options to choose from must be separated by "/"' },
             { fun: () => insertRTDescription(true), label: 'Description (Single)', hint: single(this.RTDescriptionTag) },
             { fun: this.insertSingleFiled, label: 'ContentControl Field', hint: single(this.RTFieldTag) },
             { fun: insertFILLINField, label: 'FILLIN Field', hint: single(this.RTFieldTag) },
@@ -640,7 +640,7 @@ export class EditContract extends WordContentCtrls {
                 try {
                     const matches = await searchString(find, context, false, text);
                     for (const match of matches.items)
-                        await insertDropDownList(match, matches.items.indexOf(match) + 1);
+                        await insertComboBox(match, matches.items.indexOf(match) + 1);
                     context.document.getBookmarkRange(bookmark).select();
                     context.document.deleteBookmark(bookmark);
                     await context.sync();
@@ -650,7 +650,7 @@ export class EditContract extends WordContentCtrls {
                 }
             });
         }
-        async function insertDropDownList(range, index = 0) {
+        async function insertComboBox(range, index = 0) {
             const comboBoxColor = '#991c63';
             if (!range)
                 range = await getSelectionRange();
@@ -664,16 +664,16 @@ export class EditContract extends WordContentCtrls {
             if (!options.length)
                 return logNotification("No options");
             logNotification(options.join());
-            const ctrl = await insertContentControl(range, comboTag, comboTag, index, comboBox, null, false, true, undefined, ['id']);
-            if (!ctrl)
+            const combo = await insertContentControl(range, comboTag, comboTag, index, comboBox, null, false, true, undefined, ['id']);
+            if (!combo)
                 return;
-            ctrl.dropDownListContentControl.deleteAllListItems();
-            options.forEach(option => ctrl.comboBoxContentControl.addListItem(option));
-            setCtrlsFontColor([ctrl], comboBoxColor);
-            setCtrlsColor([ctrl], comboBoxColor);
+            combo.comboBoxContentControl.deleteAllListItems();
+            options.forEach(option => combo.comboBoxContentControl.addListItem(option));
+            setCtrlsFontColor([combo], comboBoxColor);
+            setCtrlsColor([combo], comboBoxColor);
             range.untrack();
-            ctrl.untrack();
-            await ctrl.context.sync();
+            combo.untrack();
+            await combo.context.sync();
         }
         async function insertBlockAmountWithFILLINField() {
             await Word.run(async (context) => {
