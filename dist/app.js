@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.17.8";
+const version = "v11.17.8.1";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -226,7 +226,7 @@ class WordContentCtrls {
             ctrl.cannotDelete = cannotDelete;
             ctrl.cannotEdit = cannotEdit; //!This must come at the end after the style has been set.
             await range.context.sync();
-            console.log(`the newly created ContentControl id = ${ctrl.id} `);
+            console.log(`inserted new ContentControl with id = ${ctrl.id} `);
             // Set properties for the new content control.
             logNotification(`Wrapped text in range ${index} with a content control.`);
             return ctrl;
@@ -434,8 +434,8 @@ export class EditContract extends WordContentCtrls {
         ];
         this.showBtns(btns)
             .forEach(({ wraper }) => {
-            wraper.addEventListener('click', () => USERFORM.prepend(wraper)); //We promote the button to the top of the list when clicked, in order to make it easier for the user
-        });
+                wraper.addEventListener('click', () => USERFORM.prepend(wraper)); //We promote the button to the top of the list when clicked, in order to make it easier for the user
+            });
         if (!this.stylesList)
             showStylesList(this._stylesListId);
         function showStylesList(id) {
@@ -1012,9 +1012,9 @@ export class EditContract extends WordContentCtrls {
         function setProcessed(ctrl) {
             subOptions(ctrl)
                 .forEach(nested => {
-                nested.processed = true;
-                setProcessed(nested);
-            });
+                    nested.processed = true;
+                    setProcessed(nested);
+                });
         }
         async function deleteUnselected(context) {
             try {
@@ -1158,9 +1158,9 @@ export class EditContract extends WordContentCtrls {
                 body.paragraphs.items
                     .filter(p => styles.includes(p.style))
                     .forEach(p => {
-                    p.style = `${this.StylePrefix}Normal`;
-                    p.delete();
-                });
+                        p.style = `${this.StylePrefix}Normal`;
+                        p.delete();
+                    });
                 await context.sync();
             }
             catch (error) {
@@ -1226,10 +1226,10 @@ export class EditContract extends WordContentCtrls {
         all.items
             .filter(ctrl => !selected.includes(ctrl.title))
             .forEach(ctrl => {
-            ctrl.select();
-            ctrl.cannotDelete = false;
-            ctrl.delete(true);
-        });
+                ctrl.select();
+                ctrl.cannotDelete = false;
+                ctrl.delete(true);
+            });
         await wdDoc.context.sync();
     }
     async unprotectSelectedCtrls(ctrls, protect = false) {

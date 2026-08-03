@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.17.8";
+const version = "v11.17.9";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -226,7 +226,7 @@ class WordContentCtrls {
             ctrl.cannotDelete = cannotDelete;
             ctrl.cannotEdit = cannotEdit;//!This must come at the end after the style has been set.
             await range.context.sync();
-            console.log(`the newly created ContentControl id = ${ctrl.id} `);
+            console.log(`inserted new ContentControl with id = ${ctrl.id} `);
             // Set properties for the new content control.
             logNotification(`Wrapped text in range ${index} with a content control.`);
             return ctrl;
