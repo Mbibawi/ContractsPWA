@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.17.9";
+const version = "v11.17.8.2";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -601,7 +601,7 @@ export class EditContract extends WordContentCtrls {
 
 
                 async function insertBlock(range: Word.Range, p: Word.Paragraph) {
-                    range.expandTo(content(p));
+                    range.expandTo(p.getRange(Word.RangeLocation.whole));
                     range.select();
                     const select = await insertRTBlock_Select_Si(range, props);
                     p.delete();
