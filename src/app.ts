@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.17.8.2";
+const version = "v11.17.9";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -426,7 +426,7 @@ export class EditContract extends WordContentCtrls {
         const descStyle = this.RTDescriptionStyle,
             siStyle = this.RTSiStyles,
             sectionStyle = this.RTSectionStyle,
-            dropDownList = this.dropDownList;
+            comboBox = this.comboBox;
 
 
         const wrapRange = this.wrapSelectionWithContentControl.bind(this);
@@ -712,7 +712,7 @@ export class EditContract extends WordContentCtrls {
             if (!options.length) return logNotification("No options");
             logNotification(options.join());
 
-            const ctrl = await insertContentControl(range, dorpDownTag, dorpDownTag, index, dropDownList, null, false, true, undefined, ['id']);
+            const ctrl = await insertContentControl(range, dorpDownTag, dorpDownTag, index, comboBox, null, false, true, undefined, ['id']);
             if (!ctrl) return;
             ctrl.dropDownListContentControl.deleteAllListItems();
             options.forEach(option => ctrl.dropDownListContentControl.addListItem(option));

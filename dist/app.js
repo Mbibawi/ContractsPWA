@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.17.8.2";
+const version = "v11.17.9";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -397,7 +397,7 @@ export class EditContract extends WordContentCtrls {
         USERFORM.innerHTML = '';
         const searchString = this.searchString.bind(this), getSelectionRange = this.getSelectionRange.bind(this), insertContentControl = this.insertContentControl.bind(this), insertFields = this.insertFields.bind(this), setCtrlsColor = this.setCtrlsColor.bind(this), setCtrlsFontColor = this.setCtrlsFontColor.bind(this), insertAskField = this._fields.insertAskField.bind(this._fields), insertFILLINField = this._fields.insertFIllINField.bind(this._fields);
         const siTag = this.RTSiTag, selectTag = this.RTSelectTag, sectionTag = this.RTSectionTag, descTag = this.RTDescriptionTag, stylePrefix = this.StylePrefix, richText = this.richText, dorpDownTag = this.RTDropDownTag;
-        const descStyle = this.RTDescriptionStyle, siStyle = this.RTSiStyles, sectionStyle = this.RTSectionStyle, dropDownList = this.dropDownList;
+        const descStyle = this.RTDescriptionStyle, siStyle = this.RTSiStyles, sectionStyle = this.RTSectionStyle, comboBox = this.comboBox;
         const wrapRange = this.wrapSelectionWithContentControl.bind(this);
         function wrap(title, tag, type, style, cannotEdit, cannotDelete, label, hint) {
             return {
@@ -664,7 +664,7 @@ export class EditContract extends WordContentCtrls {
             if (!options.length)
                 return logNotification("No options");
             logNotification(options.join());
-            const ctrl = await insertContentControl(range, dorpDownTag, dorpDownTag, index, dropDownList, null, false, true, undefined, ['id']);
+            const ctrl = await insertContentControl(range, dorpDownTag, dorpDownTag, index, comboBox, null, false, true, undefined, ['id']);
             if (!ctrl)
                 return;
             ctrl.dropDownListContentControl.deleteAllListItems();
