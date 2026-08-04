@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.18.4";
+const version = "v11.18.5";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -1148,12 +1148,18 @@ export class EditContract extends WordContentCtrls {
         const hide = await promptConfirm('Do you want to hide the ContentControls that will not be deleted?');
         await Word.run(async (context) => {
             const allCtrls = context.document.getContentControls();
-            allCtrls.load(['id', 'tag', 'title']);
+            allCtrls.load(['id', 'tag', 'title', 'parentContentControlOrNullObject/id']);
             const body = context.document.body.getRange();
             body.load(['paragraphs', 'paragraphs/style']);
             await context.sync();
-            try {
-                for (const ctrl of allCtrls.items) {
+            allCtrls.items
+                .filter(c => keepContent.includes(c.tag))
+                .forEach(c => {
+                c.cannotEdit = false;
+                c.cannotDelete = false;
+            });
+            for (const ctrl of allCtrls.items) {
+                try {
                     ctrl.cannotDelete = false; //!We must remove the cannotDelete from all ctrls because this will prevent deleting the line on which there is a hidden contentcontrol
                     if (remove.includes(ctrl?.tag))
                         ctrl.delete(false);
@@ -1162,17 +1168,17 @@ export class EditContract extends WordContentCtrls {
                     else if (hide)
                         ctrl.appearance = Word.ContentControlAppearance.hidden;
                 }
-                body.paragraphs.items
-                    .filter(p => styles.includes(p.style))
-                    .forEach(p => {
-                    p.style = `${this.StylePrefix}Normal`;
-                    p.delete();
-                });
-                await context.sync();
+                catch (error) {
+                    showAlert(`Error while deleting contentcontrol:\n Error: ${error.debugInfo}`);
+                }
             }
-            catch (error) {
-                showAlert(`Error while deleting contentcontrol:\n Error: ${error.debugInfo}`);
-            }
+            body.paragraphs.items
+                .filter(p => styles.includes(p.style))
+                .forEach(p => {
+                p.style = `${this.StylePrefix}Normal`;
+                p.delete();
+            });
+            await context.sync();
         });
     }
     async searchString(search, context, matchWildcards, replaceWith) {
