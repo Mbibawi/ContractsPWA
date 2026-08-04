@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.18.5";
+const version = "v11.18.6";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -862,6 +862,8 @@ export class EditContract extends WordContentCtrls {
                     ctrl.processed = true;
                     if (!ctrl?.hasLabel)
                         await promptForSelection(subOptions(ctrl), context); //When a 'RTSelect' ContentControl  does not have a lable (which is a 'RTSi' or 'RTSection' ContentControl) it means that this ContentControl is a mere wraper for sub 'RTSelect' ContentControls, each representing an option from which the user must choose. Hence, we do not need to prompt the user to decide whether to keep or delete this select section 
+                    else if (ctrl.tag === RTClone)
+                        await cloneSelectBlock(ctrl) === ctrl ? isSelected(ctrl, false) : false; //We need to prompt the user to decide if he wants to clone/copy this block;
                     else if (ctrl.tag === RTSelect && ctrl.hasLabel.tag === RTSectionTag) {
                         //When an RTSelect ContentControl has as label a 'RTSection' ContentControl, it means that  the RTSelect ContentControl is a wraper for sub 'RTSelect' ContentControls, but it has a lable that needs to be be displayed to the user to explain to him under which section the options are displayed.
                         await insertLabel(ctrl.hasLabel.id);
@@ -877,35 +879,54 @@ export class EditContract extends WordContentCtrls {
                         return;
                     blocks.push(block);
                     if (block.btnNext)
-                        await btnOnClick(blocks, context); //This is the case where btnNext was added because we reached the end of ctrls[] (isLast = true). We then need to await the user to click the button in order to process all the already displayed html elements/options of ctrls[].
+                        await btnOnClick(block.btnNext); //This is the case where btnNext was added because we reached the end of ctrls[] (isLast = true). We then need to await the user to click the button in order to process all the already displayed html elements/options of ctrls[].
                     async function insertHtml(ctrl, isLast) {
                         const wraper = insertWraper(USERFORM);
                         const option = element('div', 'select', '', wraper);
-                        option.onmouseenter = () => selectCtrl(ctrl.id);
                         const checkBox = element('input', 'checkBox', '', option); //!We must give the checkBox the id of the selectCtrl because the id will be later used to retrieve the selectCtrl and process its children
-                        checkBox.type = 'checkbox';
                         const label = await insertLabel(ctrl.hasLabel.id, option);
                         if (!label)
                             return wraper.remove();
+                        checkBox.type = 'checkbox';
+                        option.onmouseenter = () => selectCtrl(ctrl.id);
+                        option.onclick = () => checkBox.checked = !checkBox.checked;
                         if (!isLast)
                             return { wraper, checkBox, ctrl };
-                        return { wraper, checkBox, ctrl, btnNext: btn() };
-                        function btn() {
-                            const btns = element('div', 'btns', '', wraper);
-                            return element('button', 'btnOK', 'Next', btns);
-                        }
+                        return { wraper, checkBox, ctrl, btnNext: btn(wraper) };
                     }
                     ;
+                    function btn(wraper) {
+                        const btns = element('div', 'btns', '', wraper);
+                        return element('button', 'btnOK', 'Next', btns);
+                    }
                     async function selectCtrl(id) {
                         context.document.getContentControls().getById(id)?.select();
                         await context.sync();
                     }
+                    function btnOnClick(btn) {
+                        return new Promise((resolve) => {
+                            btn.onclick = async () => resolve(await processBlocks());
+                        });
+                        async function processBlocks() {
+                            const checkBoxes = blocks
+                                .map(block => [block.ctrl, block.checkBox.checked]);
+                            blocks.forEach(block => block.wraper.remove()); //We remove all the containers from the DOM
+                            for (const [ctrl, checked] of checkBoxes)
+                                await isSelected(ctrl, checked);
+                            return true;
+                        }
+                        ;
+                    }
                 }
-                ;
+                async function isSelected(ctrl, selected) {
+                    if (selected)
+                        return await promptForSelection(subOptions(ctrl), context);
+                    ctrl.delete = true;
+                    setProcessed(ctrl);
+                }
                 function insertWraper(parent) {
                     return element('div', 'promptContainer', '', parent);
                 }
-                ;
                 async function insertLabel(id, wraper) {
                     if (!wraper)
                         wraper = insertWraper(USERFORM);
@@ -917,105 +938,92 @@ export class EditContract extends WordContentCtrls {
                 }
                 ;
             }
-        }
-        /**
-         *
-         * @param id
-         */
-        async function cloneSelectBlock(ctrl, context) {
-            const after = Word.InsertLocation.after;
-            try {
-                await insertClones(ctrl);
-            }
-            catch (error) {
-                logNotification(`${error}`);
-            }
-            async function insertClones(ctrl) {
-                if (ctrl?.hasLabel?.tag !== RTSectionTag)
-                    return showAlert('The Clone does not have any RTSection label !'); //'RTSelect' ContentControls who are meant to be cloned, must have a direct ContentControl child having as tag 'RTSection' which contains the title of the block to be replicated/cloned (e.g. "Seller")
-                const label = await labelRange(ctrl.hasLabel.id, context);
-                if (!label?.text)
-                    return showAlert("InsertClones() failed: The ContentControl to be replicated/cloned, must have a direct ContentControl child having as tag 'RTSection'. No such tag was found");
-                const message = `Combien de ${label.text} y'a-t-il ?`;
-                let answer = Number(await promptForInput([message], '1'));
-                if (isNaN(answer)) {
-                    showAlert(`The provided text cannot be converted into a number: ${answer}`);
-                    return await insertClones(ctrl); //reprompting the user
-                }
-                else if (answer < 2)
-                    return;
-                else if (answer < 1)
-                    return isNotSelected(ctrl);
+            async function cloneSelectBlock(ctrl) {
+                const after = Word.InsertLocation.after;
                 try {
-                    const original = context.document.getContentControls().getById(ctrl.id);
-                    if (!original)
-                        throw new Error('InsertClones() failed: We could not retrive the original ContentControl to be replicated.');
-                    original.select();
-                    original.title = `${getCtrlTitle(ctrl.tag, ctrl.id)}-Cloned ${answer} times`; //We give it a unique title by which we will retrieve the colnes that we will create.
-                    const range = original.getRange();
-                    const Ooxml = original.getOoxml();
-                    await context.sync();
-                    for (let i = 1; i < answer; i++)
-                        range.insertOoxml(Ooxml.value, after);
-                    const clones = context.document.getContentControls().getByTitle(original.title);
-                    clones.load('id');
-                    await context.sync();
-                    if (!clones?.items.length)
-                        throw new Error('Failed to retrieve the clones');
-                    const selectCtrlItems = (await fetchSelectCtrls(context, clones));
-                    //!The newly inserted clones and their nested contentControls are not inlcuded in selectCtrls[], which means that subOptions() will never be able to retrieve them, and they will not be deleted or manipulated through the selectCtrls[]. So we need to add them to selectCtrls[]; 
-                    const index = selectCtrls.indexOf(ctrl) + 1;
-                    selectCtrlItems.reverse(); //We reverse it in order to insert the newClones right after the existing one in the right order
-                    for (const selectCtrl of selectCtrlItems) {
-                        if (selectCtrl.id === ctrl.id)
-                            continue; //We escape the original block since it is already in selectCtrls[];
-                        const nested = clones.items.find(c => c.id === selectCtrl.id).getContentControls();
-                        const nestedSelectCtrls = await fetchSelectCtrls(context, nested); //we get the selectCtrl representation of their nested contentControls
-                        nestedSelectCtrls.unshift(selectCtrl);
-                        selectCtrls.splice(index, 0, ...nestedSelectCtrls);
-                    }
-                    ;
-                    selectCtrlItems.reverse(); //We must reverse the array again
-                    for (const clone of selectCtrlItems)
-                        await processClone(clone, label.text, selectCtrlItems.indexOf(clone) + 1);
+                    return await insertClones(ctrl);
                 }
                 catch (error) {
-                    logNotification(`Error from processClone() = ${error}`);
+                    logNotification(`${error}`);
                 }
+                async function insertClones(ctrl) {
+                    if (ctrl?.hasLabel?.tag !== RTSectionTag)
+                        return showAlert('The Clone does not have any RTSection label !'); //'RTSelect' ContentControls who are meant to be cloned, must have a direct ContentControl child having as tag 'RTSection' which contains the title of the block to be replicated/cloned (e.g. "Seller")
+                    const label = await labelRange(ctrl.hasLabel.id, context);
+                    if (!label?.text)
+                        return showAlert("InsertClones() failed: The ContentControl to be replicated/cloned, must have a direct ContentControl child having as tag 'RTSection'. No such tag was found");
+                    const message = `Combien de ${label.text} y'a-t-il ?`;
+                    let answer = Number(await promptForInput([message], '1'));
+                    if (isNaN(answer)) {
+                        showAlert(`The provided text cannot be converted into a number: ${answer}`);
+                        return await insertClones(ctrl); //reprompting the user
+                    }
+                    else if (answer < 2)
+                        return;
+                    else if (answer < 1)
+                        return ctrl;
+                    try {
+                        const original = context.document.getContentControls().getById(ctrl.id);
+                        if (!original)
+                            throw new Error('InsertClones() failed: We could not retrive the original ContentControl to be replicated.');
+                        original.select();
+                        original.title = `${getCtrlTitle(ctrl.tag, ctrl.id)}-Cloned ${answer} times`; //We give it a unique title by which we will retrieve the colnes that we will create.
+                        const range = original.getRange();
+                        const Ooxml = original.getOoxml();
+                        await context.sync();
+                        for (let i = 1; i < answer; i++)
+                            range.insertOoxml(Ooxml.value, after);
+                        const clones = context.document.getContentControls().getByTitle(original.title);
+                        clones.load('id');
+                        await context.sync();
+                        if (!clones?.items.length)
+                            throw new Error('Failed to retrieve the clones');
+                        const selectCtrlItems = (await fetchSelectCtrls(context, clones));
+                        //!The newly inserted clones and their nested contentControls are not inlcuded in selectCtrls[], which means that subOptions() will never be able to retrieve them, and they will not be deleted or manipulated through the selectCtrls[]. So we need to add them to selectCtrls[]; 
+                        const index = selectCtrls.indexOf(ctrl) + 1;
+                        selectCtrlItems.reverse(); //We reverse it in order to insert the newClones right after the existing one in the right order
+                        for (const selectCtrl of selectCtrlItems) {
+                            if (selectCtrl.id === ctrl.id)
+                                continue; //We escape the original block since it is already in selectCtrls[];
+                            const nested = clones.items.find(c => c.id === selectCtrl.id).getContentControls();
+                            const nestedSelectCtrls = await fetchSelectCtrls(context, nested); //we get the selectCtrl representation of their nested contentControls
+                            nestedSelectCtrls.unshift(selectCtrl);
+                            selectCtrls.splice(index, 0, ...nestedSelectCtrls);
+                        }
+                        ;
+                        selectCtrlItems.reverse(); //We must reverse the array again
+                        for (const clone of selectCtrlItems)
+                            await processClone(clone.id, label.text, selectCtrlItems.indexOf(clone) + 1);
+                    }
+                    catch (error) {
+                        logNotification(`Error from processClone() = ${error}`);
+                    }
+                }
+                async function processClone(id, text, i) {
+                    const clone = selectCtrls.find(c => c.id === id); //!We need to retrieve the clone from the selectCtrls[] array because we need to set its processed prop to true
+                    if (!clone)
+                        return showAlert('The clone could not be retrived from the selectCtrls array !');
+                    clone.processed = true; //!IMPORTANT The newly inserted clones have never went through promptForSelection(). Their 'processed' prop has never been set to true. They will be processed again when passed to promptForSelection() although they have already been processed here. We need to set their processed prop to true in order to avoid this.
+                    if (clone.hasLabel?.tag !== RTSectionTag)
+                        return showAlert('The clone does not have an RTSection label !'); //Normally this should never occur.
+                    const label = await labelRange(clone.hasLabel.id, context);
+                    if (!label)
+                        throw new Error('Failed to retrive the label of the Clone'); //This should never occur.
+                    text = `${text}-${i}`;
+                    label.cannotEdit = false; //!WARNING, we must set cannotEdit to false before modifing the text, otherwise we will get an error.
+                    label.insertText(text, Word.InsertLocation.replace);
+                    label.cannotEdit = true;
+                    const ctrl = context.document.getContentControls().getById(clone.id);
+                    ctrl.select();
+                    ctrl.title = `${getCtrlTitle(clone.tag, clone.id)}-${i}`;
+                    await context.sync();
+                    USERFORM.innerHTML = ''; //!We need to clear the userform html here because promptForselection() will not do it.
+                    element('div', '', text, USERFORM, '', true);
+                    await promptForSelection(subOptions(clone), context, false);
+                }
+                ;
             }
-            async function processClone(clone, text, i) {
-                clone.processed = true; //!IMPORTANT The newly inserted clones have never went through promptForSelection(). Their 'processed' prop has never been set to true. They will be processed again when passed to promptForSelection() although they have already been processed here. We need to set their processed prop to true in order to avoid this.
-                if (clone.hasLabel?.tag !== RTSectionTag)
-                    return showAlert('The clone does not have an RTSection label !'); //Normally this should never occur.
-                const label = await labelRange(clone.hasLabel.id, context);
-                if (!label)
-                    throw new Error('Failed to retrive the label of the Clone'); //This should never occur.
-                text = `${text}-${i}`;
-                label.cannotEdit = false; //!WARNING, we must set cannotEdit to false before modifing the text, otherwise we will get an error.
-                label.insertText(text, Word.InsertLocation.replace);
-                label.cannotEdit = true;
-                const ctrl = context.document.getContentControls().getById(clone.id);
-                ctrl.select();
-                ctrl.title = `${getCtrlTitle(clone.tag, clone.id)}-${i}`;
-                await context.sync();
-                USERFORM.innerHTML = ''; //!We need to clear the userform html here because promptForselection() will not do it.
-                element('div', '', text, USERFORM, '', true);
-                await promptForSelection(subOptions(clone), context, false);
-            }
-            ;
         }
-        async function isSelected(ctrl, context) {
-            if (ctrl.tag === RTClone)
-                await cloneSelectBlock(ctrl, context); //We need to prompt the user to decide if he wants to clone/copy this block
-            else
-                await promptForSelection(subOptions(ctrl), context, ctrl.tag === RTClone);
-        }
-        ;
-        function isNotSelected(ctrl) {
-            ctrl.delete = true;
-            setProcessed(ctrl);
-        }
-        ;
         function setProcessed(ctrl) {
             subOptions(ctrl)
                 .forEach(nested => {
@@ -1106,25 +1114,6 @@ export class EditContract extends WordContentCtrls {
             }
         }
         ;
-        function btnOnClick(blocks, context) {
-            return new Promise((resolve) => {
-                const btn = blocks.find(block => block.btnNext)?.btnNext;
-                btn.onclick = async () => resolve(await processBlocks());
-            });
-            async function processBlocks() {
-                const checkBoxes = blocks
-                    .map(block => [block.ctrl, block.checkBox.checked]);
-                blocks.forEach(block => block.wraper.remove()); //We remove all the containers from the DOM
-                for (const [ctrl, checked] of checkBoxes) {
-                    if (checked)
-                        await isSelected(ctrl, context);
-                    else
-                        isNotSelected(ctrl);
-                }
-                return true;
-            }
-            ;
-        }
         async function showNestedOptionsTree(context) {
             const elements = Array.from(USERFORM.children);
             const ctrls = context.document.getSelection().contentControls;
