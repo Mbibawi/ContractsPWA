@@ -8,7 +8,7 @@
   <ProviderName>Mina BIBAWI</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Contracts PWA" />
-  <Description DefaultValue="A simple test Office Add-in." />
+  <Description DefaultValue="An Office Add-in to prepare Word contracts templates and edit them." />
   <IconUrl DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/Icon-32x32.png" />
   <HighResolutionIconUrl DefaultValue="https://mbibawi.github.io/ContractsPWA/assets/Icon-64x64.png" />
   <SupportUrl

@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.18.2";
+const version = "v11.18.3";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -209,7 +209,7 @@ class WordContentCtrls {
      * @param props The new ContentControl's properties that we might want to get loaded after its creation
      * @returns The newly created Word.ContentControl object
      */
-    protected async insertContentControl(range: Word.Range | Word.Paragraph, title: string, tag: string, index: number = 1, type: ContentControlType, style: string | null, cannotEdit: boolean = true, cannotDelete: boolean = true, placeHolder?: string, props: string[] = []): Promise<Word.ContentControl | undefined> {
+    protected async insertContentControl(range: Word.Range | Word.Paragraph, title: string, tag: string, index: number = 1, type: ContentControlType, style: string | undefined, cannotEdit: boolean = true, cannotDelete: boolean = true, placeHolder?: string, props: string[] = []): Promise<ContentControl | undefined> {
 
         try {
             props = Array.from(new Set(['id', ...props]));
@@ -238,10 +238,10 @@ class WordContentCtrls {
 
     }
 
-    protected async wrapSelectionWithContentControl(title: string, tag: string, type: ContentControlType, style: string | null, cannotEdit: boolean, cannotDelete: boolean) {
+    protected async wrapSelectionWithContentControl(title: string, tag: string, type: ContentControlType, cannotEdit: boolean, cannotDelete: boolean, style?: string) {
         const range = await this.getSelectionRange();
         if (!range) return;
-        if (!style && this.RTSiStyles.includes(range.style)) style = range.style || null;
+        if (!style && this.RTSiStyles.includes(range.style)) style = range.style || undefined;
 
         const ctrl = await this.insertContentControl(range, title, tag, 0, type, style, cannotEdit, cannotDelete);
         if (!ctrl) return;
@@ -259,7 +259,7 @@ class WordContentCtrls {
                     await context.sync();
                     return showAlert('The Repeat ContentControl must have a RTSection ContentControl, we did not have any such styled paragraphs within the selected range.');
                 }
-                await this.insertContentControl(p, tag, tag, 1, this.richText, null, true, true)
+                await this.insertContentControl(p, tag, tag, 1, this.richText, undefined, true, true)
             })
 
         }
@@ -294,7 +294,7 @@ class WordContentCtrls {
         ctrls.forEach(c => c.getRange().font.color = color);
     }
 
-    protected async setFieldTitle(title: string, field?: Word.ContentControl) {
+    protected async setFieldTitle(title: string, field?: ContentControl) {
         await Word.run(async (context) => {
             let range: Word.Range | void;
             if (!field) {
@@ -335,7 +335,7 @@ class WordContentCtrls {
         })
 
     }
-    protected async updateAllFields(field: Word.ContentControl | undefined) {
+    protected async updateAllFields(field: ContentControl | undefined) {
         await Word.run(async (context) => {
             let range: Word.Range | undefined;
             if (field) {
@@ -430,9 +430,9 @@ export class EditContract extends WordContentCtrls {
 
         const wrapRange = this.wrapSelectionWithContentControl.bind(this);
 
-        function wrap(title: string, tag: string, type: ContentControlType, style: string | null, cannotEdit: boolean, cannotDelete: boolean, label: string, hint: string | undefined) {
+        function wrap(title: string, tag: string, type: ContentControlType, cannotEdit: boolean, cannotDelete: boolean, label: string, style?: string, hint?: string) {
             return {
-                fun: () => wrapRange(title, tag, type, style, cannotEdit, cannotDelete),
+                fun: () => wrapRange(title, tag, type, cannotEdit, cannotDelete, style),
                 label,
                 hint
             } as Btn
@@ -442,18 +442,18 @@ export class EditContract extends WordContentCtrls {
         const all = (style: string, tag: string) => `Wraps all the pragraphs having as style ${style}, in a ${tag} contrentcontrol}`;
 
         const btns = [
-            wrap(this.RTSiTag, this.RTSiTag, this.richText, this.RTSiStyles[0], true, true, 'Si (Single)', single(this.RTSiTag)),
-            wrap(this.RTSelectTag, this.RTSelectTag, this.richText, null, false, true, 'Select (Single)', single(this.RTSelectTag, 'Any such contentControl is a container. Each contentcontrol having the same tag within its range, will be considered as an option to select or to exclude')),
+            wrap(this.RTSiTag, this.RTSiTag, this.richText, true, true, 'Si (Single)', undefined, single(this.RTSiTag)),
+            wrap(this.RTSelectTag, this.RTSelectTag, this.richText, false, true, 'Select (Single)', undefined, single(this.RTSelectTag, 'Any such contentControl is a container. Each contentcontrol having the same tag within its range, will be considered as an option to select or to exclude')),
             { fun: insertRTBlock_Select_Si, label: 'Block Select & Si', hint: 'Finds the first paragraph formatted with any of the RTSiStyles. Wraps this paragraph in a RTSi ContentControl, Then wraps the whol selected range in a RTSelect ContentControl.' },
-            { fun: insertBlockAmountWithFILLINField, label: 'Block Amount', hint: 'Inserts a ContentControl block containing a FILLIN field associated with a bookmark for the amount in figures and in text' },
+            { fun: insertBlockAmount, label: 'Block Amount', hint: 'Inserts a ContentControl block containing a FILLIN field associated with a bookmark for the amount in figures and in text' },
             { fun: insertComboBox, label: 'Dropdown List from selection', hint: 'Creates a dropwdown list from the selected string. The options to choose from must be separated by "/"' },
             { fun: () => insertRTDescription(true), label: 'Description (Single)', hint: single(this.RTDescriptionTag) },
             { fun: this.insertSingleFiled, label: 'ContentControl Field', hint: single(this.RTFieldTag) },
             { fun: insertFILLINField, label: 'FILLIN Field', hint: single(this.RTFieldTag) },
-            wrap(this.RTSectionTag, this.RTSectionTag, this.richText, this.RTSectionTag, true, true, 'Section (Single)', single(this.RTSectionTag)),
+            wrap(this.RTSectionTag, this.RTSectionTag, this.richText, true, true, 'Section (Single)', this.RTSectionTag, single(this.RTSectionTag)),
             //wrap(this.RTOrTag, this.RTOrTag, this.richText, null, false, true, 'Insert Single RT OR', single(this.RTOrTag, 'need to check what it does')),
-            wrap(this.RTCloneTag, this.RTCloneTag, this.richText, null, false, true, 'Block Clone', single(this.RTCloneTag, 'need to check what it does')),
-            wrap(this.RTObsTag, this.RTObsTag, this.richText, this.RTObsTag, true, true, 'Observation (Single)', single(this.RTObsTag)),
+            wrap(this.RTCloneTag, this.RTCloneTag, this.richText, false, true, 'Block Clone', undefined, single(this.RTCloneTag, 'need to check what it does')),
+            wrap(this.RTObsTag, this.RTObsTag, this.richText, true, true, 'Observation (Single)', this.RTObsTag, single(this.RTObsTag)),
             { fun: insertDropDownListAll, label: 'Insert DropDown List For All Matches', hint: 'It will check the document for all the strings matching the "/" separated values of the selected range and will convert them into drowpdown lists. The matching strings do not need to include the "/" mark' },
             { fun: insertRTSiAll, label: 'Si For All', hint: all(this.RTSiStyles.join(' or '), this.RTSiTag) },
             { fun: insertRTSectionAll, label: 'Section For All', hint: all(this.RTSectionStyle, this.RTSectionTag) },
@@ -554,7 +554,7 @@ export class EditContract extends WordContentCtrls {
 
             await Word.run(async (context) => {
                 const range = content(context.document.getSelection());
-                const main = await insertContentControl(range, selectTag, selectTag, 0, richText, null, false, false, undefined, props);
+                const main = await insertContentControl(range, selectTag, selectTag, 0, richText, undefined, false, false, undefined, props);
 
                 if (!main?.id) return logNotification('The select wraper id was not retrieved');
                 try {
@@ -620,7 +620,7 @@ export class EditContract extends WordContentCtrls {
                 return await Word.run(async (context) => {
                     if (!range) range = context.document.getSelection().getRange(Word.RangeLocation.content);
                     //Wraping the range with ContentControl "RTSelect"
-                    const select = await insertContentControl(range, selectTag, selectTag, undefined, richText, null, false, false, undefined, props);
+                    const select = await insertContentControl(range, selectTag, selectTag, undefined, richText, undefined, false, false, undefined, props);
                     if (!select?.id) return showAlert('Failed to insert the RTSelect ContentControl');
 
                     const si = select.paragraphs.items.find(p => siStyle.includes(p.style));
@@ -711,7 +711,7 @@ export class EditContract extends WordContentCtrls {
             if (!options.length) return logNotification("No options");
             logNotification(options.join());
 
-            const combo = await insertContentControl(range, comboTag, comboTag, index, comboBox, null, false, true, undefined, ['id']);
+            const combo = await insertContentControl(range, comboTag, comboTag, index, comboBox, undefined, false, true, undefined, ['id']);
             if (!combo) return;
             combo.comboBoxContentControl.deleteAllListItems();
             options.forEach(option => combo.comboBoxContentControl.addListItem(option));
@@ -723,11 +723,11 @@ export class EditContract extends WordContentCtrls {
         }
 
 
-        async function insertBlockAmountWithFILLINField() {
+        async function insertBlockAmount() {
             await Word.run(async (context) => {
                 try {
                     const range = context.document.getSelection().getRange(Word.RangeLocation.start);
-                    const wraper = await insertContentControl(range, 'Block Amount Associated to AskField', 'BlockAmount', 0, richText, null, false, false);
+                    const wraper = await insertContentControl(range, 'BlockAmount', 'BlockAmount', 0, richText, undefined, false, false);
                     if (!wraper) throw new Error('Failed to insert a contentControl in the selected range');
                     wraper.insertText('cardText euros (amount\u00A0€)', Word.InsertLocation.end);
                     const content = wraper.getRange(Word.RangeLocation.content);
@@ -862,7 +862,6 @@ export class EditContract extends WordContentCtrls {
 
 
         const getCtrlTitle = this.getCtrlTitle.bind(this),
-            prepareTemplate = this.prepareTemplate.bind(this),
             finalizeContract = this.finalizeContract;
 
         const selectCtrls: selectCtrl[] = [];
@@ -895,7 +894,7 @@ export class EditContract extends WordContentCtrls {
         }
 
         async function labelRange(id: number, context: Word.RequestContext) {
-            const label = context.document.contentControls.getById(id);
+            const label = context.document.getContentControls().getById(id);
             await context.sync();
             if (!label) return showAlert('The lable was not found, it was probably deleted at some point');
 
@@ -923,9 +922,11 @@ export class EditContract extends WordContentCtrls {
                 const blocks: promptBlock[] = [];
 
                 for (const ctrl of ctrls) {
-
                     if (ctrl.processed) continue;//!WE MUST escape the ctrls that have already been processed.
                     ctrl.processed = true;
+
+                    context.document.getContentControls().getById(ctrl.id)?.select();
+                    await context.sync();
 
                     if (!ctrl?.hasLabel)
                         await promptForSelection(subOptions(ctrl), context); //When a 'RTSelect' ContentControl  does not have a lable (which is a 'RTSi' or 'RTSection' ContentControl) it means that this ContentControl is a mere wraper for sub 'RTSelect' ContentControls, each representing an option from which the user must choose. Hence, we do not need to prompt the user to decide whether to keep or delete this select section 
@@ -937,12 +938,11 @@ export class EditContract extends WordContentCtrls {
                         await promptForSelection(subOptions(ctrl), context, false);
                     }
 
-
-                    else await showPromptBlock(ctrl)
+                    else await showPromptUI(ctrl)
 
                 }
 
-                async function showPromptBlock(ctrl: selectCtrl) {
+                async function showPromptUI(ctrl: selectCtrl) {
                     const isLast = ctrls.indexOf(ctrl) === ctrls.length - 1;//We check if this is the last contentcontrol in the array
                     const block = await insertHtml(ctrl, isLast);
                     if (!block) return;
@@ -1011,7 +1011,7 @@ export class EditContract extends WordContentCtrls {
 
 
                 try {
-                    const original = context.document.contentControls.getById(ctrl.id);
+                    const original = context.document.getContentControls().getById(ctrl.id);
                     if (!original) throw new Error('InsertClones() failed: We could not retrive the original ContentControl to be replicated.');
                     original.select();
                     original.title = `${getCtrlTitle(ctrl.tag, ctrl.id)}-Cloned ${answer} times`;//We give it a unique title by which we will retrieve the colnes that we will create.
@@ -1020,7 +1020,7 @@ export class EditContract extends WordContentCtrls {
                     await context.sync();
                     for (let i = 1; i < answer; i++)
                         range.insertOoxml(Ooxml.value, after);
-                    const clones = context.document.contentControls.getByTitle(original.title);
+                    const clones = context.document.getContentControls().getByTitle(original.title);
                     clones.load('id');
                     await context.sync();
 
@@ -1069,7 +1069,7 @@ export class EditContract extends WordContentCtrls {
                 label.cannotEdit = false;//!WARNING, we must set cannotEdit to false before modifing the text, otherwise we will get an error.
                 label.insertText(text, Word.InsertLocation.replace);
                 label.cannotEdit = true;
-                const ctrl = context.document.contentControls.getById(clone.id);
+                const ctrl = context.document.getContentControls().getById(clone.id);
                 ctrl.select();
                 ctrl.title = `${getCtrlTitle(clone.tag, clone.id)}-${i}`;
                 await context.sync();
@@ -1108,7 +1108,7 @@ export class EditContract extends WordContentCtrls {
             }
 
             async function process() {
-                const ctrls = context.document.contentControls;
+                const ctrls = context.document.getContentControls();
                 ctrls.load(['id']);
                 await context.sync();
                 const ids = selectCtrls.filter(c => c.delete).map(c => c.id);
@@ -1180,7 +1180,7 @@ export class EditContract extends WordContentCtrls {
                     .map(c => { return { id: c.id, tag: c.tag } });
             }
 
-            function hasLabel(ctrl: Word.ContentControl) {
+            function hasLabel(ctrl: ContentControl) {
                 const label = directChildren(ctrl)
                     .find(child => labelTags.includes(child.tag));
                 if (!label) return undefined;
@@ -1351,7 +1351,7 @@ export class EditContract extends WordContentCtrls {
     }
 
     private async deleteAllNotSelected(selected: string[], wdDoc: Word.Document | Word.DocumentCreated) {
-        const all = wdDoc.contentControls;
+        const all = wdDoc.getContentControls();
         all.load(['items', 'title', 'tag']);
         await wdDoc.context.sync();
         all.items
@@ -1385,7 +1385,7 @@ export class EditContract extends WordContentCtrls {
     private async setCanBeEditedForAllSelectCtrls(edit: boolean = true) {
         await Word.run(async (context) => {
             const ctrls = context.document
-                .contentControls;
+                .getContentControls();
             ctrls.load(['title', 'tag']);
             await context.sync();
             ctrls.items.forEach(ctrl => {
@@ -1440,9 +1440,9 @@ export class WordFileds extends WordContentCtrls {
         const siTag = this.RTSiTag, secTag = this.RTSectionTag;
         await Word.run(async (context) => {
             const props = ['id', 'fields/code', 'fields/result', 'fields/type']
-            const selects = context.document.contentControls.getByTag(this.RTSelectTag);
+            const selects = context.document.getContentControls().getByTag(this.RTSelectTag);
             selects.load(props);
-            const clone = context.document.contentControls.getByTag(this.RTCloneTag);
+            const clone = context.document.getContentControls().getByTag(this.RTCloneTag);
             clone.load(props);
             await context.sync();
 
@@ -1458,7 +1458,7 @@ export class WordFileds extends WordContentCtrls {
 
 
 
-            async function process(ctrl: Word.ContentControl) {
+            async function process(ctrl: ContentControl) {
                 ctrl.select(Word.SelectionMode.select);
 
                 const fields = ctrl.fields.items.filter(field => types.includes(field.type as Word.FieldType));
@@ -1468,7 +1468,7 @@ export class WordFileds extends WordContentCtrls {
 
                 fields.forEach(field => field.result.load(['text']));
 
-                const si = ctrl.contentControls.getByTag(siTag).getFirst();
+                const si = ctrl.getContentControls().getByTag(siTag).getFirst();
                 if (si) {
                     si.font.hidden = false;
                     si.load(['text']);
