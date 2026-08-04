@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.18.3";
+const version = "v11.18.4";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -925,9 +925,6 @@ export class EditContract extends WordContentCtrls {
                     if (ctrl.processed) continue;//!WE MUST escape the ctrls that have already been processed.
                     ctrl.processed = true;
 
-                    context.document.getContentControls().getById(ctrl.id)?.select();
-                    await context.sync();
-
                     if (!ctrl?.hasLabel)
                         await promptForSelection(subOptions(ctrl), context); //When a 'RTSelect' ContentControl  does not have a lable (which is a 'RTSi' or 'RTSection' ContentControl) it means that this ContentControl is a mere wraper for sub 'RTSelect' ContentControls, each representing an option from which the user must choose. Hence, we do not need to prompt the user to decide whether to keep or delete this select section 
 
@@ -952,6 +949,7 @@ export class EditContract extends WordContentCtrls {
                     async function insertHtml(ctrl: selectCtrl, isLast: boolean): Promise<promptBlock | void> {
                         const wraper = insertWraper(USERFORM);
                         const option = element('div', 'select', '', wraper);
+                        option.onmouseenter = () => selectCtrl(ctrl.id);
                         const checkBox = element<HTMLInputElement>('input', 'checkBox', '', option);//!We must give the checkBox the id of the selectCtrl because the id will be later used to retrieve the selectCtrl and process its children
                         checkBox.type = 'checkbox';
                         const label = await insertLabel(ctrl.hasLabel!.id, option);
@@ -964,6 +962,11 @@ export class EditContract extends WordContentCtrls {
                             return element<HTMLButtonElement>('button', 'btnOK', 'Next', btns);
                         }
                     };
+
+                    async function selectCtrl(id: number) {
+                        context.document.getContentControls().getById(id)?.select();
+                        await context.sync();
+                    }
 
                 };
 
