@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.18.1";
+const version = "v11.18.2";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -682,23 +682,25 @@ export class EditContract extends WordContentCtrls {
                     const wraper = await insertContentControl(range, 'Block Amount Associated to AskField', 'BlockAmount', 0, richText, null, false, false);
                     if (!wraper)
                         throw new Error('Failed to insert a contentControl in the selected range');
-                    wraper.insertText('cardText euros (amount €)', Word.InsertLocation.end);
+                    wraper.insertText('cardText euros (amount\u00A0€)', Word.InsertLocation.end);
                     const content = wraper.getRange(Word.RangeLocation.content);
-                    const placeholder = await fun('cardText');
+                    const placeholder = await replace('cardText');
                     if (!placeholder)
                         return;
-                    const bookmarkName = await insertAskField(placeholder);
-                    await fun('amount', `REF ${bookmarkName} \\h \\*MERGEFORMAT `);
-                    await fun('cardText', `REF ${bookmarkName} \\h \\*cardText MERGEFORMAT `);
+                    const values = await insertAskField(placeholder);
+                    if (!values)
+                        return;
+                    const { bookmark } = values;
+                    await replace('amount', `${bookmark} \\h`);
+                    await replace('cardText', `${bookmark} \\h \\*cardText`);
                     await context.sync();
-                    async function fun(key, code) {
+                    async function replace(key, code) {
                         const placeholder = content.getRange(Word.RangeLocation.content).search(key).getFirst();
                         if (!placeholder)
                             return logNotification(`Could not find the placeholder ${key}`);
                         if (!code)
                             return placeholder;
-                        const field = placeholder.insertField(Word.InsertLocation.replace, Word.FieldType.empty);
-                        field.code = code;
+                        placeholder.insertField(Word.InsertLocation.replace, Word.FieldType.ref, code);
                     }
                 }
                 catch (error) {
@@ -1381,7 +1383,7 @@ export class WordFileds extends WordContentCtrls {
         try {
             const fieldCode = (answers) => {
                 const [bookmarkName, prompt] = answers;
-                return `${bookmarkName.replaceAll(' ', '')}  "${prompt}" \\d [*] \\* MERGEFORMAT`;
+                return `${bookmarkName.replaceAll(' ', '')}  "${prompt}" \\d [*]`;
             };
             const labels = ['Provide the name of the bookmark without spaces', 'Provide the user prompt'];
             const values = await this.insertField(labels, Word.FieldType.ask, range, fieldCode);
@@ -1389,7 +1391,7 @@ export class WordFileds extends WordContentCtrls {
                 throw new Error('Failed to insert the field');
             const { answers } = values;
             const [bookmark, prompt] = answers;
-            return bookmark;
+            return { bookmark, prompt };
         }
         catch (error) {
             showAlert(`insertAskField() failed with error: ${error.debugInfo || error}`);
@@ -1400,7 +1402,7 @@ export class WordFileds extends WordContentCtrls {
         try {
             const fieldCode = (answers) => {
                 const [prompt, deflt] = answers;
-                return `"${prompt}"  \\d ${deflt || '[*]'}  \\* MERGEFORMAT`;
+                return `"${prompt}"  \\d ${deflt || '[*]'}`;
             };
             const labels = ['Provide the FILLIN user prompt', 'Provide the FILLIN default value'];
             await this.insertField(labels, Word.FieldType.fillIn, range, fieldCode);
@@ -1416,10 +1418,8 @@ export class WordFileds extends WordContentCtrls {
             try {
                 if (!range)
                     range = context.document.getSelection().getRange(Word.RangeLocation.whole);
-                const field = range.insertField(Word.InsertLocation.start, type);
+                const field = range.insertField(Word.InsertLocation.start, type, fieldCode ? fieldCode(answers) : undefined);
                 field.track();
-                if (fieldCode)
-                    field.code = `${type.toUpperCase()} ${fieldCode(answers)}`;
                 await context.sync();
                 return { field, answers };
             }
