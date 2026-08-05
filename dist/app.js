@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.18.9";
+const version = "v11.19.0";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -40,7 +40,10 @@ function showAlert(message) {
 }
 function showSpinner(message) {
     const { modal, window } = getModalContainer(USERFORM, 'Alert', 'alert', false);
-    element('p', '', message, window, '', true);
+    const p = element('p', '', message, window, '', true);
+    window.style.backgroundColor = '#109cc2ff';
+    p.style.color = '#ffffffff';
+    element('div', 'spinner', undefined, modal, 'spinner', true);
     return modal;
 }
 function element(tag, css, textContent, parent, id, append = true) {
@@ -812,7 +815,7 @@ export class EditContract extends WordContentCtrls {
     ;
     async customizeContract(showNested = false) {
         const RTClone = this.RTCloneTag, RTSiTag = this.RTSiTag, RTSectionTag = this.RTSectionTag, RTSelect = this.RTSelectTag;
-        const getCtrlTitle = this.getCtrlTitle.bind(this), finalizeContract = this.finalizeContract.bind(this), goBack = this.showBtns;
+        const getCtrlTitle = this.getCtrlTitle.bind(this), finalizeContract = this.finalizeContract.bind(this), goBack = this.showBtns.bind(this);
         const selectCtrls = [];
         await loopSelectCtrls();
         async function loopSelectCtrls() {
@@ -979,7 +982,9 @@ export class EditContract extends WordContentCtrls {
                     if (!label)
                         return showAlert("The Label ContentControl could not be found");
                     const text = label.text || 'Label text could not be retrived';
-                    return element('label', 'label', text, wraper);
+                    const html = element('label', 'label', text, wraper);
+                    html.style.backgroundColor = '#8a5506ff';
+                    return html;
                 }
                 ;
             }
@@ -1077,7 +1082,7 @@ export class EditContract extends WordContentCtrls {
         }
         async function deleteUnselected(context) {
             try {
-                const spinner = showSpinner('Deleting unselected items\nPlease wait');
+                const spinner = showSpinner('Deleting unselected options\nPlease wait');
                 await process();
                 spinner.remove();
                 //await createNewDoc();
