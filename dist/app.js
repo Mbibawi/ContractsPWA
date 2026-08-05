@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.18.6";
+const version = "v11.18.7";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -365,7 +365,9 @@ export class EditContract extends WordContentCtrls {
             },
             { fun: this.prepareTemplate, label: 'Prepare Template', hint: 'Creates a contract template' },
             { fun: this.finalizeContract, label: 'Finalize Contract', hint: 'Removing all the unwanted contentcontrols and issues the final versiofn of the contract' },
-            { fun: this.lockUnlockAll, label: 'Remove Cannot Delete For All', hint: 'Toggels the cannot be deleted setting of all the contentcontrols in the document' },
+            { fun: () => this.lockUnlockAll(false), label: 'Unprotect All contentControls', hint: 'Removes the cannot be deleted and cannotBe edited setting of all the contentcontrols in the document' },
+            goHome,
+            { fun: () => this.lockUnlockAll(true), label: 'Protect All contentControls', hint: 'Sets the cannot be deleted and cannotBe edited setting to true for all the contentcontrols in the document' },
             goHome,
         ];
         this.goBack = {
@@ -805,7 +807,7 @@ export class EditContract extends WordContentCtrls {
     ;
     async customizeContract(showNested = false) {
         const RTClone = this.RTCloneTag, RTSiTag = this.RTSiTag, RTSectionTag = this.RTSectionTag, RTSelect = this.RTSelectTag;
-        const getCtrlTitle = this.getCtrlTitle.bind(this), finalizeContract = this.finalizeContract;
+        const getCtrlTitle = this.getCtrlTitle.bind(this), finalizeContract = this.finalizeContract, goBack = this.showBtns;
         const selectCtrls = [];
         await loopSelectCtrls();
         async function loopSelectCtrls() {
@@ -822,6 +824,7 @@ export class EditContract extends WordContentCtrls {
                     await deleteUnselected(context);
                     if (await promptConfirm('Finihsed deleting the unselected options.\nDo you want to finalize the contract by removing the other ContentControls like RTSi, RTDescription ?'))
                         await finalizeContract();
+                    goBack();
                 }
                 catch (error) {
                     logNotification(`Error from promptForSelection() = ${error}`);
@@ -856,9 +859,11 @@ export class EditContract extends WordContentCtrls {
                 if (clear)
                     USERFORM.innerHTML = ''; //We clear the form before populating it
                 const blocks = [];
-                for (const ctrl of ctrls) {
+                for (const ctrl of ctrls)
+                    await processCtrl(ctrl);
+                async function processCtrl(ctrl) {
                     if (ctrl.processed)
-                        continue; //!WE MUST escape the ctrls that have already been processed.
+                        return; //!WE MUST escape the ctrls that have already been processed.
                     ctrl.processed = true;
                     if (!ctrl?.hasLabel)
                         await promptForSelection(subOptions(ctrl), context); //When a 'RTSelect' ContentControl  does not have a lable (which is a 'RTSi' or 'RTSection' ContentControl) it means that this ContentControl is a mere wraper for sub 'RTSelect' ContentControls, each representing an option from which the user must choose. Hence, we do not need to prompt the user to decide whether to keep or delete this select section 
@@ -892,13 +897,32 @@ export class EditContract extends WordContentCtrls {
                         option.onclick = () => checkBox.checked = !checkBox.checked;
                         if (!isLast)
                             return { wraper, checkBox, ctrl };
-                        return { wraper, checkBox, ctrl, btnNext: btn(wraper) };
+                        return { wraper, checkBox, ctrl, btnNext: next(ctrl, wraper) };
                     }
                     ;
-                    function btn(wraper) {
+                    function next(ctrl, wraper) {
                         const btns = element('div', 'btns', '', wraper);
-                        return element('button', 'btnOK', 'Next', btns);
+                        back(ctrl, btns);
+                        return element('button', undefined, 'Next', btns);
                     }
+                    async function back(ctrl, btns) {
+                        const previous = ctrls[ctrls.indexOf(ctrl) - 1];
+                        if (!previous)
+                            return;
+                        element('button', undefined, 'Previous', btns)
+                            .onclick = async () => {
+                            [ctrl, previous].forEach(c => reset(c));
+                            await processCtrl(previous);
+                        };
+                        function reset(ctrl) {
+                            [ctrl, ...subOptions(ctrl)]
+                                .forEach(c => {
+                                c.processed = false;
+                                c.delete = false;
+                            });
+                        }
+                    }
+                    ;
                     async function selectCtrl(id) {
                         context.document.getContentControls().getById(id)?.select();
                         await context.sync();
@@ -1142,23 +1166,23 @@ export class EditContract extends WordContentCtrls {
             body.load(['paragraphs', 'paragraphs/style']);
             await context.sync();
             allCtrls.items
-                .filter(c => keepContent.includes(c.tag))
+                .filter(c => [...remove, ...keepContent].includes(c.tag))
                 .forEach(c => {
                 c.cannotEdit = false;
                 c.cannotDelete = false;
             });
             for (const ctrl of allCtrls.items) {
                 try {
-                    ctrl.cannotDelete = false; //!We must remove the cannotDelete from all ctrls because this will prevent deleting the line on which there is a hidden contentcontrol
-                    if (remove.includes(ctrl?.tag))
+                    if (remove.includes(ctrl.tag))
                         ctrl.delete(false);
-                    else if (keepContent.includes(ctrl?.tag))
+                    else if (keepContent.includes(ctrl.tag))
                         ctrl.delete(true);
                     else if (hide)
                         ctrl.appearance = Word.ContentControlAppearance.hidden;
                 }
                 catch (error) {
-                    showAlert(`Error while deleting contentcontrol:\n Error: ${error.debugInfo}`);
+                    const message = `Error while deleting contentcontrol:\n Error: ${error.debugInfo ?? error}`;
+                    showAlert(message);
                 }
             }
             body.paragraphs.items
@@ -1239,6 +1263,7 @@ export class EditContract extends WordContentCtrls {
             if (!ctrls)
                 ctrls = context.document.getSelection().getContentControls();
             ctrls.load(['id', 'tag']);
+            ctrls.track();
             await context.sync();
             if (!ctrls?.items?.length)
                 return showAlert('There are no selected contentControls');
@@ -1248,6 +1273,7 @@ export class EditContract extends WordContentCtrls {
                 ctrl.cannotEdit = protect;
                 ctrl.cannotDelete = protect;
             }
+            ctrls.untrack();
             await context.sync();
         });
     }
@@ -1267,17 +1293,10 @@ export class EditContract extends WordContentCtrls {
     setRangeStyle(objs, style) {
         objs.forEach(o => o.getRange().style = style);
     }
-    async lockUnlockAll(unlock = false, tags = []) {
+    async lockUnlockAll(unlock) {
         await Word.run(async (context) => {
             const all = context.document.getContentControls();
-            all.load(['tag', 'id']);
-            await context.sync();
-            let ctrls = all.items;
-            if (tags.length)
-                ctrls = ctrls.filter(c => tags.includes(c.tag));
-            for (const ctrl of ctrls)
-                ctrl.cannotDelete = unlock;
-            await context.sync();
+            this.unprotectSelectedCtrls(all, unlock);
         });
     }
 }
