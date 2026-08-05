@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.18.7";
+const version = "v11.18.8";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -1281,16 +1281,22 @@ export class EditContract extends WordContentCtrls {
         const hide = await promptConfirm('Do you want to hide the ContentControls that will not be deleted?');
         await Word.run(async (context) => {
             const allCtrls = context.document.getContentControls();
+
             allCtrls.load(['id', 'tag', 'title', 'parentContentControlOrNullObject/id']);
             const body = context.document.body.getRange();
             body.load(['paragraphs', 'paragraphs/style']);
             await context.sync();
 
             allCtrls.items
-                .filter(c => [...remove, ...keepContent].includes(c.tag))
                 .forEach(c => {
-                    c.cannotEdit = false;
-                    c.cannotDelete = false;
+                    try {
+                        c.cannotEdit = false;
+                        c.cannotDelete = false;
+                    } catch (error: any) {
+                        const message = `Error while setting cannotDelete & cannotEdit to false:\n Error: ${error.debugInfo ?? error}`
+                        showAlert(message);
+
+                    }
                 });
 
             for (const ctrl of allCtrls.items) {
@@ -1310,9 +1316,15 @@ export class EditContract extends WordContentCtrls {
             body.paragraphs.items
                 .filter(p => styles.includes(p.style))
                 .forEach(p => {
-                    p.style = `${this.StylePrefix}Normal`;
-                    p.delete();
+                    try {
+                        p.style = `${this.StylePrefix}Normal`;
+                        p.delete();
+                    } catch (error: any) {
+                        const message = `Error while deleting unwanted paragrapphs:\n Error: ${error.debugInfo ?? error}`
+                        showAlert(message);
+                    }
                 });
+
 
             await context.sync();
         });

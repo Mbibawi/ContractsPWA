@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.18.7";
+const version = "v11.18.8";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -1166,10 +1166,15 @@ export class EditContract extends WordContentCtrls {
             body.load(['paragraphs', 'paragraphs/style']);
             await context.sync();
             allCtrls.items
-                .filter(c => [...remove, ...keepContent].includes(c.tag))
                 .forEach(c => {
-                c.cannotEdit = false;
-                c.cannotDelete = false;
+                try {
+                    c.cannotEdit = false;
+                    c.cannotDelete = false;
+                }
+                catch (error) {
+                    const message = `Error while setting cannotDelete & cannotEdit to false:\n Error: ${error.debugInfo ?? error}`;
+                    showAlert(message);
+                }
             });
             for (const ctrl of allCtrls.items) {
                 try {
@@ -1188,8 +1193,14 @@ export class EditContract extends WordContentCtrls {
             body.paragraphs.items
                 .filter(p => styles.includes(p.style))
                 .forEach(p => {
-                p.style = `${this.StylePrefix}Normal`;
-                p.delete();
+                try {
+                    p.style = `${this.StylePrefix}Normal`;
+                    p.delete();
+                }
+                catch (error) {
+                    const message = `Error while deleting unwanted paragrapphs:\n Error: ${error.debugInfo ?? error}`;
+                    showAlert(message);
+                }
             });
             await context.sync();
         });
