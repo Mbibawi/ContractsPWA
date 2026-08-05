@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.18.8";
+const version = "v11.18.9";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -37,6 +37,11 @@ function showAlert(message) {
     element('p', '', message, window, '', true);
     const btn = element('button', '', 'OK', window, '', true);
     btn.onclick = () => { modal.remove(); };
+}
+function showSpinner(message) {
+    const { modal, window } = getModalContainer(USERFORM, 'Alert', 'alert', false);
+    element('p', '', message, window, '', true);
+    return modal;
 }
 function element(tag, css, textContent, parent, id, append = true) {
     const el = document.createElement(tag);
@@ -420,10 +425,10 @@ export class EditContract extends WordContentCtrls {
             { fun: () => insertRTDescription(true), label: 'Description (Single)', hint: single(this.RTDescriptionTag) },
             { fun: this.insertSingleFiled, label: 'ContentControl Field', hint: single(this.RTFieldTag) },
             { fun: insertFILLINField, label: 'FILLIN Field', hint: single(this.RTFieldTag) },
-            wrap(this.RTSectionTag, this.RTSectionTag, this.richText, true, true, 'Section (Single)', this.RTSectionTag, single(this.RTSectionTag)),
+            wrap(this.RTSectionTag, this.RTSectionTag, this.richText, true, true, 'Section (Single)', this.RTSectionStyle, single(this.RTSectionTag)),
             //wrap(this.RTOrTag, this.RTOrTag, this.richText, null, false, true, 'Insert Single RT OR', single(this.RTOrTag, 'need to check what it does')),
             wrap(this.RTCloneTag, this.RTCloneTag, this.richText, false, true, 'Block Clone', undefined, single(this.RTCloneTag, 'need to check what it does')),
-            wrap(this.RTObsTag, this.RTObsTag, this.richText, true, true, 'Observation (Single)', this.RTObsTag, single(this.RTObsTag)),
+            wrap(this.RTObsTag, this.RTObsTag, this.richText, true, true, 'Observation (Single)', this.RTObsStyle, single(this.RTObsTag)),
             { fun: insertDropDownListAll, label: 'Insert DropDown List For All Matches', hint: 'It will check the document for all the strings matching the "/" separated values of the selected range and will convert them into drowpdown lists. The matching strings do not need to include the "/" mark' },
             { fun: insertRTSiAll, label: 'Si For All', hint: all(this.RTSiStyles.join(' or '), this.RTSiTag) },
             { fun: insertRTSectionAll, label: 'Section For All', hint: all(this.RTSectionStyle, this.RTSectionTag) },
@@ -807,7 +812,7 @@ export class EditContract extends WordContentCtrls {
     ;
     async customizeContract(showNested = false) {
         const RTClone = this.RTCloneTag, RTSiTag = this.RTSiTag, RTSectionTag = this.RTSectionTag, RTSelect = this.RTSelectTag;
-        const getCtrlTitle = this.getCtrlTitle.bind(this), finalizeContract = this.finalizeContract, goBack = this.showBtns;
+        const getCtrlTitle = this.getCtrlTitle.bind(this), finalizeContract = this.finalizeContract.bind(this), goBack = this.showBtns;
         const selectCtrls = [];
         await loopSelectCtrls();
         async function loopSelectCtrls() {
@@ -865,45 +870,61 @@ export class EditContract extends WordContentCtrls {
                     if (ctrl.processed)
                         return; //!WE MUST escape the ctrls that have already been processed.
                     ctrl.processed = true;
-                    if (!ctrl?.hasLabel)
-                        await promptForSelection(subOptions(ctrl), context); //When a 'RTSelect' ContentControl  does not have a lable (which is a 'RTSi' or 'RTSection' ContentControl) it means that this ContentControl is a mere wraper for sub 'RTSelect' ContentControls, each representing an option from which the user must choose. Hence, we do not need to prompt the user to decide whether to keep or delete this select section 
+                    if (ctrl.tag === RTSelect)
+                        await processSelect(ctrl);
                     else if (ctrl.tag === RTClone)
-                        await cloneSelectBlock(ctrl) === ctrl ? isSelected(ctrl, false) : false; //We need to prompt the user to decide if he wants to clone/copy this block;
-                    else if (ctrl.tag === RTSelect && ctrl.hasLabel.tag === RTSectionTag) {
-                        //When an RTSelect ContentControl has as label a 'RTSection' ContentControl, it means that  the RTSelect ContentControl is a wraper for sub 'RTSelect' ContentControls, but it has a lable that needs to be be displayed to the user to explain to him under which section the options are displayed.
+                        await processClone(ctrl);
+                }
+                async function processSelect(ctrl) {
+                    //When an RTSelect ContentControl dones not have any lable or if its lable tag =  'RTSection', it means that  the RTSelect ContentControl is a wraper for sub 'RTSelect' ContentControls, but it has a lable that needs to be be displayed to the user to explain to him under which section the options are displayed.
+                    if (!ctrl.hasLabel) {
+                        await promptForSelection(subOptions(ctrl), context);
+                    }
+                    else if (ctrl.hasLabel.tag === RTSectionTag) {
                         await insertLabel(ctrl.hasLabel.id);
                         await promptForSelection(subOptions(ctrl), context, false);
                     }
                     else
                         await showPromptUI(ctrl);
                 }
+                async function processClone(ctrl) {
+                    await cloneSelectBlock(ctrl) === ctrl ? isSelected(ctrl, false) : false; //We need to prompt the user to decide if he wants to clone/copy this block;
+                }
                 async function showPromptUI(ctrl) {
-                    const isLast = ctrls.indexOf(ctrl) === ctrls.length - 1; //We check if this is the last contentcontrol in the array
-                    const block = await insertHtml(ctrl, isLast);
+                    const block = await insertHtml(ctrl);
                     if (!block)
                         return;
                     blocks.push(block);
                     if (block.btnNext)
                         await btnOnClick(block.btnNext); //This is the case where btnNext was added because we reached the end of ctrls[] (isLast = true). We then need to await the user to click the button in order to process all the already displayed html elements/options of ctrls[].
-                    async function insertHtml(ctrl, isLast) {
+                    async function insertHtml(ctrl) {
                         const wraper = insertWraper(USERFORM);
                         const option = element('div', 'select', '', wraper);
                         const checkBox = element('input', 'checkBox', '', option); //!We must give the checkBox the id of the selectCtrl because the id will be later used to retrieve the selectCtrl and process its children
+                        checkBox.type = 'checkbox';
+                        checkBox.style.display = 'none';
                         const label = await insertLabel(ctrl.hasLabel.id, option);
                         if (!label)
                             return wraper.remove();
-                        checkBox.type = 'checkbox';
                         option.onmouseenter = () => selectCtrl(ctrl.id);
-                        option.onclick = () => checkBox.checked = !checkBox.checked;
-                        if (!isLast)
+                        option.onclick = () => {
+                            const white = '#f0f2f5';
+                            const green = '#1d7b00ff';
+                            checkBox.checked = !checkBox.checked;
+                            checkBox.checked ?
+                                option.style.backgroundColor = green
+                                : option.style.backgroundColor = white;
+                        };
+                        if (ctrl !== ctrls[ctrls.length - 1])
                             return { wraper, checkBox, ctrl };
                         return { wraper, checkBox, ctrl, btnNext: next(ctrl, wraper) };
                     }
                     ;
                     function next(ctrl, wraper) {
                         const btns = element('div', 'btns', '', wraper);
+                        const btnNext = element('button', undefined, 'Next', btns);
                         back(ctrl, btns);
-                        return element('button', undefined, 'Next', btns);
+                        return btnNext;
                     }
                     async function back(ctrl, btns) {
                         const previous = ctrls[ctrls.indexOf(ctrl) - 1];
@@ -1002,22 +1023,21 @@ export class EditContract extends WordContentCtrls {
                         await context.sync();
                         if (!clones?.items.length)
                             throw new Error('Failed to retrieve the clones');
-                        const selectCtrlItems = (await fetchSelectCtrls(context, clones));
+                        const selectCtrlObjects = (await fetchSelectCtrls(context, clones));
                         //!The newly inserted clones and their nested contentControls are not inlcuded in selectCtrls[], which means that subOptions() will never be able to retrieve them, and they will not be deleted or manipulated through the selectCtrls[]. So we need to add them to selectCtrls[]; 
-                        const index = selectCtrls.indexOf(ctrl) + 1;
-                        selectCtrlItems.reverse(); //We reverse it in order to insert the newClones right after the existing one in the right order
-                        for (const selectCtrl of selectCtrlItems) {
+                        selectCtrlObjects.reverse(); //We reverse it in order to insert the newClones right after the existing one in the right order
+                        for (const selectCtrl of selectCtrlObjects) {
                             if (selectCtrl.id === ctrl.id)
                                 continue; //We escape the original block since it is already in selectCtrls[];
-                            const nested = clones.items.find(c => c.id === selectCtrl.id).getContentControls();
+                            const nested = context.document.getContentControls().getById(selectCtrl.id).getContentControls();
                             const nestedSelectCtrls = await fetchSelectCtrls(context, nested); //we get the selectCtrl representation of their nested contentControls
                             nestedSelectCtrls.unshift(selectCtrl);
-                            selectCtrls.splice(index, 0, ...nestedSelectCtrls);
+                            selectCtrls.push(...nestedSelectCtrls); //!We add the clones at the end of the selectCtrls[] array. Since they will be processed here immediately by processClone(), normally they will already have their "processed" property set to true when the for loop will reach them.
                         }
                         ;
-                        selectCtrlItems.reverse(); //We must reverse the array again
-                        for (const clone of selectCtrlItems)
-                            await processClone(clone.id, label.text, selectCtrlItems.indexOf(clone) + 1);
+                        selectCtrlObjects.reverse(); //We must reverse the array again
+                        for (const clone of selectCtrlObjects)
+                            await processClone(clone.id, label.text, selectCtrlObjects.indexOf(clone) + 1);
                     }
                     catch (error) {
                         logNotification(`Error from processClone() = ${error}`);
@@ -1057,7 +1077,9 @@ export class EditContract extends WordContentCtrls {
         }
         async function deleteUnselected(context) {
             try {
+                const spinner = showSpinner('Deleting unselected items\nPlease wait');
                 await process();
+                spinner.remove();
                 //await createNewDoc();
             }
             catch (error) {
@@ -1072,12 +1094,11 @@ export class EditContract extends WordContentCtrls {
                 console.log(`toDelete ids = ${toDelete.map(ctrl => ctrl.id)}`);
                 for (const ctrl of toDelete) {
                     try {
-                        //if (ctrl.tag === RTDuplicateTag) continue;
+                        ctrl.select();
                         const nested = ctrl.getContentControls();
                         nested.load('id');
                         await context.sync();
-                        nested.items.forEach(c => c.cannotDelete = false);
-                        ctrl.cannotDelete = false;
+                        [ctrl, ...nested.items].forEach(c => c.cannotDelete = false);
                         ctrl.delete(false);
                         await context.sync();
                     }
@@ -1155,6 +1176,7 @@ export class EditContract extends WordContentCtrls {
         }
     }
     async finalizeContract() {
+        const spinner = showSpinner('Finalizing contrat\nPlease wait');
         const remove = [this.RTSiTag, this.RTDescriptionTag, this.RTObsTag, this.RTSectionTag]; //The contentcontrol and its content will be deleted.
         const keepContent = [this.RTSelectTag, this.RTCloneTag]; //We will delete the contentControl but keep its content
         const styles = [...this.RTSiStyles, this.RTSectionStyle, this.RTObsStyle, this.RTDescriptionStyle];
@@ -1173,21 +1195,26 @@ export class EditContract extends WordContentCtrls {
                 }
                 catch (error) {
                     const message = `Error while setting cannotDelete & cannotEdit to false:\n Error: ${error.debugInfo ?? error}`;
-                    showAlert(message);
+                    logNotification(message);
                 }
             });
-            for (const ctrl of allCtrls.items) {
+            for (const c of allCtrls.items) {
                 try {
-                    if (remove.includes(ctrl.tag))
+                    const ctrl = context.document.getContentControls().getById(c.id);
+                    if (!ctrl)
+                        continue;
+                    const tag = c.tag;
+                    if (remove.includes(tag))
                         ctrl.delete(false);
-                    else if (keepContent.includes(ctrl.tag))
+                    else if (keepContent.includes(tag))
                         ctrl.delete(true);
                     else if (hide)
                         ctrl.appearance = Word.ContentControlAppearance.hidden;
+                    await context.sync();
                 }
                 catch (error) {
                     const message = `Error while deleting contentcontrol:\n Error: ${error.debugInfo ?? error}`;
-                    showAlert(message);
+                    logNotification(message);
                 }
             }
             body.paragraphs.items
@@ -1199,11 +1226,12 @@ export class EditContract extends WordContentCtrls {
                 }
                 catch (error) {
                     const message = `Error while deleting unwanted paragrapphs:\n Error: ${error.debugInfo ?? error}`;
-                    showAlert(message);
+                    logNotification(message);
                 }
             });
             await context.sync();
         });
+        spinner.remove();
     }
     async searchString(search, context, matchWildcards, replaceWith) {
         const searchResults = context.document.body.search(search, { matchWildcards: matchWildcards });

@@ -146,6 +146,7 @@ button {
 
 button:hover {
   background-color: #2980b9;
+  background-color: #f0f2f5;
   /* Darker blue on hover */
   /*transform: translateY(-2px);*/
   /* Slight lift effect */
