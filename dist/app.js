@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.19.0";
+const version = "v11.19.1";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -315,6 +315,20 @@ class WordContentCtrls {
             field.title = `${this.RTFieldTag}&${title}`;
             await context.sync();
         });
+    }
+    /**
+     * Loads the hidden text of a contentControl
+     * @param ctrl
+     * @param context
+     */
+    async loadHiddenText(ctrl, context) {
+        const cannotEdit = ctrl.cannotEdit, isHidden = ctrl.font.hidden; //We capture the original status of cannotEdit and .font.hidden
+        ctrl.cannotEdit = false; //!WARNING, we must unlock the cannotEdit before unhidding the font
+        ctrl.font.hidden = false; //!WARNING, this must come before range.load('text')
+        ctrl.load(['text']);
+        ctrl.font.hidden = isHidden;
+        ctrl.cannotEdit = cannotEdit;
+        await context.sync();
     }
     async updateAllContentControlIDs() {
         const tags = [
@@ -815,7 +829,7 @@ export class EditContract extends WordContentCtrls {
     ;
     async customizeContract(showNested = false) {
         const RTClone = this.RTCloneTag, RTSiTag = this.RTSiTag, RTSectionTag = this.RTSectionTag, RTSelect = this.RTSelectTag;
-        const getCtrlTitle = this.getCtrlTitle.bind(this), finalizeContract = this.finalizeContract.bind(this), goBack = this.showBtns.bind(this);
+        const getCtrlTitle = this.getCtrlTitle.bind(this), finalizeContract = this.finalizeContract.bind(this), goBack = this.showBtns.bind(this), loadHiddenText = this.loadHiddenText.bind(this);
         const selectCtrls = [];
         await loopSelectCtrls();
         async function loopSelectCtrls() {
@@ -845,12 +859,7 @@ export class EditContract extends WordContentCtrls {
             await context.sync();
             if (!label)
                 return showAlert('The lable was not found, it was probably deleted at some point');
-            label.cannotEdit = false; //!WARNING, we must unlock the cannotEdit before unhidding the font
-            label.font.hidden = false; //!WARNING, this must come before range.load('text')
-            label.load(['text']);
-            label.font.hidden = true;
-            label.cannotEdit = true;
-            await context.sync();
+            await loadHiddenText(label, context);
             return label;
         }
         ;
@@ -1190,7 +1199,7 @@ export class EditContract extends WordContentCtrls {
             const allCtrls = context.document.getContentControls();
             allCtrls.load(['id', 'tag', 'title', 'parentContentControlOrNullObject/id']);
             const body = context.document.body.getRange();
-            body.load(['paragraphs', 'paragraphs/style']);
+            body.load(['paragraphs/style']);
             await context.sync();
             allCtrls.items
                 .forEach(c => {
@@ -1222,18 +1231,18 @@ export class EditContract extends WordContentCtrls {
                     logNotification(message);
                 }
             }
-            body.paragraphs.items
-                .filter(p => styles.includes(p.style))
-                .forEach(p => {
+            for (const p of body.paragraphs.items) {
                 try {
-                    p.style = `${this.StylePrefix}Normal`;
-                    p.delete();
+                    const text = p.getText({ includeHiddenText: true });
+                    await context.sync();
+                    if (!text.value.trim().length)
+                        p.delete();
                 }
                 catch (error) {
                     const message = `Error while deleting unwanted paragrapphs:\n Error: ${error.debugInfo ?? error}`;
                     logNotification(message);
                 }
-            });
+            }
             await context.sync();
         });
         spinner.remove();
@@ -1363,7 +1372,7 @@ export class WordFileds extends WordContentCtrls {
     }
     async editExistingFields() {
         USERFORM.innerHTML = '';
-        const showBtns = this.showButtons.bind(this);
+        const showBtns = this.showButtons.bind(this), loadHiddenText = this.loadHiddenText;
         const types = [this._fillIn, this._ask];
         const siTag = this.RTSiTag, secTag = this.RTSectionTag;
         await Word.run(async (context) => {
@@ -1375,7 +1384,12 @@ export class WordFileds extends WordContentCtrls {
             await context.sync();
             const ctrls = [selects.items, clone.items].flat();
             for (const ctrl of ctrls) {
-                await process(ctrl);
+                try {
+                    await process(ctrl);
+                }
+                catch (error) {
+                    logNotification(`There was an error while processing the field:\n${error.debugInfo ?? error}`);
+                }
                 showBtns();
             }
             async function process(ctrl) {
@@ -1386,9 +1400,7 @@ export class WordFileds extends WordContentCtrls {
                 fields.forEach(field => field.result.load(['text']));
                 const si = ctrl.getContentControls().getByTag(siTag).getFirst();
                 if (si) {
-                    si.font.hidden = false;
-                    si.load(['text']);
-                    si.font.hidden = true;
+                    await loadHiddenText(si, context);
                 }
                 ;
                 await context.sync();

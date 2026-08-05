@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.19.0";
+const version = "v11.19.1";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -320,6 +320,23 @@ class WordContentCtrls {
             field.title = `${this.RTFieldTag}&${title}`;
             await context.sync();
         })
+    }
+
+    /**
+     * Loads the hidden text of a contentControl 
+     * @param ctrl 
+     * @param context 
+     */
+    protected async loadHiddenText(ctrl: ContentControl, context: Word.RequestContext) {
+        const cannotEdit = ctrl.cannotEdit,
+            isHidden = ctrl.font.hidden;//We capture the original status of cannotEdit and .font.hidden
+
+        ctrl.cannotEdit = false;//!WARNING, we must unlock the cannotEdit before unhidding the font
+        ctrl.font.hidden = false;//!WARNING, this must come before range.load('text')
+        ctrl.load(['text']);
+        ctrl.font.hidden = isHidden;
+        ctrl.cannotEdit = cannotEdit;
+        await context.sync();
     }
 
     protected async updateAllContentControlIDs() {
@@ -874,7 +891,8 @@ export class EditContract extends WordContentCtrls {
 
         const getCtrlTitle = this.getCtrlTitle.bind(this),
             finalizeContract = this.finalizeContract.bind(this),
-            goBack = this.showBtns.bind(this);
+            goBack = this.showBtns.bind(this),
+            loadHiddenText = this.loadHiddenText.bind(this);
 
 
         const selectCtrls: selectCtrl[] = [];
@@ -913,13 +931,7 @@ export class EditContract extends WordContentCtrls {
             const label = context.document.getContentControls().getById(id);
             await context.sync();
             if (!label) return showAlert('The lable was not found, it was probably deleted at some point');
-
-            label.cannotEdit = false;//!WARNING, we must unlock the cannotEdit before unhidding the font
-            label.font.hidden = false;//!WARNING, this must come before range.load('text')
-            label.load(['text']);
-            label.font.hidden = true;
-            label.cannotEdit = true;
-            await context.sync();
+            await loadHiddenText(label, context);
             return label
         };
 
@@ -1306,7 +1318,7 @@ export class EditContract extends WordContentCtrls {
 
             allCtrls.load(['id', 'tag', 'title', 'parentContentControlOrNullObject/id']);
             const body = context.document.body.getRange();
-            body.load(['paragraphs', 'paragraphs/style']);
+            body.load(['paragraphs/style']);
             await context.sync();
 
             allCtrls.items
@@ -1338,17 +1350,16 @@ export class EditContract extends WordContentCtrls {
                 }
             }
 
-            body.paragraphs.items
-                .filter(p => styles.includes(p.style))
-                .forEach(p => {
-                    try {
-                        p.style = `${this.StylePrefix}Normal`;
-                        p.delete();
-                    } catch (error: any) {
-                        const message = `Error while deleting unwanted paragrapphs:\n Error: ${error.debugInfo ?? error}`
-                        logNotification(message);
-                    }
-                });
+            for (const p of body.paragraphs.items) {
+                try {
+                    const text = p.getText({ includeHiddenText: true });
+                    await context.sync();
+                    if (!text.value.trim().length) p.delete();
+                } catch (error: any) {
+                    const message = `Error while deleting unwanted paragrapphs:\n Error: ${error.debugInfo ?? error}`
+                    logNotification(message);
+                }
+            }
 
 
             await context.sync();
@@ -1357,7 +1368,6 @@ export class EditContract extends WordContentCtrls {
         spinner.remove();
 
     }
-
 
     private async searchString(search: string, context: Word.RequestContext, matchWildcards: boolean, replaceWith?: string): Promise<Word.RangeCollection> {
         const searchResults = context.document.body.search(search, { matchWildcards: matchWildcards });
@@ -1508,7 +1518,8 @@ export class WordFileds extends WordContentCtrls {
 
     private async editExistingFields() {
         USERFORM.innerHTML = '';
-        const showBtns = this.showButtons.bind(this);
+        const showBtns = this.showButtons.bind(this),
+            loadHiddenText = this.loadHiddenText;
         const types = [this._fillIn, this._ask];
         const siTag = this.RTSiTag, secTag = this.RTSectionTag;
         await Word.run(async (context) => {
@@ -1522,11 +1533,12 @@ export class WordFileds extends WordContentCtrls {
             const ctrls = [selects.items, clone.items].flat();
 
             for (const ctrl of ctrls) {
-
-                await process(ctrl);
-
+                try {
+                    await process(ctrl);
+                } catch (error: any) {
+                    logNotification(`There was an error while processing the field:\n${error.debugInfo ?? error}`)
+                }
                 showBtns();
-
             }
 
 
@@ -1538,14 +1550,11 @@ export class WordFileds extends WordContentCtrls {
 
                 if (!fields.length) return console.log("no FILLIN or ASK fields were found");
 
-
                 fields.forEach(field => field.result.load(['text']));
 
                 const si = ctrl.getContentControls().getByTag(siTag).getFirst();
                 if (si) {
-                    si.font.hidden = false;
-                    si.load(['text']);
-                    si.font.hidden = true;
+                    await loadHiddenText(si, context);
                 };
 
                 await context.sync();
