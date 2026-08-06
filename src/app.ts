@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.19.6";
+const version = "v11.19.7";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -50,7 +50,7 @@ function showSpinner(message: string) {
     const p = element('p', '', message, window, '', true);
     window.style.backgroundColor = '#109cc2ff';
     p.style.color = '#ffffffff'
-    element('div', 'spinner', undefined, modal, 'spinner', true);
+    element('div', 'spinner', undefined, window, 'spinner', true);
     return modal;
 }
 
@@ -1547,54 +1547,72 @@ export class WordFileds extends WordContentCtrls {
         const showBtns = this.showButtons.bind(this),
             loadHiddenText = this.loadHiddenText;
         const types = [this._fillIn, this._ask];
+        const props = ['fields/code', 'fields/result', 'fields/type']
         const tags = [this.RTSiTag, this.RTSectionTag];
+
+        const byType = (fileds: Word.FieldCollection) => fileds.items.filter(f => types.includes(f.type as Word.FieldType));
+
+        const logError = (error: any) =>
+            logNotification(`There was an error while processing the field:\n${error.debugInfo ?? error}`)
+
         await Word.run(async (context) => {
-            const props = ['id', 'fields/code', 'fields/result', 'fields/type']
-            const selects = context.document.getContentControls().getByTag(this.RTSelectTag);
-            selects.load(props);
-            const clone = context.document.getContentControls().getByTag(this.RTCloneTag);
-            clone.load(props);
+            const ctrls = context.document.getContentControls();
+            ctrls.load(props);
+            const body = context.document.body;
+            body.load(props);
             await context.sync();
 
-            const ctrls = [selects.items, clone.items].flat();
+            const selects = ctrls.items
+                .filter(c => [this.RTSelectTag, this.RTCloneTag].includes(c.tag));
 
-            for (const ctrl of ctrls) {
-                try {
-                    spinner.remove();
-                    await process(ctrl);
-                } catch (error: any) {
-                    logNotification(`There was an error while processing the field:\n${error.debugInfo ?? error}`)
-                }
-                showBtns();
+            spinner.remove();
+
+            if (!selects.length) {
+                await process()
+                    .catch(e => logError(e));
+            }
+            else {
+                for (const ctrl of selects)
+                    await process(ctrl)
+                        .catch(e => logError(e));
             }
 
+            showBtns();
 
-            async function process(ctrl: ContentControl) {
-                ctrl.select(Word.SelectionMode.select);
 
-                const fields = ctrl.fields.items.filter(field => types.includes(field.type as Word.FieldType));
+            async function process(ctrl?: ContentControl) {
+                let fields: Word.Field[];
+
+                if (ctrl) {
+                    USERFORM.innerHTML = '';
+                    fields = byType(ctrl.fields);
+                    const nested = ctrl.getContentControls();
+                    nested.load(['tag', 'cannotEdit', 'font/hidden']);
+                    await context.sync();
+
+                    const si = nested.items.find(c => tags.includes(c.tag));
+
+                    if (si) await loadHiddenText(si, context);
+
+                    if (si?.text) element<HTMLDivElement>('label', undefined, si.text, USERFORM, undefined, true);
+                    ctrl.select(Word.SelectionMode.select);
+                } else {
+                    fields = byType(body.fields);
+                }
+
 
                 if (!fields.length) return console.log("no FILLIN or ASK fields were found");
 
                 fields.forEach(field => field.result.load(['text']));
-
-                const nested = ctrl.getContentControls();
-                nested.load(['tag', 'cannotEdit', 'font/hidden']);
                 await context.sync();
 
-                const si = nested.items.find(c => tags.includes(c.tag));
-
-                if (si) await loadHiddenText(si, context);
-
-                if (si?.text) element<HTMLDivElement>('label', undefined, si.text, USERFORM, undefined, true);
 
                 const inputs: [HTMLInputElement, Word.Field][] = fields.map((field, index) => {
                     const code = field.code;
-                    console.log("field code = " + code);
                     const label = code.match(/"([^"]+)"/i)?.[1];
 
                     if (!label) {
-                        console.log('could not extract label from code = ' + code);
+                        logNotification('could not extract label from code = ' + code);
                         return undefined;
                     };
                     const wraper = element<HTMLDivElement>('div', '', '', USERFORM, '', true);
