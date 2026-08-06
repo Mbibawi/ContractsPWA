@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.19.4";
+const version = "v11.19.5";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -1371,7 +1371,7 @@ export class WordFileds extends WordContentCtrls {
     }
     async editExistingFields() {
         USERFORM.innerHTML = '';
-        showSpinner('Loading Fields\n Please Wait');
+        const spinner = showSpinner('Loading Fields\n Please Wait');
         const showBtns = this.showButtons.bind(this), loadHiddenText = this.loadHiddenText;
         const types = [this._fillIn, this._ask];
         const tags = [this.RTSiTag, this.RTSectionTag];
@@ -1385,6 +1385,7 @@ export class WordFileds extends WordContentCtrls {
             const ctrls = [selects.items, clone.items].flat();
             for (const ctrl of ctrls) {
                 try {
+                    spinner.remove();
                     await process(ctrl);
                 }
                 catch (error) {

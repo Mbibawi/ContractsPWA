@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.19.4";
+const version = "v11.19.5";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -1517,7 +1517,7 @@ export class WordFileds extends WordContentCtrls {
 
     private async editExistingFields() {
         USERFORM.innerHTML = '';
-        showSpinner('Loading Fields\n Please Wait');
+        const spinner = showSpinner('Loading Fields\n Please Wait');
         const showBtns = this.showButtons.bind(this),
             loadHiddenText = this.loadHiddenText;
         const types = [this._fillIn, this._ask];
@@ -1534,6 +1534,7 @@ export class WordFileds extends WordContentCtrls {
 
             for (const ctrl of ctrls) {
                 try {
+                    spinner.remove();
                     await process(ctrl);
                 } catch (error: any) {
                     logNotification(`There was an error while processing the field:\n${error.debugInfo ?? error}`)
