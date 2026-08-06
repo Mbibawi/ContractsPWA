@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.19.1";
+const version = "v11.19.2";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -929,6 +929,7 @@ export class EditContract extends WordContentCtrls {
 
         async function labelRange(id: number, context: Word.RequestContext) {
             const label = context.document.getContentControls().getById(id);
+            label.load(['cannotEdit']);
             await context.sync();
             if (!label) return showAlert('The lable was not found, it was probably deleted at some point');
             await loadHiddenText(label, context);
@@ -941,7 +942,7 @@ export class EditContract extends WordContentCtrls {
             try {
                 await processCtrls()
             } catch (error) {
-                return logNotification(`Error from showSelectPrompt() = ${error}`)
+                return logNotification(`Error from promptForSelection() = ${error}`)
             }
 
             async function processCtrls() {

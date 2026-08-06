@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.19.1";
+const version = "v11.19.2";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -856,6 +856,7 @@ export class EditContract extends WordContentCtrls {
         }
         async function labelRange(id, context) {
             const label = context.document.getContentControls().getById(id);
+            label.load(['cannotEdit']);
             await context.sync();
             if (!label)
                 return showAlert('The lable was not found, it was probably deleted at some point');
@@ -870,7 +871,7 @@ export class EditContract extends WordContentCtrls {
                 await processCtrls();
             }
             catch (error) {
-                return logNotification(`Error from showSelectPrompt() = ${error}`);
+                return logNotification(`Error from promptForSelection() = ${error}`);
             }
             async function processCtrls() {
                 if (clear)
