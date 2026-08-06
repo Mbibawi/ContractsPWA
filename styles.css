@@ -91,13 +91,19 @@ div {
 
 label {
   display: block;
+  border-radius: 5%;
   /* Each label on its own line */
   margin-bottom: 8px;
   font-weight: 600;
   color: #0b0b2efd;
-  background-color: '#8a5506ff';
+  background-color: rgb(240, 135, 135);
   font-size: 0.95em;
 }
+
+.promptContainer>label {
+  background-color: rgb(129, 155, 113) !important;
+}
+
 
 input[type="number"],
 select,
