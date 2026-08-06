@@ -94,7 +94,8 @@ label {
   /* Each label on its own line */
   margin-bottom: 8px;
   font-weight: 600;
-  color: #555;
+  color: #0b0b2efd;
+  background-color: '#8a5506ff';
   font-size: 0.95em;
 }
 

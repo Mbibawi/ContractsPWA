@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.19.3";
+const version = "v11.19.4";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -992,9 +992,7 @@ export class EditContract extends WordContentCtrls {
                     if (!label)
                         return showAlert("The Label ContentControl could not be found");
                     const text = label.text || 'Label text could not be retrived';
-                    const html = element('label', 'label', text, wraper);
-                    html.style.backgroundColor = '#8a5506ff';
-                    return html;
+                    return element('label', undefined, text, wraper);
                 }
                 ;
             }
@@ -1373,9 +1371,10 @@ export class WordFileds extends WordContentCtrls {
     }
     async editExistingFields() {
         USERFORM.innerHTML = '';
+        showSpinner('Loading Fields\n Please Wait');
         const showBtns = this.showButtons.bind(this), loadHiddenText = this.loadHiddenText;
         const types = [this._fillIn, this._ask];
-        const siTag = this.RTSiTag, secTag = this.RTSectionTag;
+        const tags = [this.RTSiTag, this.RTSectionTag];
         await Word.run(async (context) => {
             const props = ['id', 'fields/code', 'fields/result', 'fields/type'];
             const selects = context.document.getContentControls().getByTag(this.RTSelectTag);
@@ -1399,14 +1398,14 @@ export class WordFileds extends WordContentCtrls {
                 if (!fields.length)
                     return console.log("no FILLIN or ASK fields were found");
                 fields.forEach(field => field.result.load(['text']));
-                const si = ctrl.getContentControls().getByTag(siTag).getFirst();
-                if (si) {
-                    await loadHiddenText(si, context);
-                }
-                ;
+                const nested = ctrl.getContentControls();
+                nested.load(['tag', 'cannotEdit', 'font/hidden']);
                 await context.sync();
-                if (si.text)
-                    element('div', undefined, si.text, USERFORM, undefined, true);
+                const si = nested.items.find(c => tags.includes(c.tag));
+                if (si)
+                    await loadHiddenText(si, context);
+                if (si?.text)
+                    element('label', undefined, si.text, USERFORM, undefined, true);
                 const inputs = fields.map((field, index) => {
                     const code = field.code;
                     console.log("field code = " + code);
@@ -1416,10 +1415,10 @@ export class WordFileds extends WordContentCtrls {
                         return undefined;
                     }
                     ;
-                    const div = element('div', '', '', USERFORM, '', true);
-                    element('label', '', label, div, '', true);
-                    const input = element('input', '', '', div, `FILLIN_${index.toString()}`, true);
-                    input.value = field.result.text;
+                    const wraper = element('div', '', '', USERFORM, '', true);
+                    element('label', '', label, wraper, '', true);
+                    const input = element('input', '', '', wraper, `Field_${index.toString()}`, true);
+                    input.value = field.result.text || '[*]';
                     input.onmouseenter = async () => {
                         field.select();
                         await context.sync();
