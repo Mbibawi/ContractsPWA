@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.19.5";
+const version = "v11.19.6";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -445,6 +445,7 @@ export class EditContract extends WordContentCtrls {
 
         const siTag = this.RTSiTag,
             selectTag = this.RTSelectTag,
+            coloneTag = this.RTCloneTag,
             sectionTag = this.RTSectionTag,
             descTag = this.RTDescriptionTag,
             stylePrefix = this.StylePrefix,
@@ -491,6 +492,7 @@ export class EditContract extends WordContentCtrls {
             { fun: () => this.customizeContract(true), label: 'Show Nested Options Tree', hint: 'Lists all the selection options in the document' },
             { fun: this.updateAllContentControlIDs, label: 'Update ContentControl Titles', hint: 'Updates the titles of all the ContentControls in the document' },
             { fun: automaticallyInsertSelectWrapers, label: 'Insert Selects & Si in Selection', hint: 'Wraps all the paragraphs with RTSi style in RTSelect ContentControls according to their levels' },
+            { fun: removeSelectCtrls, label: 'Remove Select Ctrls', hint: 'removes all the RTSelect, RTClone, RTSi and RTSection contentControls from the selected range' },
         ] as Btn[];
 
         this.showBtns(btns)
@@ -638,6 +640,30 @@ export class EditContract extends WordContentCtrls {
 
             });
 
+
+        }
+
+        async function removeSelectCtrls() {
+            await Word.run(async (context) => {
+                const ctrls = context.document.getSelection().getContentControls();
+                ctrls.load(['id', 'title', 'tag']);
+                await context.sync();
+                const tags = [sectionTag, siTag, selectTag, coloneTag];
+
+                const remove = ctrls.items.filter(c => tags.includes(c.tag));
+                const spinner = showSpinner('Deleting ctrls');
+                for (const ctrl of remove) {
+                    try {
+                        ctrl.cannotDelete = false;
+                        ctrl.delete(true);
+                    } catch (error: any) {
+                        logNotification(`Error while removing control: ${error.debugInfo ?? error} `)
+                    }
+                }
+                await context.sync();
+                spinner.remove();
+
+            })
 
         }
 

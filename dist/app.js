@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.19.5";
+const version = "v11.19.6";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -420,7 +420,7 @@ export class EditContract extends WordContentCtrls {
     prepareTemplate() {
         USERFORM.innerHTML = '';
         const searchString = this.searchString.bind(this), getSelectionRange = this.getSelectionRange.bind(this), insertContentControl = this.insertContentControl.bind(this), setCtrlsColor = this.setCtrlsColor.bind(this), setCtrlsFontColor = this.setCtrlsFontColor.bind(this), insertAskField = this._fields.insertAskField.bind(this._fields), insertFILLINField = this._fields.insertFIllINField.bind(this._fields);
-        const siTag = this.RTSiTag, selectTag = this.RTSelectTag, sectionTag = this.RTSectionTag, descTag = this.RTDescriptionTag, stylePrefix = this.StylePrefix, richText = this.richText, comboTag = this.RTComboBoxTag;
+        const siTag = this.RTSiTag, selectTag = this.RTSelectTag, coloneTag = this.RTCloneTag, sectionTag = this.RTSectionTag, descTag = this.RTDescriptionTag, stylePrefix = this.StylePrefix, richText = this.richText, comboTag = this.RTComboBoxTag;
         const descStyle = this.RTDescriptionStyle, siStyle = this.RTSiStyles, sectionStyle = this.RTSectionStyle, comboBox = this.comboBox;
         const wrapRange = this.wrapSelectionWithContentControl.bind(this);
         function wrap(title, tag, type, cannotEdit, cannotDelete, label, style, hint) {
@@ -455,6 +455,7 @@ export class EditContract extends WordContentCtrls {
             { fun: () => this.customizeContract(true), label: 'Show Nested Options Tree', hint: 'Lists all the selection options in the document' },
             { fun: this.updateAllContentControlIDs, label: 'Update ContentControl Titles', hint: 'Updates the titles of all the ContentControls in the document' },
             { fun: automaticallyInsertSelectWrapers, label: 'Insert Selects & Si in Selection', hint: 'Wraps all the paragraphs with RTSi style in RTSelect ContentControls according to their levels' },
+            { fun: removeSelectCtrls, label: 'Remove Select Ctrls', hint: 'removes all the RTSelect, RTClone, RTSi and RTSection contentControls from the selected range' },
         ];
         this.showBtns(btns)
             .forEach(({ wraper }) => {
@@ -589,6 +590,27 @@ export class EditContract extends WordContentCtrls {
                         return;
                     await processSelectWraper(select);
                 }
+            });
+        }
+        async function removeSelectCtrls() {
+            await Word.run(async (context) => {
+                const ctrls = context.document.getSelection().getContentControls();
+                ctrls.load(['id', 'title', 'tag']);
+                await context.sync();
+                const tags = [sectionTag, siTag, selectTag, coloneTag];
+                const remove = ctrls.items.filter(c => tags.includes(c.tag));
+                const spinner = showSpinner('Deleting ctrls');
+                for (const ctrl of remove) {
+                    try {
+                        ctrl.cannotDelete = false;
+                        ctrl.delete(true);
+                    }
+                    catch (error) {
+                        logNotification(`Error while removing control: ${error.debugInfo ?? error} `);
+                    }
+                }
+                await context.sync();
+                spinner.remove();
             });
         }
         async function insertRTBlock_Select_Si(range, props = []) {
