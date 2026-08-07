@@ -181,7 +181,6 @@ button {
 button:hover {
   /* Darker blue on hover */
   background-color: #2980b9;
-  background-color: #f0f2f5;
   /* Slight lift effect*/
   transform: translateY(-2px);
 }
