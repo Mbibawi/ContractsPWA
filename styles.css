@@ -1,20 +1,5 @@
 /* General Body and Typography */
 
-.select {
-  display: inline-flex;
-  align-items: left;
-  margin-bottom: 10px;
-  /* Space between options */
-  gap: 8px;
-  /* Optional: Adjust spacing between checkbox and label */
-  width: 100%;
-  box-sizing: border-box;
-  /* Include padding in width */
-  padding: 5px;
-  border: 1px solid #ccc;
-  /* Light border */
-}
-
 
 .ask {
   color: #991c63
@@ -89,19 +74,42 @@ div {
   /* Spacing between form groups */
 }
 
+
+.select {
+  display: inline-flex;
+  border-radius: 10px;
+  border-color: #2c3e50;
+  border-style: groove;
+  background-color: #f0f2f5;
+  align-items: left;
+  margin-bottom: 10px;
+  /* Space between options */
+  gap: 8px;
+  /* Optional: Adjust spacing between checkbox and label */
+  width: 100%;
+  box-sizing: border-box;
+  /* Include padding in width */
+  padding: 5px;
+  border: 1px solid #ccc;
+  /* Light border */
+}
+
 label {
   display: block;
-  border-radius: 10%;
+  border-radius: 10px;
   /* Each label on its own line */
   margin-bottom: 8px;
+  font-family: 'Times New Roman', Times, serif;
   font-weight: 600;
   color: #0b0b2efd;
   font-size: 0.95em;
 }
 
 .promptContainer>label {
-  background-color: rgb(129, 155, 113) !important;
+  background-color: rgb(113 155 129) !important;
+  padding: 5px;
 }
+
 
 
 input[type="number"],
@@ -171,16 +179,15 @@ button {
 }
 
 button:hover {
+  /* Darker blue on hover */
   background-color: #2980b9;
   background-color: #f0f2f5;
-  /* Darker blue on hover */
-  /*transform: translateY(-2px);*/
-  /* Slight lift effect */
+  /* Slight lift effect*/
+  transform: translateY(-2px);
 }
 
 button:active {
-  /*transform: translateY(0);*/
-  /* Return to original position on click */
+  transform: translateY(0);
 }
 
 /* Gemini Response Output Area */
@@ -206,6 +213,7 @@ button:active {
 .hintBox {
   position: 'absolute';
   bottom: '100%';
+  border-radius: 10px;
   left: '0';
   padding: '6px 10px';
   background: '#333';
@@ -216,7 +224,7 @@ button:active {
   /* opacity: '0'; */
   display: none;
   /* visibility: 'hidden'; */
-  pointer-events: 'none';
+  pointer-events: none;
   /* transition: 'opacity 0.15s ease'; */
 }
 
