@@ -1,5 +1,8 @@
 /* General Body and Typography */
 
+#userFormSection {
+  pointer-events: none;
+}
 
 .ask {
   color: #991c63
