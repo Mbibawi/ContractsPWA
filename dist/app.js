@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.19.7.5";
+const version = "v11.19.7.6";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -1440,8 +1440,7 @@ export class WordFileds extends WordContentCtrls {
                 const input = element('input', '', '', wraper, undefined, true);
                 input.value = field.result.text || '[*]';
                 input.onmouseenter = async () => {
-                    if (field.type === Word.FieldType.fillIn)
-                        field.select();
+                    field.select();
                     await context.sync();
                 };
                 input.onchange = () => onChange(question);
