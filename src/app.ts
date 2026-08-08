@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.19.7.6";
+const version = "v11.19.7.7";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -790,7 +790,7 @@ export class EditContract extends WordContentCtrls {
                     const values = await insertAskField(placeholder);
                     if (!values) return;
                     const { bookmark } = values;
-                    await replace('amount', `${bookmark} \\h`);
+                    await replace('amount', `${bookmark} \\h \\# 000.000,00`);
                     await replace('cardText', `${bookmark} \\h \\*cardText`);
                     await context.sync();
 

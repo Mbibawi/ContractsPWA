@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.19.7.6";
+const version = "v11.19.7.7";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -735,7 +735,7 @@ export class EditContract extends WordContentCtrls {
                     if (!values)
                         return;
                     const { bookmark } = values;
-                    await replace('amount', `${bookmark} \\h`);
+                    await replace('amount', `${bookmark} \\h \\# 000.000,00`);
                     await replace('cardText', `${bookmark} \\h \\*cardText`);
                     await context.sync();
                     async function replace(key, code) {
