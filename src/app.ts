@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.19.7.4";
+const version = "v11.19.7.5";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -1565,6 +1565,8 @@ export class WordFileds extends WordContentCtrls {
             await context.sync();
 
             const fields = body.fields.items.filter(f => types.includes(f.type as Word.FieldType));
+            const refs = body.fields.items.filter(f => f.type === Word.FieldType.ref);
+
 
             spinner.remove();
 
@@ -1607,15 +1609,42 @@ export class WordFileds extends WordContentCtrls {
                 const input = element<HTMLInputElement>('input', '', '', wraper, undefined, true);
                 input.value = field.result.text || '[*]';
                 input.onmouseenter = async () => {
-                    field.select();
+                    if (field.type === Word.FieldType.fillIn)
+                        field.select();
                     await context.sync();
                 };
-                input.onchange = async () => {
-                    field.result.insertText(input.value || '[*]', Word.InsertLocation.replace);
-                    await context.sync();
-                };
+                input.onchange = () => onChange(question);
 
                 return input;
+
+                async function onChange(question: string) {
+                    const value = input.value || '[*]';
+
+                    if (field.type === Word.FieldType.fillIn)
+                        field.result.insertText(value, Word.InsertLocation.replace);
+                    else if (field.type === Word.FieldType.ask)
+                        updateAskField();
+                    await context.sync();
+
+                    async function updateAskField() {
+                        const code = field.code;
+                        const bookmark = code
+                            .split(`"${question}"`)[0]
+                            .split(field.type.toUpperCase())[1]
+                            ?.trim();
+                        if (!bookmark)
+                            return showAlert(`The bookmark could not be extracted from the field code:\n ${code}`);
+                        field.result.insertText('', Word.InsertLocation.replace);//!We must delete any text first
+                        field.result.insertText(value, Word.InsertLocation.start);
+
+                        field.result.insertBookmark(bookmark);
+
+                        refs.filter(f => f.code.includes(` ${bookmark}`))
+                            .forEach(f => f.updateResult());
+
+                    }
+                }
+
             }
 
             async function awaitPromise(inputs: [HTMLInputElement, Word.Field][]) {
@@ -1651,7 +1680,8 @@ export class WordFileds extends WordContentCtrls {
 
                 if (!si.text) return;
 
-                element('label', undefined, si.text, USERFORM, undefined, true);
+                element('label', undefined, si.text, USERFORM, undefined, true)
+                    .style.backgroundColor = 'rgb(113 155 129)';
 
             }
 
