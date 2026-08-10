@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.19.7.7";
+const version = "v11.19.7.8";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -61,7 +61,7 @@ function element(tag, css, textContent, parent, id, append = true) {
 }
 async function promptForInput(questions, deflt, fun, parent) {
     if (!questions?.length)
-        return [];
+        return undefined;
     const { modal, window } = getModalContainer(parent ?? USERFORM);
     const inputs = questions.map(question => {
         const div = element('div', '', undefined, window, undefined, true);
@@ -731,7 +731,7 @@ export class EditContract extends WordContentCtrls {
                     const placeholder = await replace('cardText');
                     if (!placeholder)
                         return;
-                    const values = await insertAskField(placeholder);
+                    const values = await insertAskField(placeholder, false);
                     if (!values)
                         return;
                     const { bookmark } = values;
@@ -809,10 +809,12 @@ export class EditContract extends WordContentCtrls {
             }
             async function searchs() {
                 const separator = '_&_';
-                const search = (await promptForInput([`Provide the search string. You can provide more than one string to search by separated by ${separator} witohout space`], separator))?.split(separator);
+                const search = (await promptForInput([`Provide the search string. You can provide more than one string to search by separated by ${separator} witohout space`], separator))
+                    ?.split(separator);
                 const matchWildcards = await promptConfirm('Match Wild Cards');
                 if (!styles)
-                    styles = (await promptForInput([`Provide the styles that that need to be matched separated by ","`]))?.split(',').map(style => style.trim()) || [];
+                    styles = (await promptForInput([`Provide the styles that that need to be matched separated by ","`]))
+                        ?.split(',').map(style => style.trim()) || [];
                 return { search, matchWildcards };
             }
         }
@@ -1124,16 +1126,17 @@ export class EditContract extends WordContentCtrls {
                 const ctrls = context.document.getContentControls();
                 ctrls.load(['id']);
                 await context.sync();
-                const ids = selectCtrls.filter(c => c.delete).map(c => c.id);
-                const toDelete = ctrls.items.filter(ctrl => ids.includes(ctrl.id));
+                ctrls.items
+                    .forEach(ctrl => ctrl.cannotDelete = false); //We remove any protection on all the contentControls in the documnet, in order for the user to be able to delete any contentControl if he wants.
+                const ids = selectCtrls
+                    .filter(c => c.delete)
+                    .map(c => c.id);
+                const toDelete = ctrls.items
+                    .filter(ctrl => ids.includes(ctrl.id));
                 console.log(`toDelete ids = ${toDelete.map(ctrl => ctrl.id)}`);
                 for (const ctrl of toDelete) {
                     try {
                         ctrl.select();
-                        const nested = ctrl.getContentControls();
-                        nested.load('id');
-                        await context.sync();
-                        [ctrl, ...nested.items].forEach(c => c.cannotDelete = false);
                         ctrl.delete(false);
                         await context.sync();
                     }
@@ -1507,46 +1510,71 @@ export class WordFileds extends WordContentCtrls {
             }
         });
     }
-    async insertAskField(range) {
+    async insertAskField(range, ref = true) {
+        const fieldCode = (answers) => {
+            const [bookmarkName, prompt] = answers;
+            if (bookmarkName.length > 39)
+                return showAlert('The bookmark is too long, it should not exceed 40 characters');
+            return `${bookmarkName.replaceAll(' ', '')}  "${prompt}" \\d [*]`;
+        };
+        const labels = ['Provide the name of the bookmark associated with the ASK Field (without spaces)', 'Provide the user prompt'];
         try {
-            const fieldCode = (answers) => {
-                const [bookmarkName, prompt] = answers;
-                return `${bookmarkName.replaceAll(' ', '')}  "${prompt}" \\d [*]`;
-            };
-            const labels = ['Provide the name of the bookmark without spaces', 'Provide the user prompt'];
-            const values = await this.insertField(labels, Word.FieldType.ask, range, fieldCode);
+            const values = await this.insertField(labels, Word.FieldType.ask, range, fieldCode, ['result']);
             if (!values)
                 throw new Error('Failed to insert the field');
-            const { answers } = values;
+            const { field, answers } = values;
             const [bookmark, prompt] = answers;
-            return { bookmark, prompt };
+            if (!ref)
+                return { Ask: field, bookmark, prompt };
+            const Ref = await this.insertBookMarkField(field.result, Word.InsertLocation.after, bookmark);
+            if (!Ref)
+                return { Ask: field, bookmark, prompt };
+            return { Ask: field, Ref: Ref.Ref, bookmark, prompt };
         }
         catch (error) {
             showAlert(`insertAskField() failed with error: ${error.debugInfo || error}`);
         }
     }
     ;
+    async insertBookMarkField(range, location, bookmark, code) {
+        if (!bookmark)
+            bookmark = await promptForInput(['Provide the name of the bookmark associated with the REF field (without spaces)'], '[*]');
+        if (!bookmark)
+            return showAlert('The provided bookmark is not valid');
+        if (bookmark.length > 40)
+            return showAlert(`The provided bookmark name is too long. It must be less than 40 characters`);
+        if (!code)
+            code = `${bookmark.replaceAll(' ', '')} \\h`;
+        const Ref = range.insertField(location ?? Word.InsertLocation.after, Word.FieldType.ref, code);
+        return { Ref };
+    }
     async insertFIllINField(range) {
+        const fieldCode = (answers) => {
+            const [prompt, deflt] = answers;
+            return `"${prompt}"  \\d ${deflt || '[*]'}`;
+        };
+        const labels = ['Provide the FILLIN user prompt', 'Provide the FILLIN default value'];
         try {
-            const fieldCode = (answers) => {
-                const [prompt, deflt] = answers;
-                return `"${prompt}"  \\d ${deflt || '[*]'}`;
-            };
-            const labels = ['Provide the FILLIN user prompt', 'Provide the FILLIN default value'];
-            await this.insertField(labels, Word.FieldType.fillIn, range, fieldCode);
+            await this.insertField(labels, Word.FieldType.fillIn, range, fieldCode, ['result']);
         }
         catch (error) {
             showAlert(`insertFILLINField() failed with error: ${error.debugInfo || error}`);
         }
     }
     ;
-    async insertField(labels, type, range, fieldCode) {
+    async insertField(labels, type, range, fieldCode, props) {
         const answers = await promptForInput(labels, '[*]', undefined);
+        if (!answers)
+            return showAlert('Failed to retrieve the user\'s answers when he was prompted');
         return await Word.run(async (context) => {
             try {
                 if (!range)
                     range = context.document.getSelection().getRange(Word.RangeLocation.whole);
+                if (fieldCode && !fieldCode(answers))
+                    return;
                 const field = range.insertField(Word.InsertLocation.start, type, fieldCode ? fieldCode(answers) : undefined);
+                if (props)
+                    field.load(props);
                 field.track();
                 await context.sync();
                 return { field, answers };

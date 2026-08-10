@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.19.7.7";
+const version = "v11.19.7.8";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -65,8 +65,8 @@ function element<T extends HTMLElement>(tag: string, css?: string, textContent?:
     return el
 }
 
-async function promptForInput(questions: string[], deflt?: string, fun?: Function, parent?: HTMLElement): Promise<string[] | string | void> {
-    if (!questions?.length) return [];
+async function promptForInput<T = string | string[]>(questions: string[], deflt?: string, fun?: Function, parent?: HTMLElement): Promise<T | undefined> {
+    if (!questions?.length) return undefined;
     const { modal, window } = getModalContainer(parent ?? USERFORM);
     const inputs = questions.map(question => {
         const div = element('div', '', undefined, window, undefined, true);
@@ -86,10 +86,9 @@ async function promptForInput(questions: string[], deflt?: string, fun?: Functio
             console.log('user answers = ', answers.join('|'));
             modal.remove();
             if (fun) fun(answers);
-            answers.length === 1 ? resolve(answers[0]) : resolve(answers)
+            answers.length === 1 ? resolve(answers[0] as T) : resolve(answers as T)
         };
     });
-
 };
 
 async function promptConfirm(question: string, fun?: Function): Promise<boolean> {
@@ -787,11 +786,12 @@ export class EditContract extends WordContentCtrls {
                     const content = wraper.getRange(Word.RangeLocation.content);
                     const placeholder = await replace('cardText');
                     if (!placeholder) return;
-                    const values = await insertAskField(placeholder);
+                    const values = await insertAskField(placeholder, false);
                     if (!values) return;
                     const { bookmark } = values;
                     await replace('amount', `${bookmark} \\h \\# 000.000,00`);
                     await replace('cardText', `${bookmark} \\h \\*cardText`);
+
                     await context.sync();
 
                     async function replace(key: string, code?: string) {
@@ -867,10 +867,13 @@ export class EditContract extends WordContentCtrls {
 
             async function searchs() {
                 const separator = '_&_';
-                const search = (await promptForInput([`Provide the search string. You can provide more than one string to search by separated by ${separator} witohout space`], separator) as string)?.split(separator) as string[];
+                const search = (await promptForInput<string>([`Provide the search string. You can provide more than one string to search by separated by ${separator} witohout space`], separator))
+                    ?.split(separator);
+
                 const matchWildcards = await promptConfirm('Match Wild Cards');
 
-                if (!styles) styles = (await promptForInput([`Provide the styles that that need to be matched separated by ","`]) as string)?.split(',').map(style => style.trim()) || [];
+                if (!styles) styles = (await promptForInput<string>([`Provide the styles that that need to be matched separated by ","`]))
+                    ?.split(',').map(style => style.trim()) || [];
                 return { search, matchWildcards }
             }
         }
@@ -1123,7 +1126,7 @@ export class EditContract extends WordContentCtrls {
                     const label = await labelRange(ctrl.hasLabel.id, context);
                     if (!label?.text) return showAlert("InsertClones() failed: The ContentControl to be replicated/cloned, must have a direct ContentControl child having as tag 'RTSection'. No such tag was found");
                     const message = `Combien de ${label.text} y'a-t-il ?`;
-                    let answer = Number(await promptForInput([message], '1') as string);
+                    let answer = Number(await promptForInput<string>([message], '1'));
                     if (isNaN(answer)) {
                         showAlert(`The provided text cannot be converted into a number: ${answer}`);
                         return await insertClones(ctrl);//reprompting the user
@@ -1228,8 +1231,14 @@ export class EditContract extends WordContentCtrls {
                 const ctrls = context.document.getContentControls();
                 ctrls.load(['id']);
                 await context.sync();
-                const ids = selectCtrls.filter(c => c.delete).map(c => c.id);
-                const toDelete = ctrls.items.filter(ctrl => ids.includes(ctrl.id));
+
+                ctrls.items
+                    .forEach(ctrl => ctrl.cannotDelete = false);//We remove any protection on all the contentControls in the documnet, in order for the user to be able to delete any contentControl if he wants.
+                const ids = selectCtrls
+                    .filter(c => c.delete)
+                    .map(c => c.id);
+                const toDelete = ctrls.items
+                    .filter(ctrl => ids.includes(ctrl.id));
 
                 console.log(`toDelete ids = ${toDelete.map(ctrl => ctrl.id)}`);
 
@@ -1237,10 +1246,6 @@ export class EditContract extends WordContentCtrls {
                 for (const ctrl of toDelete) {
                     try {
                         ctrl.select();
-                        const nested = ctrl.getContentControls();
-                        nested.load('id');
-                        await context.sync();
-                        [ctrl, ...nested.items].forEach(c => c.cannotDelete = false);
                         ctrl.delete(false);
                         await context.sync();
                     } catch (error) {
@@ -1688,38 +1693,56 @@ export class WordFileds extends WordContentCtrls {
     }
 
 
-    async insertAskField(range?: Word.Range) {
+    async insertAskField(range?: Word.Range, ref: boolean = true) {
+
+        const fieldCode = (answers: string[]) => {
+            const [bookmarkName, prompt] = answers;
+            if (bookmarkName.length > 39) return showAlert('The bookmark is too long, it should not exceed 40 characters');
+            return `${bookmarkName.replaceAll(' ', '')}  "${prompt}" \\d [*]`
+        }
+
+        const labels: [string, string] = ['Provide the name of the bookmark associated with the ASK Field (without spaces)', 'Provide the user prompt'];
 
         try {
-            const fieldCode = (answers: string[]) => {
-                const [bookmarkName, prompt] = answers;
-                return `${bookmarkName.replaceAll(' ', '')}  "${prompt}" \\d [*]`
-            }
-
-            const labels: [string, string] = ['Provide the name of the bookmark without spaces', 'Provide the user prompt'];
-
-            const values = await this.insertField(labels, Word.FieldType.ask, range, fieldCode);
+            const values = await this.insertField(labels, Word.FieldType.ask, range, fieldCode, ['result']);
             if (!values) throw new Error('Failed to insert the field');
-            const { answers } = values;
-            const [bookmark, prompt] = answers
-            return { bookmark, prompt }
+            const { field, answers } = values;
+            const [bookmark, prompt] = answers;
+
+
+            if (!ref) return { Ask: field, bookmark, prompt };
+
+            const Ref = await this.insertBookMarkField(field.result, Word.InsertLocation.after, bookmark);
+
+            if (!Ref) return { Ask: field, bookmark, prompt }
+
+            return { Ask: field, Ref: Ref.Ref, bookmark, prompt }
 
         } catch (error: any) {
             showAlert(`insertAskField() failed with error: ${error.debugInfo || error}`)
         }
+
     };
+
+    async insertBookMarkField(range: Word.Range, location: Word.InsertLocation, bookmark?: string, code?: string) {
+        if (!bookmark) bookmark = await promptForInput<string>(['Provide the name of the bookmark associated with the REF field (without spaces)'], '[*]');
+        if (!bookmark) return showAlert('The provided bookmark is not valid');
+        if (bookmark.length > 40) return showAlert(`The provided bookmark name is too long. It must be less than 40 characters`);
+        if (!code) code = `${bookmark.replaceAll(' ', '')} \\h`;
+        const Ref = range.insertField(location ?? Word.InsertLocation.after, Word.FieldType.ref, code);
+        return { Ref }
+    }
 
     async insertFIllINField(range?: Word.Range) {
 
+        const fieldCode = (answers: string[]) => {
+            const [prompt, deflt] = answers;
+            return `"${prompt}"  \\d ${deflt || '[*]'}`
+        }
+        const labels: [string, string] = ['Provide the FILLIN user prompt', 'Provide the FILLIN default value'];
+
         try {
-            const fieldCode = (answers: string[]) => {
-                const [prompt, deflt] = answers;
-                return `"${prompt}"  \\d ${deflt || '[*]'}`
-            }
-
-            const labels: [string, string] = ['Provide the FILLIN user prompt', 'Provide the FILLIN default value'];
-
-            await this.insertField(labels, Word.FieldType.fillIn, range, fieldCode);
+            await this.insertField(labels, Word.FieldType.fillIn, range, fieldCode, ['result']);
 
         } catch (error: any) {
             showAlert(`insertFILLINField() failed with error: ${error.debugInfo || error}`)
@@ -1727,15 +1750,18 @@ export class WordFileds extends WordContentCtrls {
         }
     };
 
-    async insertField(labels: string[], type: Word.FieldType, range?: Word.Range, fieldCode?: (answers: string[]) => string) {
+    async insertField(labels: string[], type: Word.FieldType, range?: Word.Range, fieldCode?: (answers: string[]) => string | void, props?: string[]) {
 
-        const answers = await promptForInput(labels, '[*]', undefined) as string[];
+        const answers = await promptForInput<string[]>(labels, '[*]', undefined);
+        if (!answers) return showAlert('Failed to retrieve the user\'s answers when he was prompted');
 
 
         return await Word.run(async (context) => {
             try {
                 if (!range) range = context.document.getSelection().getRange(Word.RangeLocation.whole);
-                const field = range.insertField(Word.InsertLocation.start, type, fieldCode ? fieldCode(answers) : undefined);
+                if (fieldCode && !fieldCode(answers)) return;
+                const field = range.insertField(Word.InsertLocation.start, type, fieldCode ? fieldCode(answers)! : undefined);
+                if (props) field.load(props);
                 field.track();
                 await context.sync();
                 return { field, answers }
