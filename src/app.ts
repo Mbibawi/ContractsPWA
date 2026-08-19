@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.19.7.8";
+const version = "v11.19.7.9";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -23,7 +23,7 @@ function mainUI(showVersion: boolean = true) {
     NOTIFICATION.innerHTML = ''
     insertVersion();
     new EditContract().showMainBtn();
-    new WordFileds().showMainBtn();
+    new WordFields().showMainBtn();
 
     function insertVersion() {
         if (!showVersion) return;
@@ -126,10 +126,11 @@ function insertBtn({ fun, label, hint }: Btn, append: boolean = true, on: string
     wraper.style.position = 'relative';
     wraper.style.display = 'inline-block';
     const htmlBtn = element('button', '', label, wraper, '', true);
+    if (hint) htmlBtn.title = hint;
 
     htmlBtn.addEventListener(on, () => fun());
-    const hintBox = addHint();
-    return { htmlBtn, wraper, hintBox }
+    //const hintBox = addHint();
+    return { htmlBtn, wraper }
     function addHint() {
         if (!hint) return
         const hintBox = element('div', 'hintBox', hint, wraper, '', true);
@@ -388,7 +389,7 @@ class WordContentCtrls {
 
 export class EditContract extends WordContentCtrls {
     private readonly _stylesListId = 'stylesList';
-    private readonly _fields = new WordFileds();
+    private readonly _fields = new WordFields();
     get stylesList() { return document.getElementById(this._stylesListId) }
     private readonly main: Btn[] =
         [
@@ -1533,7 +1534,7 @@ export class EditContract extends WordContentCtrls {
 
 };
 
-export class WordFileds extends WordContentCtrls {
+export class WordFields extends WordContentCtrls {
     private readonly _fillIn = Word.FieldType.fillIn;
     private readonly _ask = Word.FieldType.ask;
 

@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.19.7.8";
+const version = "v11.19.7.9";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -17,7 +17,7 @@ function mainUI(showVersion = true) {
     NOTIFICATION.innerHTML = '';
     insertVersion();
     new EditContract().showMainBtn();
-    new WordFileds().showMainBtn();
+    new WordFields().showMainBtn();
     function insertVersion() {
         if (!showVersion)
             return;
@@ -121,9 +121,11 @@ function insertBtn({ fun, label, hint }, append = true, on = 'click') {
     wraper.style.position = 'relative';
     wraper.style.display = 'inline-block';
     const htmlBtn = element('button', '', label, wraper, '', true);
+    if (hint)
+        htmlBtn.title = hint;
     htmlBtn.addEventListener(on, () => fun());
-    const hintBox = addHint();
-    return { htmlBtn, wraper, hintBox };
+    //const hintBox = addHint();
+    return { htmlBtn, wraper };
     function addHint() {
         if (!hint)
             return;
@@ -376,7 +378,7 @@ export class EditContract extends WordContentCtrls {
     constructor() {
         super(...arguments);
         this._stylesListId = 'stylesList';
-        this._fields = new WordFileds();
+        this._fields = new WordFields();
         this.main = [
             {
                 fun: this.customizeContract,
@@ -1378,7 +1380,7 @@ export class EditContract extends WordContentCtrls {
     }
 }
 ;
-export class WordFileds extends WordContentCtrls {
+export class WordFields extends WordContentCtrls {
     constructor() {
         super(...arguments);
         this._fillIn = Word.FieldType.fillIn;
