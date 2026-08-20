@@ -1,5 +1,5 @@
 /// <reference types="./types.d.ts" />
-const version = "v11.19.7.9";
+const version = "v11.19.8.0";
 let USERFORM, NOTIFICATION;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' };
 Office.onReady((info) => {
@@ -8,6 +8,7 @@ Office.onReady((info) => {
         return showAlert('This addin is designed to work on Word only');
     USERFORM = document.getElementById('userFormSection');
     NOTIFICATION = document.getElementById('notification');
+    NOTIFICATION.ondblclick = () => NOTIFICATION.innerHTML = '';
     mainUI();
 });
 function mainUI(showVersion = true) {

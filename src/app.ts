@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.19.7.9";
+const version = "v11.19.8.0";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -12,6 +12,7 @@ Office.onReady((info) => {
 
     USERFORM = document.getElementById('userFormSection') as HTMLDivElement;
     NOTIFICATION = document.getElementById('notification') as HTMLDivElement;
+    NOTIFICATION.ondblclick = () => NOTIFICATION.innerHTML = '';
 
     mainUI();
 });
