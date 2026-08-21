@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.19.8.0";
+const version = "v11.19.9";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -460,7 +460,7 @@ export class EditContract extends WordContentCtrls {
 
         const wrapRange = this.wrapSelectionWithContentControl.bind(this);
 
-        function wrap(title: string, tag: string, type: ContentControlType, cannotEdit: boolean, cannotDelete: boolean, label: string, style?: string, hint?: string) {
+        function btn(title: string, tag: string, type: ContentControlType, cannotEdit: boolean, cannotDelete: boolean, label: string, style?: string, hint?: string) {
             return {
                 fun: () => wrapRange(title, tag, type, cannotEdit, cannotDelete, style),
                 label,
@@ -472,18 +472,18 @@ export class EditContract extends WordContentCtrls {
         const all = (style: string, tag: string) => `Wraps all the pragraphs having as style ${style}, in a ${tag} contrentcontrol}`;
 
         const btns = [
-            wrap(this.RTSiTag, this.RTSiTag, this.richText, true, true, 'Si (Single)', undefined, single(this.RTSiTag)),
-            wrap(this.RTSelectTag, this.RTSelectTag, this.richText, false, true, 'Select (Single)', undefined, single(this.RTSelectTag, 'Any such contentControl is a container. Each contentcontrol having the same tag within its range, will be considered as an option to select or to exclude')),
+            btn(this.RTSiTag, this.RTSiTag, this.richText, false, true, 'Si (Single)', undefined, single(this.RTSiTag)),
+            btn(this.RTSelectTag, this.RTSelectTag, this.richText, false, true, 'Select (Single)', undefined, single(this.RTSelectTag, 'Any such contentControl is a container. Each contentcontrol having the same tag within its range, will be considered as an option to select or to exclude')),
             { fun: insertRTBlock_Select_Si, label: 'Block Select & Si', hint: 'Finds the first paragraph formatted with any of the RTSiStyles. Wraps this paragraph in a RTSi ContentControl, Then wraps the whol selected range in a RTSelect ContentControl.' },
             { fun: insertBlockAmount, label: 'Block Amount', hint: 'Inserts a ContentControl block containing a FILLIN field associated with a bookmark for the amount in figures and in text' },
             { fun: insertComboBox, label: 'Dropdown List from selection', hint: 'Creates a dropwdown list from the selected string. The options to choose from must be separated by "/"' },
             { fun: () => insertRTDescription(true), label: 'Description (Single)', hint: single(this.RTDescriptionTag) },
             { fun: this.insertSingleFiled, label: 'ContentControl Field', hint: single(this.RTFieldTag) },
             { fun: insertFILLINField, label: 'FILLIN Field', hint: single(this.RTFieldTag) },
-            wrap(this.RTSectionTag, this.RTSectionTag, this.richText, true, true, 'Section (Single)', this.RTSectionStyle, single(this.RTSectionTag)),
+            btn(this.RTSectionTag, this.RTSectionTag, this.richText, false, true, 'Section (Single)', this.RTSectionStyle, single(this.RTSectionTag)),
             //wrap(this.RTOrTag, this.RTOrTag, this.richText, null, false, true, 'Insert Single RT OR', single(this.RTOrTag, 'need to check what it does')),
-            wrap(this.RTCloneTag, this.RTCloneTag, this.richText, false, true, 'Block Clone', undefined, single(this.RTCloneTag, 'need to check what it does')),
-            wrap(this.RTObsTag, this.RTObsTag, this.richText, true, true, 'Observation (Single)', this.RTObsStyle, single(this.RTObsTag)),
+            btn(this.RTCloneTag, this.RTCloneTag, this.richText, false, true, 'Block Clone', undefined, single(this.RTCloneTag, 'need to check what it does')),
+            btn(this.RTObsTag, this.RTObsTag, this.richText, false, true, 'Observation (Single)', this.RTObsStyle, single(this.RTObsTag)),
             { fun: insertDropDownListAll, label: 'Insert DropDown List For All Matches', hint: 'It will check the document for all the strings matching the "/" separated values of the selected range and will convert them into drowpdown lists. The matching strings do not need to include the "/" mark' },
             { fun: insertRTSiAll, label: 'Si For All', hint: all(this.RTSiStyles.join(' or '), this.RTSiTag) },
             { fun: insertRTSectionAll, label: 'Section For All', hint: all(this.RTSectionStyle, this.RTSectionTag) },
@@ -544,9 +544,9 @@ export class EditContract extends WordContentCtrls {
             if (selection) {
                 const range = await getSelectionRange();
                 if (!range) return
-                ctrls.push(await insertContentControl(range, descTag, descTag, 0, richText, descStyle, true, true, undefined, ['id']));
+                ctrls.push(await insertContentControl(range, descTag, descTag, 0, richText, descStyle, false, true, undefined, ['id']));
             }
-            else ctrls = await findTextAndWrapItWithContentControl([descStyle], descTag, descTag, true, true);
+            else ctrls = await findTextAndWrapItWithContentControl([descStyle], descTag, descTag, false, true);
 
             if (!ctrls?.length) return;
 
