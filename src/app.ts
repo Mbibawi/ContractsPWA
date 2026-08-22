@@ -1,6 +1,6 @@
 /// <reference types="./types.d.ts" />
 
-const version = "v11.19.9";
+const version = "v11.19.9.1";
 
 let USERFORM: HTMLDivElement, NOTIFICATION: HTMLDivElement;
 const goHome = { fun: () => mainUI(false), label: 'Home', hint: 'Return to the main menu of the app' } as Btn;
@@ -468,7 +468,7 @@ export class EditContract extends WordContentCtrls {
             } as Btn
         };
 
-        const single = (tag: string, other?: string) => `Inserts a single ${tag} contentcontrol at the begining of the selected range. ${other}If no range is selected, it will return.`;
+        const single = (tag: string, other?: string) => `Inserts a single ${tag} contentcontrol at the begining of the selected range. ${other ?? ''}If no range is selected, it will return.`;
         const all = (style: string, tag: string) => `Wraps all the pragraphs having as style ${style}, in a ${tag} contrentcontrol}`;
 
         const btns = [
@@ -681,7 +681,7 @@ export class EditContract extends WordContentCtrls {
                     const si = select.paragraphs.items.find(p => siStyle.includes(p.style));
                     if (!si) return showAlert('No paragraph styled with on of the "RTSi" styles was found in the selected range');
                     //Wraping the paragraph with ContentControl "RTSi"
-                    await insertContentControl(si, siTag, siTag, undefined, richText, si.style, true, true);
+                    await insertContentControl(si, siTag, siTag, undefined, richText, si.style, false, true);
                     [range, select, si].forEach(obj => obj.untrack());
                     await context.sync();
                     return select
